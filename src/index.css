@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+@theme {
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #e2e8f0;
+  --color-slate-200: #cbd5e1;
+  --color-slate-300: #94a3b8;
+  --color-slate-400: #8f9ca8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #384252;
+  --color-slate-800: #2c353f;
+  --color-slate-900: #252b35;
+  --color-slate-950: #2c343e;
+  
+  --color-zinc-100: #e2e8f0;
+  --color-zinc-200: #d1d7e0;
+  --color-zinc-300: #cbd5e1;
+  --color-zinc-400: #8f9ca8;
+  --color-zinc-500: #64748b;
+  --color-zinc-650: #3e4854;
+  --color-zinc-700: #384252;
+  --color-zinc-800: #252c35;
+  --color-zinc-850: #2a313b;
+  --color-zinc-900: #20262e;
+  --color-zinc-950: #2c343e;
+
+  --color-indigo-50: #f0f3ff;
+  --color-indigo-100: #e0e6ff;
+  --color-indigo-200: #c7d2fe;
+  --color-indigo-300: #a5b4fc;
+  --color-indigo-400: #7b83eb;
+  --color-indigo-550: #5f66d6;
+  --color-indigo-600: #555cbd;
+  --color-indigo-700: #494fa3;
+  --color-indigo-900: #313669;
+  --color-indigo-950: #1b1e38;
+
+  --color-blue-400: #6ea0e6;
+  --color-blue-500: #5585cc;
+  --color-blue-600: #4772b0;
+  --color-blue-900: #2d4c7b;
+
+  --color-rose-450: #cf7c7d;
+  --color-rose-400: #cf7c7d;
+  --color-rose-350: #e8999a;
+
+  --color-amber-450: #cca262;
+  --color-amber-400: #cca262;
+  --color-amber-350: #dfb87c;
+
+  --color-emerald-450: #68ab84;
+  --color-emerald-400: #68ab84;
+  --color-emerald-350: #7fbf9a;
+
+  --font-sans: "Outfit", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Roboto Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  body {
+    @apply bg-zinc-950 text-zinc-200 antialiased font-sans;
+  }
+
+  /* Custom minimal scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #27272a; /* zinc-800 */
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3f3f46; /* zinc-700 */
+  }
+
+  /* Firefox support */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #27272a transparent;
+  }
+}
+
+@layer components {
+  /* State selectors (tabs) */
+  .state-selector {
+    @apply flex space-x-1 rounded-md bg-zinc-800/50 p-1 border border-zinc-700/50;
+  }
+  .state-selector-tab {
+    @apply px-3 py-1.5 text-sm font-medium rounded-sm transition-colors;
+  }
+  .state-selector-tab.active {
+    @apply bg-zinc-700 text-white shadow-sm;
+  }
+  .state-selector-tab:not(.active) {
+    @apply text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50;
+  }
+  
+  /* Academy Cards */
+  .academy-card {
+    @apply bg-zinc-800/40 border border-zinc-700/50 rounded-xl p-6 transition-all duration-300 hover:bg-zinc-800/60 hover:border-zinc-600/50 hover:shadow-lg hover:shadow-zinc-950/40 flex flex-col;
+  }
+  
+  /* Metric Widget */
+  .metric-widget {
+    @apply bg-zinc-800/40 border border-zinc-700/50 rounded-lg p-4 flex flex-col space-y-1 transition-all duration-200 hover:bg-zinc-800/60;
+  }
+  .metric-value {
+    @apply font-mono text-2xl font-bold text-white;
+  }
+  .metric-label {
+    @apply text-xs font-medium text-zinc-400 uppercase tracking-wider;
+  }
+  
+  /* Hide scrollbars but keep functionality */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+}
