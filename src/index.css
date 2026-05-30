@@ -1,58 +1,58 @@
 @import "tailwindcss";
 
 @theme {
-  --color-slate-50: #f8fafc;
-  --color-slate-100: #e2e8f0;
-  --color-slate-200: #cbd5e1;
-  --color-slate-300: #94a3b8;
-  --color-slate-400: #8f9ca8;
-  --color-slate-500: #64748b;
-  --color-slate-600: #475569;
-  --color-slate-700: #384252;
-  --color-slate-800: #2c353f;
-  --color-slate-900: #252b35;
-  --color-slate-950: #2c343e;
+  --color-zinc-950: #181a1f;
+  --color-zinc-900: #20232a;
+  --color-zinc-850: #292d35;
+  --color-zinc-800: #333945;
+  --color-zinc-700: #444d5c;
+  --color-zinc-650: #556072;
+  --color-zinc-600: #6f7c8f;
+  --color-zinc-550: #8793a3;
+  --color-zinc-500: #9ca6b4;
+  --color-zinc-450: #b0b8c4;
+  --color-zinc-400: #c2c9d3;
+  --color-zinc-350: #d2d8df;
+  --color-zinc-300: #dee3e8;
+  --color-zinc-250: #e7eaee;
+  --color-zinc-200: #f1f3f5;
+  --color-zinc-100: #f8f9fb;
+
+  --color-slate-950: #181a1f;
+  --color-slate-900: #20232a;
+  --color-slate-850: #292d35;
+  --color-slate-800: #333945;
+  --color-slate-700: #444d5c;
+  --color-slate-600: #6f7c8f;
+  --color-slate-500: #9ca6b4;
+  --color-slate-400: #c2c9d3;
+  --color-slate-300: #dee3e8;
+  --color-slate-200: #f1f3f5;
+  --color-slate-100: #f8f9fb;
+
+  --color-indigo-950: #1f2634;
+  --color-indigo-900: #29364d;
+  --color-indigo-700: #6480ad;
+  --color-indigo-655: #7590ba;
+  --color-indigo-650: #7590ba;
+  --color-indigo-600: #87a1c9;
+  --color-indigo-550: #98afd4;
+  --color-indigo-500: #a9bddf;
+  --color-indigo-400: #bbcae8;
+  --color-indigo-300: #c8d5ee;
+  --color-indigo-200: #d5dff3;
+  --color-indigo-100: #e3e9f8;
+  --color-indigo-50: #f0f3fc;
+
+  --color-blue-950: #1f2634;
+  --color-blue-900: #29364d;
+  --color-blue-750: #6480ad;
+  --color-blue-700: #7590ba;
+  --color-blue-600: #87a1c9;
+  --color-blue-500: #a9bddf;
+  --color-blue-400: #bbcae8;
+  --color-blue-300: #c8d5ee;
   
-  --color-zinc-100: #e2e8f0;
-  --color-zinc-200: #d1d7e0;
-  --color-zinc-300: #cbd5e1;
-  --color-zinc-400: #8f9ca8;
-  --color-zinc-500: #64748b;
-  --color-zinc-650: #3e4854;
-  --color-zinc-700: #384252;
-  --color-zinc-800: #252c35;
-  --color-zinc-850: #2a313b;
-  --color-zinc-900: #20262e;
-  --color-zinc-950: #2c343e;
-
-  --color-indigo-50: #f0f3ff;
-  --color-indigo-100: #e0e6ff;
-  --color-indigo-200: #c7d2fe;
-  --color-indigo-300: #a5b4fc;
-  --color-indigo-400: #7b83eb;
-  --color-indigo-550: #5f66d6;
-  --color-indigo-600: #555cbd;
-  --color-indigo-700: #494fa3;
-  --color-indigo-900: #313669;
-  --color-indigo-950: #1b1e38;
-
-  --color-blue-400: #6ea0e6;
-  --color-blue-500: #5585cc;
-  --color-blue-600: #4772b0;
-  --color-blue-900: #2d4c7b;
-
-  --color-rose-450: #cf7c7d;
-  --color-rose-400: #cf7c7d;
-  --color-rose-350: #e8999a;
-
-  --color-amber-450: #cca262;
-  --color-amber-400: #cca262;
-  --color-amber-350: #dfb87c;
-
-  --color-emerald-450: #68ab84;
-  --color-emerald-400: #68ab84;
-  --color-emerald-350: #7fbf9a;
-
   --font-sans: "Outfit", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "Roboto Mono", ui-monospace, monospace;
 }
@@ -60,60 +60,85 @@
 @layer base {
   body {
     @apply bg-zinc-950 text-zinc-200 antialiased font-sans;
+    transition: background-color 200ms ease, color 200ms ease;
   }
 
-  /* Custom minimal scrollbar */
+  /* Custom high-tech minimal scrollbar */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: transparent;
+    background: #06090c;
   }
   ::-webkit-scrollbar-thumb {
-    background: #27272a; /* zinc-800 */
+    background: #1b262f; /* slate-700 override */
+    border: 1px solid rgba(0, 242, 254, 0.1);
     border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #3f3f46; /* zinc-700 */
+    background: #2a3c4a;
+    border-color: rgba(0, 242, 254, 0.3);
   }
 
   /* Firefox support */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #27272a transparent;
+    scrollbar-color: #1b262f #06090c;
   }
 }
 
 @layer components {
   /* State selectors (tabs) */
   .state-selector {
-    @apply flex space-x-1 rounded-md bg-zinc-800/50 p-1 border border-zinc-700/50;
+    @apply flex space-x-1 rounded-xl bg-zinc-900/80 p-1 border border-zinc-800/80 backdrop-blur-md;
   }
   .state-selector-tab {
-    @apply px-3 py-1.5 text-sm font-medium rounded-sm transition-colors;
+    @apply px-4 py-2 text-xs font-semibold uppercase tracking-wider rounded-lg transition-all duration-200 font-mono cursor-pointer;
   }
   .state-selector-tab.active {
-    @apply bg-zinc-700 text-white shadow-sm;
+    @apply bg-indigo-950/50 text-indigo-400 border border-indigo-500/30 shadow-[0_0_12px_rgba(0,242,254,0.12)];
   }
   .state-selector-tab:not(.active) {
-    @apply text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50;
+    @apply text-zinc-500 hover:text-zinc-300 hover:bg-zinc-850/50;
   }
   
-  /* Academy Cards */
+  /* Academy Cards - extending cyber-panel styles */
   .academy-card {
-    @apply bg-zinc-800/40 border border-zinc-700/50 rounded-xl p-6 transition-all duration-300 hover:bg-zinc-800/60 hover:border-zinc-600/50 hover:shadow-lg hover:shadow-zinc-950/40 flex flex-col;
+    @apply bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-6 transition-all duration-300 flex flex-col relative overflow-hidden backdrop-blur-md;
+    box-shadow: 
+      0 4px 20px rgba(0, 0, 0, 0.4),
+      inset 0 1px 1px rgba(255, 255, 255, 0.05),
+      0 0 15px -3px rgba(0, 242, 254, 0.03);
+  }
+  .academy-card:hover {
+    @apply border-indigo-500/30 -translate-y-1 bg-zinc-900/85;
+    box-shadow: 
+      0 12px 30px rgba(0, 0, 0, 0.6),
+      inset 0 1px 1px rgba(255, 255, 255, 0.08),
+      0 0 20px -2px rgba(0, 242, 254, 0.12);
   }
   
   /* Metric Widget */
   .metric-widget {
-    @apply bg-zinc-800/40 border border-zinc-700/50 rounded-lg p-4 flex flex-col space-y-1 transition-all duration-200 hover:bg-zinc-800/60;
+    @apply bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-5 flex flex-col space-y-1.5 transition-all duration-300 backdrop-blur-md relative overflow-hidden;
+    box-shadow: 
+      0 4px 20px rgba(0, 0, 0, 0.4),
+      inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  }
+  .metric-widget:hover {
+    @apply border-indigo-500/25 bg-zinc-900/80;
+    box-shadow: 
+      0 8px 25px rgba(0, 0, 0, 0.5),
+      inset 0 1px 1px rgba(255, 255, 255, 0.08),
+      0 0 15px -3px rgba(0, 242, 254, 0.08);
   }
   .metric-value {
     @apply font-mono text-2xl font-bold text-white;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
   }
   .metric-label {
-    @apply text-xs font-medium text-zinc-400 uppercase tracking-wider;
+    @apply text-[10px] font-bold text-zinc-400 uppercase tracking-widest;
   }
   
   /* Hide scrollbars but keep functionality */
@@ -123,5 +148,59 @@
   .no-scrollbar {
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
+  }
+}
+
+/* Background grid pattern (disabled for solid color backdrop) */
+.cyber-grid {}
+
+/* Glassmorphism panel with custom border and cyan neon drop shadow */
+.cyber-panel {
+  background: rgba(9, 14, 18, 0.75);
+  backdrop-filter: blur(12px) saturate(120%);
+  border: 1px solid rgba(0, 242, 254, 0.12);
+  box-shadow: 
+    0 4px 30px rgba(0, 0, 0, 0.4),
+    inset 0 1px 1px rgba(255, 255, 255, 0.04),
+    0 0 15px -3px rgba(0, 242, 254, 0.02);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cyber-panel-hover:hover {
+  border-color: rgba(0, 242, 254, 0.3);
+  box-shadow: 
+    0 10px 40px rgba(0, 0, 0, 0.55),
+    inset 0 1px 1px rgba(255, 255, 255, 0.07),
+    0 0 20px -2px rgba(0, 242, 254, 0.12);
+  transform: translateY(-1px);
+}
+
+/* Glowing badge bubble */
+.cyber-badge {
+  box-shadow: 0 0 8px rgba(0, 242, 254, 0.35);
+  animation: pulse-glow-subtle 2.5s infinite ease-in-out;
+}
+
+/* Blinking terminal cursor */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.terminal-cursor::after {
+  content: '▋';
+  display: inline-block;
+  color: var(--color-indigo-400);
+  margin-left: 2px;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes pulse-glow-subtle {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(0, 242, 254, 0.2);
+    border-color: rgba(0, 242, 254, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(0, 242, 254, 0.45);
+    border-color: rgba(0, 242, 254, 0.55);
   }
 }

@@ -1,70 +1,141 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AuthContext } from './AuthContext';
-import { mockDb } from '../utils/mockDb';
+import { supabase } from '../utils/supabaseClient';
 
 export function AuthProvider({ children }) {
-  // Inicialización perezosa de la sesión para evitar llamadas a setState en useEffect
-  const [user, setUser] = useState(() => {
-    const savedUser = localStorage.getItem('nomada_session');
-    if (savedUser) {
-      try {
-        return JSON.parse(savedUser);
-      } catch (e) {
-        console.error('Error cargando la sesión persistida:', e);
-        localStorage.removeItem('nomada_session');
-      }
-    }
-    return null;
-  });
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const login = async (email, password) => {
-    // Simular retraso de red
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    let usersList = await mockDb.users.getAll();
-
-    // Auto-sanación: Garantizar que los usuarios de prueba siempre existan en el LocalStorage
-    const hasAdmin = usersList.some(u => u.email.toLowerCase() === 'admin@nomadahub.es');
-    const hasStudent = usersList.some(u => u.email.toLowerCase() === 'nomada@nomadahub.es');
-    if (!hasAdmin || !hasStudent) {
-      localStorage.removeItem('nomada_users');
-      usersList = await mockDb.users.getAll();
-    }
-
-    const foundUser = usersList.find(
-      u => u.email.toLowerCase() === email.toLowerCase().trim() && u.password === password
-    );
-
-    if (foundUser) {
-      // Guardar todo el perfil excepto la contraseña en el estado de sesión
-      const { password: _, ...sessionUser } = foundUser;
+  // Helper para obtener el perfil detallado del usuario de la base de datos
+  const fetchProfile = async (uid) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', uid)
+        .single();
       
-      setUser(sessionUser);
-      localStorage.setItem('nomada_session', JSON.stringify(sessionUser));
-      return sessionUser;
-    } else {
-      throw new Error('Credenciales incorrectas. Intenta con admin@nomadahub.es / admin123 o nomada@nomadahub.es / nomada123.');
+      if (error) throw error;
+      
+      // Mapear campos de base de datos (snake_case) a formato del frontend (camelCase)
+      return {
+        id: data.id,
+        name: data.name,
+        role: data.role,
+        passport: data.passport,
+        nie: data.nie,
+        address: data.address,
+        postalCode: data.postal_code,
+        arrivalDate: data.arrival_date,
+        absences: data.absences || 0,
+        aeatDate: data.aeat_date,
+        ssDate: data.ss_date,
+        allowedResources: data.allowed_resources || [],
+        residencyDoc: data.residency_doc,
+        email: data.email
+      };
+    } catch (e) {
+      console.error('Error al obtener el perfil de usuario:', e);
+      return null;
     }
   };
 
-  const logout = () => {
+  useEffect(() => {
+    // Flag to prevent updates on unmounted component
+    let mounted = true;
+
+    // 1. Initial session check
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session && mounted) {
+          const profile = await fetchProfile(session.user.id);
+          if (profile && mounted) {
+            setUser({
+              id: session.user.id,
+              email: session.user.email,
+              ...profile
+            });
+          }
+        }
+      } catch (e) {
+        console.error('Error verificando la sesión activa:', e);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    checkSession();
+
+    // 2. Auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (session) {
+          // Only fetch profile if user info has changed or not yet set
+          const profile = await fetchProfile(session.user.id);
+          if (profile && mounted) {
+            setUser({
+              id: session.user.id,
+              email: session.user.email,
+              ...profile
+            });
+          }
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+      }
+      
+      // Ensure loading is false after handling the event
+      if (mounted) setLoading(false);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const login = async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password: password
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+    
+    const profile = await fetchProfile(data.user.id);
+    const sessionUser = {
+      id: data.user.id,
+      email: data.user.email,
+      ...profile
+    };
+    setUser(sessionUser);
+    return sessionUser;
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem('nomada_session');
   };
 
   const refreshUser = async () => {
     if (!user) return;
-    const usersList = await mockDb.users.getAll();
-    const updatedUser = usersList.find(u => u.id === user.id);
-    if (updatedUser) {
-      const { password: _, ...sessionUser } = updatedUser;
-      setUser(sessionUser);
-      localStorage.setItem('nomada_session', JSON.stringify(sessionUser));
+    const profile = await fetchProfile(user.id);
+    if (profile) {
+      setUser({
+        id: user.id,
+        email: user.email,
+        ...profile
+      });
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

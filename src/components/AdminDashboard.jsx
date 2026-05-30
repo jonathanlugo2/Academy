@@ -3,12 +3,15 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { mockDb } from '../utils/mockDb';
 import { 
-  LayoutDashboard, BookOpen, MessageSquare, LogOut, Plus, 
-  Trash2, Send, CheckCircle2, AlertCircle, Compass, FileText, 
-  Video, Presentation, Tag, ExternalLink, Calendar, Users, 
-  UserPlus, User, MapPin, Download, Sparkles, Scale, ChevronLeft, ChevronRight,
-  Code, Edit2, Upload
+  ExternalLink, Video, Presentation, FileText, Code
 } from 'lucide-react';
+
+// Import refactored components
+import AdminSidebar from '../features/admin/AdminSidebar';
+import MetricsOverview from '../features/admin/MetricsOverview';
+import ResourceUploader from '../features/admin/ResourceUploader';
+import UserManagementTable from '../features/admin/UserManagementTable';
+import MessagesPanel from '../features/admin/MessagesPanel';
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
@@ -44,10 +47,15 @@ export default function AdminDashboard() {
   const [formSuccess, setFormSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingResourceId, setEditingResourceId] = useState(null);
+  const [previewResource, setPreviewResource] = useState(null);
 
   // States for replies
   const [replyText, setReplyText] = useState({});
   const [submittingReply, setSubmittingReply] = useState({});
+
+  // States for User Assignment in Content Creation Form
+  const [selectedAssignUserIds, setSelectedAssignUserIds] = useState([]);
+  const [studentSearchQuery, setStudentSearchQuery] = useState('');
 
   // States for User Management
   const [selectedUser, setSelectedUser] = useState(null);
@@ -68,6 +76,7 @@ export default function AdminDashboard() {
   
   const [userError, setUserError] = useState('');
   const [userSuccess, setUserSuccess] = useState('');
+  const [editingUserId, setEditingUserId] = useState(null);
   const [creatingUser, setCreatingUser] = useState(false);
 
   // Cargar datos
@@ -125,40 +134,66 @@ export default function AdminDashboard() {
 
     setIsSubmitting(true);
     try {
+      let savedResource;
       if (editingResourceId) {
         // Modo Edición
-        await mockDb.resources.update(editingResourceId, {
+        savedResource = await mockDb.resources.update(editingResourceId, {
           title: newTitle,
           type: newType,
           url: newUrl,
           description: newDesc,
           category: newCategory,
-          tags: newTags
+          tags: newTags ? newTags.split(',').map(t => t.trim()) : []
         });
         setFormSuccess('¡Recurso formativo actualizado con éxito!');
         setEditingResourceId(null);
       } else {
         // Modo Creación
-        await mockDb.resources.create({
+        savedResource = await mockDb.resources.create({
           title: newTitle,
           type: newType,
           url: newUrl,
           description: newDesc,
           category: newCategory,
-          tags: newTags
+          tags: newTags ? newTags.split(',').map(t => t.trim()) : []
         });
         setFormSuccess('¡Recurso formativo creado con éxito!');
       }
 
+      const resourceId = savedResource.id;
+
+      // Sincronizar asignación de entrenamientos autorizados en los perfiles de los estudiantes
+      const allStudents = users.filter(u => u.role === 'student');
+      const updatePromises = allStudents.map(async (student) => {
+        const isSelected = selectedAssignUserIds.includes(student.id);
+        const hasAccess = (student.allowedResources || []).includes(resourceId);
+        
+        if (isSelected && !hasAccess) {
+          const newAllowed = [...(student.allowedResources || []), resourceId];
+          return mockDb.users.update(student.id, { allowedResources: newAllowed });
+        } else if (!isSelected && hasAccess) {
+          const newAllowed = (student.allowedResources || []).filter(id => id !== resourceId);
+          return mockDb.users.update(student.id, { allowedResources: newAllowed });
+        }
+      });
+      await Promise.all(updatePromises);
+
+      // Limpiar estados
       setNewTitle('');
       setNewUrl('');
       setNewDesc('');
       setNewTags('');
       setNewType('document');
       setNewCategory('Trámites y Visados');
+      setSelectedAssignUserIds([]);
+      setStudentSearchQuery('');
       
       const updated = await mockDb.resources.getAll();
       setResources(updated);
+      
+      // Recargar lista de usuarios para mantener sincronizada la vista lateral de detalles
+      const updatedUsers = await mockDb.users.getAll();
+      setUsers(updatedUsers);
     } catch (err) {
       setFormError('Error al procesar el recurso: ' + err.message);
     } finally {
@@ -204,6 +239,14 @@ export default function AdminDashboard() {
     setNewDesc(resource.description);
     setNewCategory(resource.category || 'Trámites y Visados');
     setNewTags(resource.tags ? resource.tags.join(', ') : '');
+    
+    // Cargar estudiantes que ya tienen este entrenamiento asignado
+    const studentsWithAccess = users
+      .filter(u => u.role === 'student' && (u.allowedResources || []).includes(resource.id))
+      .map(u => u.id);
+    setSelectedAssignUserIds(studentsWithAccess);
+    setStudentSearchQuery('');
+
     setFormError('');
     setFormSuccess('');
     
@@ -223,6 +266,8 @@ export default function AdminDashboard() {
     setNewTags('');
     setNewType('document');
     setNewCategory('Trámites y Visados');
+    setSelectedAssignUserIds([]);
+    setStudentSearchQuery('');
     setFormError('');
     setFormSuccess('');
   };
@@ -267,55 +312,259 @@ export default function AdminDashboard() {
     setUserError('');
     setUserSuccess('');
 
-    if (!uEmail.trim() || !uPassword.trim() || !uName.trim()) {
-      setUserError('Nombre, Correo y Contraseña son campos obligatorios.');
-      return;
-    }
+    if (editingUserId) {
+      if (!uEmail.trim() || !uName.trim()) {
+        setUserError('Nombre y Correo son campos obligatorios.');
+        return;
+      }
+    } else {
+      if (!uEmail.trim() || !uPassword.trim() || !uName.trim()) {
+        setUserError('Nombre, Correo y Contraseña son campos obligatorios.');
+        return;
+      }
 
-    if (uPassword.length < 6) {
-      setUserError('La contraseña debe tener al menos 6 caracteres.');
-      return;
+      if (uPassword.length < 6) {
+        setUserError('La contraseña debe tener al menos 6 caracteres.');
+        return;
+      }
     }
 
     setCreatingUser(true);
     try {
-      await mockDb.users.create({
-        email: uEmail,
-        password: uPassword,
-        name: uName,
-        role: uRole,
-        passport: uPassport.trim() || null,
-        nie: uNie.trim() || null,
-        address: uAddress.trim() || null,
-        postalCode: uPostalCode.trim() || null,
-        arrivalDate: uArrivalDate || null,
-        aeatDate: uAeatDate || null,
-        ssDate: uSsDate || null
-      });
+      if (editingUserId) {
+        // Modo Edición
+        const updated = await mockDb.users.update(editingUserId, {
+          name: uName,
+          role: uRole,
+          passport: uPassport.trim() || null,
+          nie: uNie.trim() || null,
+          address: uAddress.trim() || null,
+          postalCode: uPostalCode.trim() || null,
+          arrivalDate: uArrivalDate || null,
+          aeatDate: uAeatDate || null,
+          ssDate: uSsDate || null
+        });
 
-      // Limpiar formulario
-      setUEmail('');
-      setUPassword('');
-      setUName('');
-      setURole('student');
-      setUPassport('');
-      setUNie('');
-      setUAddress('');
-      setUPostalCode('');
-      setUArrivalDate('');
-      setUAeatDate('');
-      setUSsDate('');
+        // Limpiar formulario y cerrar edición
+        setUEmail('');
+        setUPassword('');
+        setUName('');
+        setURole('student');
+        setUPassport('');
+        setUNie('');
+        setUAddress('');
+        setUPostalCode('');
+        setUArrivalDate('');
+        setUAeatDate('');
+        setUSsDate('');
 
-      setUserSuccess('¡Usuario registrado correctamente!');
+        setUserSuccess('¡Usuario actualizado correctamente!');
+        setEditingUserId(null);
+        setSelectedUser(updated); // Actualizar panel de detalles
+        setShowCreateUserForm(false);
+      } else {
+        // Modo Creación
+        await mockDb.users.create({
+          email: uEmail,
+          password: uPassword,
+          name: uName,
+          role: uRole,
+          passport: uPassport.trim() || null,
+          nie: uNie.trim() || null,
+          address: uAddress.trim() || null,
+          postalCode: uPostalCode.trim() || null,
+          arrivalDate: uArrivalDate || null,
+          aeatDate: uAeatDate || null,
+          ssDate: uSsDate || null
+        });
+
+        // Limpiar formulario
+        setUEmail('');
+        setUPassword('');
+        setUName('');
+        setURole('student');
+        setUPassport('');
+        setUNie('');
+        setUAddress('');
+        setUPostalCode('');
+        setUArrivalDate('');
+        setUAeatDate('');
+        setUSsDate('');
+
+        setUserSuccess('¡Usuario registrado correctamente!');
+      }
       
       // Recargar lista de usuarios
-      const updated = await mockDb.users.getAll();
-      setUsers(updated);
+      const updatedList = await mockDb.users.getAll();
+      setUsers(updatedList);
     } catch (err) {
       setUserError(err.message);
     } finally {
       setCreatingUser(false);
     }
+  };
+
+  // Handler para iniciar edición de usuario
+  const handleStartEditUser = (userToEdit) => {
+    setEditingUserId(userToEdit.id);
+    setUName(userToEdit.name || '');
+    setUEmail(userToEdit.email || '');
+    setUPassword(''); // La contraseña no se edita aquí
+    setURole(userToEdit.role || 'student');
+    setUPassport(userToEdit.passport || '');
+    setUNie(userToEdit.nie || '');
+    setUAddress(userToEdit.address || '');
+    setUPostalCode(userToEdit.postalCode || '');
+    setUArrivalDate(userToEdit.arrivalDate || '');
+    setUAeatDate(userToEdit.aeatDate || '');
+    setUSsDate(userToEdit.ssDate || '');
+    
+    setUserError('');
+    setUserSuccess('');
+    setShowCreateUserForm(true);
+  };
+
+  // Handler para cancelar edición de usuario
+  const handleCancelEditUser = () => {
+    setEditingUserId(null);
+    setUName('');
+    setUEmail('');
+    setUPassword('');
+    setURole('student');
+    setUPassport('');
+    setUNie('');
+    setUAddress('');
+    setUPostalCode('');
+    setUArrivalDate('');
+    setUAeatDate('');
+    setUSsDate('');
+    setUserError('');
+    setUserSuccess('');
+    
+    if (selectedUser) {
+      setShowCreateUserForm(false);
+    }
+  };
+
+  const renderPreviewPlayer = () => {
+    if (!previewResource) return null;
+
+    let embedUrl = previewResource.url || '';
+    let isEmbeddable = false;
+    let isVideoTag = false;
+
+    // Detect YouTube
+    if (embedUrl.includes('youtube.com/watch?v=')) {
+      const videoId = embedUrl.split('v=')[1]?.split('&')[0];
+      if (videoId) {
+        embedUrl = `https://www.youtube.com/embed/${videoId}`;
+        isEmbeddable = true;
+      }
+    } else if (embedUrl.includes('youtu.be/')) {
+      const videoId = embedUrl.split('youtu.be/')[1]?.split('?')[0];
+      if (videoId) {
+        embedUrl = `https://www.youtube.com/embed/${videoId}`;
+        isEmbeddable = true;
+      }
+    }
+    // Detect Vimeo
+    else if (embedUrl.includes('vimeo.com/')) {
+      const videoId = embedUrl.split('vimeo.com/')[1]?.split('?')[0]?.split('#')[0];
+      if (videoId) {
+        embedUrl = `https://player.vimeo.com/video/${videoId}`;
+        isEmbeddable = true;
+      }
+    }
+    // Detect Google Slides
+    else if (embedUrl.includes('docs.google.com/presentation/d/')) {
+      const base = embedUrl.split('/edit')[0].split('/pub')[0];
+      embedUrl = `${base}/embed?start=false&loop=false&delayms=3000`;
+      isEmbeddable = true;
+    }
+    // Detect PDF
+    else if (previewResource.type === 'document' || embedUrl.toLowerCase().endsWith('.pdf') || embedUrl.toLowerCase().includes('.pdf?')) {
+      isEmbeddable = true;
+    }
+    // Detect direct video
+    else if (embedUrl.toLowerCase().endsWith('.mp4') || embedUrl.toLowerCase().endsWith('.webm') || embedUrl.toLowerCase().endsWith('.ogg')) {
+      isVideoTag = true;
+    }
+
+    // Extract iframe src if raw HTML is pasted
+    if (previewResource.type === 'html_video' || embedUrl.trim().startsWith('<')) {
+      const srcMatch = embedUrl.match(/src=["'](.*?)["']/);
+      if (srcMatch && srcMatch[1]) {
+        embedUrl = srcMatch[1];
+        isEmbeddable = true;
+      }
+    }
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/90 backdrop-blur-md">
+        <div className="bg-zinc-950/90 border border-zinc-800/80 rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+          <div className="h-14 border-b border-zinc-850 px-6 flex items-center justify-between bg-zinc-950/40 shrink-0 font-mono text-xs uppercase">
+            <div>
+              <span className="text-[9px] text-indigo-400 font-bold uppercase tracking-wider bg-indigo-950/45 border border-indigo-500/25 px-2 py-1 rounded-md">
+                VISTA PREVIA ADMIN
+              </span>
+              <h3 className="text-xs font-bold text-zinc-350 mt-2.5 truncate max-w-lg">{previewResource.title}</h3>
+            </div>
+            <button 
+              onClick={() => setPreviewResource(null)}
+              className="text-[10px] text-zinc-400 hover:text-zinc-200 font-bold bg-zinc-900 hover:bg-zinc-800 border border-zinc-805 px-3 py-2 rounded-lg cursor-pointer transition-colors"
+            >
+              CERRAR VISTA PREVIA
+            </button>
+          </div>
+
+          <div className="flex-1 bg-black overflow-hidden relative flex items-center justify-center">
+            {isEmbeddable ? (
+              <iframe 
+                src={embedUrl}
+                title={previewResource.title}
+                className="w-full h-full border-none bg-black"
+                allowFullScreen
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              ></iframe>
+            ) : isVideoTag ? (
+              <div className="w-full h-full flex items-center justify-center p-4">
+                <video 
+                  src={embedUrl} 
+                  controls 
+                  className="w-full max-h-full rounded-xl border border-zinc-800/80 shadow-2xl bg-black"
+                ></video>
+              </div>
+            ) : (
+              <div className="max-w-md w-full bg-zinc-900 border border-zinc-800/80 rounded-2xl p-8 text-center space-y-5">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-950/60 text-indigo-400 border border-indigo-500/20 flex items-center justify-center mx-auto shadow-[0_0_12px_rgba(0,242,254,0.1)]">
+                  <ExternalLink className="w-6 h-6" />
+                </div>
+                <div className="space-y-2 font-mono">
+                  <h4 className="text-xs font-bold text-zinc-200 uppercase tracking-wider">Enlace Externo Recomendado</h4>
+                  <p className="text-xs text-zinc-500 leading-relaxed font-sans font-medium">
+                    Este tipo de recurso no se puede incrustar por restricciones de seguridad externas.
+                  </p>
+                </div>
+                <a 
+                  href={previewResource.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 py-2.5 px-6 bg-indigo-650 hover:bg-indigo-600 text-zinc-950 rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition-all cursor-pointer shadow-[0_0_10px_rgba(0,242,254,0.15)]"
+                >
+                  Abrir enlace en pestaña nueva
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              </div>
+            )}
+          </div>
+          
+          <div className="h-14 border-t border-zinc-850 px-6 flex items-center justify-between bg-zinc-950/40 shrink-0 font-mono text-[10px] text-zinc-550 uppercase tracking-widest">
+            <span>TIPO: <strong className="text-zinc-350">{previewResource.type}</strong></span>
+            <span>CATEGORÍA: <strong className="text-zinc-350">{previewResource.category}</strong></span>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // Handler for deleting user
@@ -384,10 +633,10 @@ export default function AdminDashboard() {
 
   const resourceIcon = (type) => {
     switch (type) {
-      case 'video': return <Video className="w-4 h-4 text-rose-400" />;
+      case 'video': return <Video className="w-4 h-4 text-rose-450" />;
       case 'presentation': return <Presentation className="w-4 h-4 text-amber-400" />;
       case 'document': return <FileText className="w-4 h-4 text-sky-400" />;
-      case 'html_video': return <Code className="w-4 h-4 text-emerald-400" />;
+      case 'html_video': return <Code className="w-4 h-4 text-emerald-450" />;
       case 'link': return <ExternalLink className="w-4 h-4 text-indigo-400" />;
       default: return <FileText className="w-4 h-4 text-zinc-400" />;
     }
@@ -396,133 +645,37 @@ export default function AdminDashboard() {
   if (!user) return null;
 
   return (
-    <div className="h-screen overflow-hidden bg-zinc-950 flex flex-col md:flex-row text-zinc-100 font-sans">
+    <div className="h-screen overflow-hidden bg-zinc-950 flex flex-col md:flex-row text-zinc-100 font-sans cyber-grid">
       
-      {/* SIDEBAR */}
-      <aside className={`w-full ${isSidebarCollapsed ? 'md:w-20' : 'md:w-64'} bg-zinc-900 border-r border-zinc-800/60 flex flex-col shrink-0 h-auto md:h-full transition-all duration-300 ease-in-out`}>
-        <div className="h-16 flex items-center px-6 border-b border-zinc-800/60 justify-between">
-          <div className="flex items-center overflow-hidden">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-blue-600 flex items-center justify-center mr-3 text-white shadow-sm shadow-indigo-500/10 shrink-0">
-              <Scale className="w-4.5 h-4.5" />
-            </div>
-            {!isSidebarCollapsed && (
-              <span className="font-extrabold text-zinc-100 tracking-tight text-lg whitespace-nowrap transition-opacity duration-300">
-                ExpatFiscal
-              </span>
-            )}
-          </div>
-          <button
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-250 hover:bg-zinc-800/60 transition-colors hidden md:block shrink-0"
-            title={isSidebarCollapsed ? "Expandir menú" : "Contraer menú"}
-          >
-            {isSidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </button>
-        </div>
-        
-        {/* Links de Navegación */}
-        <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto no-scrollbar">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`w-full flex items-center py-2.5 text-sm font-medium rounded-xl transition-all cursor-pointer ${
-              isSidebarCollapsed ? 'justify-center px-0' : 'px-3'
-            } ${
-              activeTab === 'overview' 
-                ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/20' 
-                : 'text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200'
-            }`}
-            title={isSidebarCollapsed ? "Resumen General" : undefined}
-          >
-            <LayoutDashboard className={`${isSidebarCollapsed ? 'm-0' : 'mr-3'} h-5 w-5 shrink-0`} />
-            {!isSidebarCollapsed && <span className="whitespace-nowrap transition-opacity duration-300">Resumen General</span>}
-          </button>
-
-          <button
-            onClick={() => setActiveTab('content')}
-            className={`w-full flex items-center py-2.5 text-sm font-medium rounded-xl transition-all cursor-pointer ${
-              isSidebarCollapsed ? 'justify-center px-0' : 'px-3'
-            } ${
-              activeTab === 'content' 
-                ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/20' 
-                : 'text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200'
-            }`}
-            title={isSidebarCollapsed ? "Gestión Contenidos" : undefined}
-          >
-            <BookOpen className={`${isSidebarCollapsed ? 'm-0' : 'mr-3'} h-5 w-5 shrink-0`} />
-            {!isSidebarCollapsed && <span className="whitespace-nowrap transition-opacity duration-300">Gestión Contenidos</span>}
-          </button>
-
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`w-full flex items-center py-2.5 text-sm font-medium rounded-xl transition-all cursor-pointer ${
-              isSidebarCollapsed ? 'justify-center px-0' : 'px-3'
-            } ${
-              activeTab === 'users' 
-                ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/20' 
-                : 'text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200'
-            }`}
-            title={isSidebarCollapsed ? "Gestión Usuarios" : undefined}
-          >
-            <Users className={`${isSidebarCollapsed ? 'm-0' : 'mr-3'} h-5 w-5 shrink-0`} />
-            {!isSidebarCollapsed && <span className="whitespace-nowrap transition-opacity duration-300">Gestión Usuarios</span>}
-          </button>
-
-          <button
-            onClick={() => setActiveTab('messages')}
-            className={`w-full flex items-center py-2.5 text-sm font-medium rounded-xl transition-all cursor-pointer relative ${
-              isSidebarCollapsed ? 'justify-center px-0' : 'px-3'
-            } ${
-              activeTab === 'messages' 
-                ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/20' 
-                : 'text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200'
-            }`}
-            title={isSidebarCollapsed ? "Bandeja Mensajes" : undefined}
-          >
-            <MessageSquare className={`${isSidebarCollapsed ? 'm-0' : 'mr-3'} h-5 w-5 shrink-0`} />
-            {!isSidebarCollapsed && <span className="whitespace-nowrap transition-opacity duration-300">Bandeja Mensajes</span>}
-            {pendingMessages > 0 && !isSidebarCollapsed && (
-              <span className="ml-auto bg-amber-500 text-zinc-950 font-extrabold text-[10px] w-5 h-5 flex items-center justify-center rounded-full animate-pulse shrink-0">
-                {pendingMessages}
-              </span>
-            )}
-          </button>
-        </nav>
-
-        {/* Cerrar Sesión */}
-        <div className="p-4 border-t border-zinc-800/60 mt-auto">
-          <button
-            onClick={logout}
-            className={`w-full flex items-center py-2.5 text-sm font-medium text-red-400 rounded-xl hover:bg-red-950/20 hover:text-red-300 transition-colors cursor-pointer ${
-              isSidebarCollapsed ? 'justify-center px-0' : 'px-3'
-            }`}
-            title={isSidebarCollapsed ? "Cerrar Sesión" : undefined}
-          >
-            <LogOut className={`${isSidebarCollapsed ? 'm-0' : 'mr-3'} h-5 w-5 shrink-0`} />
-            {!isSidebarCollapsed && <span className="whitespace-nowrap transition-opacity duration-300">Cerrar Sesión</span>}
-          </button>
-        </div>
-      </aside>
+      <AdminSidebar 
+        isSidebarCollapsed={isSidebarCollapsed}
+        setIsSidebarCollapsed={setIsSidebarCollapsed}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        logout={logout}
+        pendingMessages={pendingMessages}
+      />
 
       {/* CONTENIDO PRINCIPAL */}
       <main className="flex-1 flex flex-col h-full overflow-hidden">
-        <header className="h-16 border-b border-zinc-800/60 bg-zinc-900/40 backdrop-blur-sm flex items-center justify-between px-6 shrink-0">
-          <h2 className="text-lg font-bold text-zinc-200">
-            {activeTab === 'overview' && 'Vista General'}
-            {activeTab === 'content' && 'Gestión de Contenidos Formativos'}
-            {activeTab === 'messages' && 'Canal de Comunicación'}
-            {activeTab === 'users' && 'Administración y Registro de Usuarios'}
+        <header className="h-16 border-b border-zinc-800/80 bg-zinc-950/60 backdrop-blur-md flex items-center justify-between px-6 shrink-0">
+          <h2 className="text-xs font-extrabold uppercase tracking-wider text-zinc-100 font-mono">
+            {activeTab === 'overview' && 'SYSTEM SUMMARY // OVERVIEW'}
+            {activeTab === 'content' && 'CONTENT MANAGEMENT // ARCHIVE'}
+            {activeTab === 'users' && 'USER ADMINISTRATION // ROLES'}
+            {activeTab === 'messages' && 'COMMUNICATION HUB // SUPPORT TICKET'}
           </h2>
           <div className="flex items-center gap-3">
-            <div className="text-xs text-indigo-400 bg-indigo-950/40 border border-indigo-900/30 px-3 py-1 rounded-full font-semibold hidden sm:inline-block">
+            <div className="text-[10px] text-indigo-400 bg-indigo-950/40 border border-indigo-500/25 px-3 py-1.5 rounded-xl font-bold font-mono uppercase tracking-wider hidden sm:inline-block shadow-[0_0_10px_rgba(0,242,254,0.05)]">
               Modo Administrador
             </div>
-            <div className="flex items-center gap-2.5 pl-3 border-l border-zinc-800/60">
-              <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700/50 flex items-center justify-center font-bold text-indigo-400 text-sm">
+            <div className="flex items-center gap-2.5 pl-3 border-l border-zinc-850">
+              <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-bold text-indigo-400 text-xs font-mono shadow-sm">
                 {user?.name?.charAt(0) || 'A'}
               </div>
               <div className="hidden md:block text-left">
                 <p className="text-xs font-semibold text-zinc-200 leading-none">{user?.name}</p>
-                <p className="text-[10px] text-zinc-500 mt-1 leading-none">Administrador</p>
+                <p className="text-[9px] text-zinc-550 mt-1 uppercase tracking-wider font-bold font-mono leading-none">Administrador</p>
               </div>
             </div>
           </div>
@@ -531,1008 +684,95 @@ export default function AdminDashboard() {
         {loading ? (
           <div className="flex-1 flex items-center justify-center bg-zinc-950">
             <div className="flex flex-col items-center">
-              <div className="w-10 h-10 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-              <p className="mt-3 text-sm text-zinc-500">Cargando base de datos local...</p>
+              <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+              <p className="mt-3 text-xs text-zinc-550 font-mono uppercase tracking-wider">Loading Database...</p>
             </div>
           </div>
         ) : (
           <div className="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6 overflow-y-auto no-scrollbar">
             
-            {/* 1. SECCIÓN DE RESUMEN (OVERVIEW) */}
             {activeTab === 'overview' && (
-              <>
-                {/* Cuadrícula de Métricas */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                  <div 
-                    onClick={() => setActiveTab('users')}
-                    className="bg-zinc-900 border border-zinc-800/60 hover:border-zinc-700/80 hover:bg-zinc-850/60 rounded-2xl p-5 relative overflow-hidden cursor-pointer transition-all duration-200 group"
-                  >
-                    <div className="absolute right-4 top-4 text-indigo-500/20 group-hover:scale-110 transition-transform"><Users className="w-10 h-10 text-indigo-450" /></div>
-                    <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Estudiantes Activos</span>
-                    <h3 className="text-3xl font-extrabold text-white mt-2">{totalStudents}</h3>
-                    <p className="text-xs text-zinc-500 mt-2">Nómadas registrados</p>
-                  </div>
-
-                  <div 
-                    onClick={() => setActiveTab('content')}
-                    className="bg-zinc-900 border border-zinc-800/60 hover:border-zinc-700/80 hover:bg-zinc-850/60 rounded-2xl p-5 relative overflow-hidden cursor-pointer transition-all duration-200 group"
-                  >
-                    <div className="absolute right-4 top-4 text-indigo-500/20 group-hover:scale-110 transition-transform"><BookOpen className="w-10 h-10 text-indigo-450" /></div>
-                    <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Formaciones creadas</span>
-                    <h3 className="text-3xl font-extrabold text-white mt-2">{totalResources}</h3>
-                    <p className="text-xs text-zinc-500 mt-2">PDFs, videos y guías</p>
-                  </div>
-
-                  <div 
-                    onClick={() => setActiveTab('messages')}
-                    className="bg-zinc-900 border border-zinc-800/60 hover:border-zinc-700/80 hover:bg-zinc-850/60 rounded-2xl p-5 relative overflow-hidden cursor-pointer transition-all duration-200 group"
-                  >
-                    <div className="absolute right-4 top-4 text-amber-500/20 group-hover:scale-110 transition-transform"><AlertCircle className="w-10 h-10 text-amber-500/60" /></div>
-                    <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Consultas Pendientes</span>
-                    <h3 className="text-3xl font-extrabold text-white mt-2">{pendingMessages}</h3>
-                    <p className="text-xs text-zinc-500 mt-2">Requieren respuesta</p>
-                  </div>
-
-                  <div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-5 relative overflow-hidden">
-                    <div className="absolute right-4 top-4 text-emerald-500/20"><CheckCircle2 className="w-10 h-10 text-emerald-450" /></div>
-                    <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Administradores</span>
-                    <h3 className="text-3xl font-extrabold text-white mt-2">{totalAdmins}</h3>
-                    <p className="text-xs text-zinc-500 mt-2">Control total del sistema</p>
-                  </div>
-                </div>
-
-                {/* Acceso Rápido y Tips de Administración */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-6">
-                    <h3 className="text-base font-bold text-zinc-100 mb-4 flex items-center gap-2">
-                      <Compass className="w-5 h-5 text-indigo-500" />
-                      Estado del MVP y Próximos Pasos
-                    </h3>
-                    <div className="space-y-4 text-sm text-zinc-400">
-                      <p>
-                        Actualmente estás operando en <strong>Modo Local</strong>. Toda la información de cursos, nómadas y mensajes se persiste en tu navegador mediante `localStorage`.
-                      </p>
-                      <div className="p-4 bg-zinc-950 rounded-xl border border-zinc-800/60 space-y-2">
-                        <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Para migrar a Supabase más adelante:</h4>
-                        <ul className="list-disc pl-4 space-y-1 text-xs">
-                          <li>Crear base de datos en Supabase y las tablas correspondientes (`resources`, `messages`, `profiles`).</li>
-                          <li>Configurar políticas de seguridad RLS (Row Level Security) para que solo Administradores puedan insertar/eliminar.</li>
-                          <li>Reemplazar las llamadas de `mockDb.js` con el cliente `@supabase/supabase-js`.</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-6 flex flex-col justify-between">
-                    <div>
-                      <h3 className="text-base font-bold text-zinc-100 mb-2">Mensajes Pendientes de Nómadas</h3>
-                      <p className="text-xs text-zinc-500 mb-4">Preguntas urgentes enviadas por estudiantes.</p>
-                      
-                      {messages.filter(m => !m.reply).length === 0 ? (
-                        <div className="py-6 flex flex-col items-center justify-center text-zinc-505 bg-zinc-950/40 rounded-xl border border-zinc-805">
-                          <CheckCircle2 className="w-8 h-8 text-emerald-500/60 mb-2" />
-                          <p className="text-xs font-semibold">¡Bandeja al día! No hay consultas pendientes.</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-3 max-h-[180px] overflow-y-auto pr-2">
-                          {messages.filter(m => !m.reply).map(msg => (
-                            <div key={msg.id} className="p-3 bg-zinc-950 border border-zinc-800/60 rounded-xl flex items-center justify-between gap-4">
-                              <div className="truncate">
-                                <p className="text-xs font-bold text-zinc-200 truncate">{msg.content}</p>
-                                <p className="text-[10px] text-zinc-500 mt-1">Por {msg.sender_name}</p>
-                              </div>
-                              <button 
-                                onClick={() => setActiveTab('messages')}
-                                className="px-2.5 py-1 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg shrink-0 transition-colors"
-                              >
-                                Responder
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </>
+              <MetricsOverview 
+                setActiveTab={setActiveTab}
+                totalStudents={totalStudents}
+                totalResources={totalResources}
+                pendingMessages={pendingMessages}
+                totalAdmins={totalAdmins}
+                users={users}
+                calculateResidencyDays={calculateResidencyDays}
+                messages={messages}
+              />
             )}
+
             {activeTab === 'content' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                
-                {/* Formulario de Adición/Edición (1 Columna) */}
-                <div id="resource-form" className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-6 lg:sticky lg:top-24">
-                  <h3 className="text-base font-bold text-zinc-100 mb-4 flex items-center gap-2">
-                    {editingResourceId ? (
-                      <>
-                        <Edit2 className="w-5 h-5 text-indigo-500" />
-                        Editar Recurso Formativo
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="w-5 h-5 text-indigo-500" />
-                        Nuevo Recurso Formativo
-                      </>
-                    )}
-                  </h3>
-
-                  {formError && (
-                    <div className="mb-4 p-3 bg-red-950/40 border border-red-800/40 text-red-200 text-xs rounded-xl flex items-start gap-2">
-                      <AlertCircle className="w-4 h-4 shrink-0 text-red-450" />
-                      <span>{formError}</span>
-                    </div>
-                  )}
-
-                  {formSuccess && (
-                    <div className="mb-4 p-3 bg-emerald-950/40 border border-emerald-800/40 text-emerald-250 text-xs rounded-xl flex items-start gap-2">
-                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-450" />
-                      <span>{formSuccess}</span>
-                    </div>
-                  )}
-
-                  <form onSubmit={handleAddResource} className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Título *</label>
-                      <input 
-                        type="text" 
-                        value={newTitle}
-                        onChange={(e) => setNewTitle(e.target.value)}
-                        placeholder="Ej. Requisitos para Visado de Nómada"
-                        className="w-full bg-zinc-950 border border-zinc-800/60 focus:border-indigo-500/80 rounded-xl px-4 py-2.5 text-xs text-zinc-100 focus:outline-none"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Tipo de Recurso</label>
-                        <select 
-                          value={newType} 
-                          onChange={(e) => setNewType(e.target.value)}
-                          className="w-full bg-zinc-950 border border-zinc-800/60 focus:border-indigo-500/80 rounded-xl px-3 py-2.5 text-xs text-zinc-200 focus:outline-none"
-                        >
-                          <option value="video">Video (YouTube/Vimeo)</option>
-                          <option value="presentation">Google Slides</option>
-                          <option value="document">Documento PDF</option>
-                          <option value="html_video">Video HTML5 o Código HTML</option>
-                          <option value="link">Enlace Web Externo</option>
-                        </select>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Categoría</label>
-                        <select 
-                          value={newCategory} 
-                          onChange={(e) => setNewCategory(e.target.value)}
-                          className="w-full bg-zinc-950 border border-zinc-800/60 focus:border-indigo-500/80 rounded-xl px-3 py-2.5 text-xs text-zinc-200 focus:outline-none"
-                        >
-                          <option value="Trámites y Visados">Trámites y Visados</option>
-                          <option value="Impuestos y Autónomos">Impuestos y Autónomos</option>
-                          <option value="Coworkings y Colivings">Coworkings y Colivings</option>
-                          <option value="Herramientas Digitales">Herramientas Digitales</option>
-                        </select>
-                      </div>
-                    </div>
-
-                     {newType === 'document' ? (
-                      <div>
-                        <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Subir Archivo PDF *</label>
-                        <div className="flex flex-col gap-2">
-                          <input 
-                            type="file" 
-                            accept=".pdf"
-                            id="pdf-upload-input"
-                            onChange={handlePdfFileChange}
-                            className="hidden"
-                          />
-                          <label 
-                            htmlFor="pdf-upload-input"
-                            className="w-full flex items-center justify-center gap-2 border border-dashed border-zinc-800 hover:border-indigo-500/80 bg-zinc-950/40 hover:bg-zinc-950 text-xs font-semibold text-zinc-400 hover:text-zinc-200 rounded-xl py-3 px-4 transition-all cursor-pointer text-center"
-                          >
-                            <Upload className="w-4 h-4 text-indigo-400" />
-                            {newUrl && newUrl.startsWith('data:application/pdf') 
-                              ? 'Cambiar archivo PDF' 
-                              : 'Seleccionar PDF (Máx. 2.5MB)'}
-                          </label>
-                          {newUrl && newUrl.startsWith('data:application/pdf') && (
-                            <div className="flex items-center justify-between bg-zinc-950 border border-zinc-850/60 px-3 py-1.5 rounded-lg text-[10px] text-zinc-400">
-                              <span className="font-semibold text-emerald-400 flex items-center gap-1.5">
-                                <CheckCircle2 className="w-3.5 h-3.5" /> PDF Almacenado en BD
-                              </span>
-                              <span className="text-zinc-500">
-                                (~{Math.round(newUrl.length / 1333)} KB)
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <div>
-                        <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-                          {newType === 'html_video' ? 'Enlace o Código Embebido (HTML) *' : 'Enlace / URL *'}
-                        </label>
-                        <input 
-                          type="text" 
-                          value={newUrl}
-                          onChange={(e) => setNewUrl(e.target.value)}
-                          placeholder={
-                            newType === 'html_video' 
-                              ? "Ej. <iframe... o url directa .mp4" 
-                              : newType === 'presentation'
-                              ? "Ej. https://docs.google.com/presentation/d/..."
-                              : "https://..."
-                          }
-                          className="w-full bg-zinc-950 border border-zinc-800/60 focus:border-indigo-500/80 rounded-xl px-4 py-2.5 text-xs text-zinc-100 focus:outline-none"
-                        />
-                        <span className="text-[10px] text-zinc-500 block mt-1.5 leading-tight">
-                          {newType === 'html_video' 
-                            ? "Pega código iframe, tag <video>, o una URL directa finalizando en .mp4/.webm."
-                            : newType === 'presentation'
-                            ? "Soporta enlaces normales y enlaces de inserción de Google Slides."
-                            : "Coloca la URL completa para el recurso."}
-                        </span>
-                      </div>
-                    )}
-
-                    <div>
-                      <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Descripción *</label>
-                      <textarea 
-                        rows="3"
-                        value={newDesc}
-                        onChange={(e) => setNewDesc(e.target.value)}
-                        placeholder="Explica qué contiene el recurso..."
-                        className="w-full bg-zinc-950 border border-zinc-800/60 focus:border-indigo-500/80 rounded-xl px-4 py-2.5 text-xs text-zinc-100 focus:outline-none resize-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1">Etiquetas (separadas por comas)</label>
-                      <span className="text-[10px] text-zinc-500 block mb-2">Ej: Visado, Hacienda, Impuestos</span>
-                      <input 
-                        type="text" 
-                        value={newTags}
-                        onChange={(e) => setNewTags(e.target.value)}
-                        placeholder="Visado, Trámites, España"
-                        className="w-full bg-zinc-950 border border-zinc-800/60 focus:border-indigo-500/80 rounded-xl px-4 py-2.5 text-xs text-zinc-100 focus:outline-none"
-                      />
-                    </div>
-
-                    <div className="flex gap-2">
-                      {editingResourceId && (
-                        <button
-                          type="button"
-                          onClick={handleCancelEdit}
-                          className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl py-2.5 px-4 text-xs font-bold transition-colors cursor-pointer"
-                        >
-                          Cancelar
-                        </button>
-                      )}
-                      <button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className="flex-1 bg-indigo-600 hover:bg-indigo-550 text-white rounded-xl py-2.5 px-4 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors disabled:opacity-50 disabled:pointer-events-none"
-                      >
-                        {isSubmitting ? (
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        ) : (
-                          <>
-                            {editingResourceId ? <CheckCircle2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                            {editingResourceId ? 'Guardar Cambios' : 'Crear Contenido'}
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </form>
-                </div>
-
-                {/* Listado de Contenidos (2 Columnas) */}
-                <div className="lg:col-span-2 space-y-4">
-                  <div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl overflow-hidden">
-                    <div className="px-6 py-4 border-b border-zinc-800/60">
-                      <h3 className="text-base font-bold text-zinc-100">Directorio de Recursos</h3>
-                      <p className="text-xs text-zinc-550">Listado completo de documentos, videos y guías.</p>
-                    </div>
-
-                    <div className="divide-y divide-zinc-800/60 bg-zinc-900">
-                      {paginatedResources.length === 0 ? (
-                        <div className="p-8 text-center text-zinc-500 text-xs">
-                          No hay recursos formativos registrados en este momento.
-                        </div>
-                      ) : (
-                        paginatedResources.map(resource => (
-                          <div key={resource.id} className="p-5 flex items-start justify-between gap-4 hover:bg-zinc-850/30 transition-colors">
-                            <div className="space-y-2 flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="p-1.5 rounded-lg bg-zinc-950 border border-zinc-850 block">
-                                  {resourceIcon(resource.type)}
-                                </span>
-                                <span className="text-xs font-medium text-zinc-405 bg-zinc-800/60 px-2 py-0.5 rounded-md border border-zinc-700/30">
-                                  {resource.category}
-                                </span>
-                                <span className="text-[10px] text-zinc-505 flex items-center gap-1">
-                                  <Calendar className="w-3 h-3" />
-                                  {new Date(resource.created_at).toLocaleDateString('es-ES')}
-                                </span>
-                              </div>
-                              <h4 className="text-sm font-bold text-zinc-200 truncate">{resource.title}</h4>
-                              <p className="text-xs text-zinc-400 line-clamp-2">{resource.description}</p>
-                              
-                              <div className="flex flex-wrap gap-1.5 pt-1">
-                                {resource.tags && resource.tags.map((tag, i) => (
-                                  <span key={i} className="text-[10px] bg-zinc-950 text-zinc-500 border border-zinc-800/40 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                    <Tag className="w-2.5 h-2.5" />
-                                    {tag}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-2 shrink-0">
-                              <a 
-                                href={resource.url} 
-                                target="_blank" 
-                                rel="noreferrer"
-                                className="p-2 text-zinc-500 hover:text-zinc-350 bg-zinc-950 border border-zinc-800/60 hover:border-zinc-700 rounded-xl transition-all"
-                                title="Abrir recurso"
-                              >
-                                <ExternalLink className="w-4 h-4" />
-                              </a>
-                              <button
-                                onClick={() => handleStartEditResource(resource)}
-                                className="p-2 text-indigo-500 hover:text-indigo-450 bg-indigo-950/20 border border-indigo-900/20 hover:border-indigo-850/45 rounded-xl transition-all cursor-pointer"
-                                title="Editar recurso"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteResource(resource.id)}
-                                className="p-2 text-red-500 hover:text-red-400 bg-red-950/20 border border-red-900/20 hover:border-red-800/45 rounded-xl transition-all cursor-pointer"
-                                title="Eliminar recurso"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-
-                    {/* Controles de paginación para recursos */}
-                    {totalResourcesPages > 1 && (
-                      <div className="px-6 py-4 bg-zinc-900/60 border-t border-zinc-800/60 flex items-center justify-between text-xs">
-                        <button
-                          onClick={() => setResourcesPage(prev => Math.max(1, prev - 1))}
-                          disabled={currentResourcesPage === 1}
-                          className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium rounded-lg disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
-                        >
-                          Anterior
-                        </button>
-                        <span className="text-zinc-400">
-                          Página <span className="text-zinc-200 font-semibold">{currentResourcesPage}</span> de <span className="text-zinc-200 font-semibold">{totalResourcesPages}</span>
-                        </span>
-                        <button
-                          onClick={() => setResourcesPage(prev => Math.min(totalResourcesPages, prev + 1))}
-                          disabled={currentResourcesPage === totalResourcesPages}
-                          className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium rounded-lg disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
-                        >
-                          Siguiente
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-              </div>
+              <ResourceUploader 
+                editingResourceId={editingResourceId}
+                handleAddResource={handleAddResource}
+                formError={formError}
+                formSuccess={formSuccess}
+                isSubmitting={isSubmitting}
+                newTitle={newTitle} setNewTitle={setNewTitle}
+                newType={newType} setNewType={setNewType}
+                newUrl={newUrl} setNewUrl={setNewUrl}
+                newDesc={newDesc} setNewDesc={setNewDesc}
+                newCategory={newCategory} setNewCategory={setNewCategory}
+                newTags={newTags} setNewTags={setNewTags}
+                handlePdfFileChange={handlePdfFileChange}
+                handleCancelEdit={handleCancelEdit}
+                selectedAssignUserIds={selectedAssignUserIds} setSelectedAssignUserIds={setSelectedAssignUserIds}
+                studentSearchQuery={studentSearchQuery} setStudentSearchQuery={setStudentSearchQuery}
+                users={users}
+                resources={resources}
+                setPreviewResource={setPreviewResource}
+                handleStartEditResource={handleStartEditResource}
+                handleDeleteResource={handleDeleteResource}
+                resourceIcon={resourceIcon}
+              />
             )}
 
             {activeTab === 'users' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                
-                {/* Formulario/Detalle Lateral (1 Columna) */}
-                <div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-6 lg:sticky lg:top-24">
-                  {showCreateUserForm ? (
-                    <div>
-                      <h3 className="text-base font-bold text-zinc-100 mb-4 flex items-center gap-2">
-                        <UserPlus className="w-5 h-5 text-indigo-500" />
-                        Registrar Nuevo Usuario
-                      </h3>
-
-                      {userError && (
-                        <div className="mb-4 p-3 bg-red-950/40 border border-red-800/40 text-red-200 text-xs rounded-xl flex items-start gap-2">
-                          <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
-                          <span>{userError}</span>
-                        </div>
-                      )}
-
-                      {userSuccess && (
-                        <div className="mb-4 p-3 bg-emerald-950/40 border border-emerald-800/40 text-emerald-250 text-xs rounded-xl flex items-start gap-2">
-                          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-                          <span>{userSuccess}</span>
-                        </div>
-                      )}
-
-                      <form onSubmit={handleCreateUser} className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="col-span-2">
-                            <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Nombre Completo *</label>
-                            <input 
-                              type="text" 
-                              value={uName}
-                              onChange={(e) => setUName(e.target.value)}
-                              placeholder="Ej. Sofía Laurent"
-                              required
-                              className="w-full bg-zinc-950 border border-zinc-800/60 focus:border-indigo-500/80 rounded-xl px-4 py-2 text-xs text-zinc-100 focus:outline-none"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Correo Electrónico *</label>
-                            <input 
-                              type="email" 
-                              value={uEmail}
-                              onChange={(e) => setUEmail(e.target.value)}
-                              placeholder="sofia@correo.com"
-                              required
-                              className="w-full bg-zinc-950 border border-zinc-800/60 focus:border-indigo-500/80 rounded-xl px-4 py-2 text-xs text-zinc-100 focus:outline-none"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Contraseña *</label>
-                            <input 
-                              type="password" 
-                              value={uPassword}
-                              onChange={(e) => setUPassword(e.target.value)}
-                              placeholder="Mín. 6 caracteres"
-                              required
-                              className="w-full bg-zinc-950 border border-zinc-800/60 focus:border-indigo-500/80 rounded-xl px-4 py-2 text-xs text-zinc-100 focus:outline-none"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Rol</label>
-                            <select 
-                              value={uRole} 
-                              onChange={(e) => setURole(e.target.value)}
-                              className="w-full bg-zinc-950 border border-zinc-800/60 focus:border-indigo-500/80 rounded-xl px-3 py-2 text-xs text-zinc-250 focus:outline-none"
-                            >
-                              <option value="student">Nómada (Estudiante)</option>
-                              <option value="admin">Administrador</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Pasaporte</label>
-                            <input 
-                              type="text" 
-                              value={uPassport}
-                              onChange={(e) => setUPassport(e.target.value)}
-                              placeholder="PA000000"
-                              className="w-full bg-zinc-950 border border-zinc-800/60 focus:border-indigo-500/80 rounded-xl px-4 py-2 text-xs text-zinc-100 focus:outline-none"
-                            />
-                          </div>
-                        </div>
-
-                        {uRole === 'student' && (
-                          <div className="space-y-4 border-t border-zinc-800/60 pt-4">
-                            <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block">Datos de Residencia y Fiscalidad</span>
-
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">NIE</label>
-                                <input 
-                                  type="text" 
-                                  value={uNie}
-                                  onChange={(e) => setUNie(e.target.value)}
-                                  placeholder="Y1234567-X"
-                                  className="w-full bg-zinc-950 border border-zinc-800/60 focus:border-indigo-500/80 rounded-xl px-4 py-2 text-xs text-zinc-100 focus:outline-none"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Fecha Llegada España</label>
-                                <input 
-                                  type="date" 
-                                  value={uArrivalDate}
-                                  onChange={(e) => setUArrivalDate(e.target.value)}
-                                  className="w-full bg-zinc-950 border border-zinc-800/60 focus:border-indigo-500/80 rounded-xl px-3 py-1.5 text-xs text-zinc-250 focus:outline-none"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-2">
-                              <div className="col-span-2">
-                                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Dirección en España</label>
-                                  <input 
-                                    type="text" 
-                                    value={uAddress}
-                                    onChange={(e) => setUAddress(e.target.value)}
-                                    placeholder="Calle Mayor 45, 1A"
-                                    className="w-full bg-zinc-950 border border-zinc-800/60 focus:border-indigo-500/80 rounded-xl px-4 py-2 text-xs text-zinc-100 focus:outline-none"
-                                  />
-                              </div>
-
-                              <div>
-                                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">C. Postal</label>
-                                  <input 
-                                    type="text" 
-                                    value={uPostalCode}
-                                    onChange={(e) => setUPostalCode(e.target.value)}
-                                    placeholder="28013"
-                                    maxLength="5"
-                                    className="w-full bg-zinc-950 border border-zinc-800/60 focus:border-indigo-500/80 rounded-xl px-4 py-2 text-xs text-zinc-100 focus:outline-none"
-                                  />
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Alta en AEAT</label>
-                                <input 
-                                  type="date" 
-                                  value={uAeatDate}
-                                  onChange={(e) => setUAeatDate(e.target.value)}
-                                  className="w-full bg-zinc-950 border border-zinc-800/60 focus:border-indigo-500/80 rounded-xl px-3 py-1.5 text-xs text-zinc-250 focus:outline-none"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Alta Seg. Social</label>
-                                <input 
-                                  type="date" 
-                                  value={uSsDate}
-                                  onChange={(e) => setUSsDate(e.target.value)}
-                                  className="w-full bg-zinc-950 border border-zinc-800/60 focus:border-indigo-500/80 rounded-xl px-3 py-1.5 text-xs text-zinc-250 focus:outline-none"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        <button
-                          type="submit"
-                          disabled={creatingUser}
-                          className="w-full bg-indigo-600 hover:bg-indigo-550 text-white rounded-xl py-2.5 px-4 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors disabled:opacity-50"
-                        >
-                          {creatingUser ? (
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          ) : (
-                            <>
-                              <UserPlus className="w-4 h-4" />
-                              Registrar Usuario
-                            </>
-                          )}
-                        </button>
-                      </form>
-                    </div>
-                  ) : (
-                    // PANEL DE DETALLES DEL USUARIO SELECCIONADO
-                    selectedUser && (
-                      <div className="space-y-5">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-indigo-500/10 text-indigo-400 border border-indigo-500/20`}>
-                              {selectedUser.role === 'admin' ? 'Administrador' : 'Nómada'}
-                            </span>
-                            <h3 className="text-lg font-bold text-zinc-100 mt-1">{selectedUser.name}</h3>
-                            <p className="text-xs text-zinc-500 truncate">{selectedUser.email}</p>
-                          </div>
-                          
-                          <button
-                            onClick={() => {
-                              setSelectedUser(null);
-                              setShowCreateUserForm(true);
-                            }}
-                            className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
-                          >
-                            Volver a Crear
-                          </button>
-                        </div>
-
-                        {/* Datos Físicos de Identidad */}
-                        <div className="p-4 bg-zinc-950 border border-zinc-800/60 rounded-xl space-y-2 text-xs">
-                          <h4 className="text-[10px] font-bold text-zinc-450 uppercase tracking-widest mb-1 flex items-center gap-1.5">
-                            <User className="w-3.5 h-3.5" /> Documentos de Identidad
-                          </h4>
-                          <div className="grid grid-cols-2 gap-2 text-zinc-300">
-                            <div><span className="text-zinc-550 block text-[9px]">Pasaporte:</span> {selectedUser.passport || 'No registrado'}</div>
-                            <div><span className="text-zinc-550 block text-[9px]">NIE:</span> {selectedUser.nie || 'No registrado'}</div>
-                          </div>
-                          {selectedUser.address && (
-                            <div className="pt-2 border-t border-zinc-800/60 flex items-start gap-1 text-zinc-350">
-                              <MapPin className="w-4 h-4 text-zinc-500 shrink-0 mt-0.5" />
-                              <div>
-                                <span className="text-zinc-550 block text-[9px]">Dirección Fiscal:</span>
-                                {selectedUser.address} (C.P. {selectedUser.postalCode})
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Calculadora Fiscal del Nómada */}
-                        {selectedUser.role === 'student' && (
-                          <>
-                            <div className="p-4 bg-zinc-950 border border-zinc-800/60 rounded-xl space-y-3">
-                              <h4 className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest flex items-center justify-between">
-                                <span>Control Residencia Fiscal</span>
-                                <span className="text-[9px] text-zinc-500 capitalize">Regla 183 días</span>
-                              </h4>
-
-                              {selectedUser.arrivalDate ? (
-                                <div>
-                                  <div className="flex justify-between text-xs font-semibold mb-1">
-                                    <span className="text-zinc-400">Días Efectivos en España</span>
-                                    <span className="text-white">
-                                      {calculateResidencyDays(selectedUser.arrivalDate, selectedUser.absences)} / 183 días
-                                    </span>
-                                  </div>
-                                  
-                                  {/* Progress bar */}
-                                  <div className="w-full h-2.5 bg-zinc-900 rounded-full overflow-hidden border border-zinc-800/60">
-                                    <div 
-                                      className={`h-full rounded-full transition-all duration-500 ${
-                                        calculateResidencyDays(selectedUser.arrivalDate, selectedUser.absences) >= 183
-                                          ? 'bg-gradient-to-r from-emerald-500 to-teal-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
-                                          : 'bg-gradient-to-r from-indigo-500 to-indigo-650'
-                                      }`}
-                                      style={{ width: `${Math.min(100, (calculateResidencyDays(selectedUser.arrivalDate, selectedUser.absences) / 183) * 100)}%` }}
-                                    ></div>
-                                  </div>
-
-                                  <div className="flex justify-between text-[10px] text-zinc-500 mt-2">
-                                    <span>Llegada: {new Date(selectedUser.arrivalDate).toLocaleDateString('es-ES')}</span>
-                                    <span>Ausencias: {selectedUser.absences || 0} días</span>
-                                  </div>
-
-                                  {/* Resident state banner */}
-                                  <div className={`mt-3 p-2.5 rounded-xl border text-center font-bold text-xs ${
-                                    calculateResidencyDays(selectedUser.arrivalDate, selectedUser.absences) >= 183
-                                      ? 'bg-emerald-950/20 text-emerald-400 border-emerald-900/30'
-                                      : 'bg-indigo-950/20 text-indigo-405 border-indigo-900/30'
-                                  }`}>
-                                    {calculateResidencyDays(selectedUser.arrivalDate, selectedUser.absences) >= 183
-                                      ? 'Residente Fiscal en España'
-                                      : 'No Residente Fiscal (aún)'}
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="text-xs text-zinc-500 text-center py-2">
-                                  Sin fecha de llegada registrada para calcular la residencia.
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Hitos Administrativos */}
-                            <div className="p-4 bg-zinc-950 border border-zinc-800/60 rounded-xl space-y-3 text-xs">
-                              <h4 className="text-[10px] font-bold text-zinc-450 uppercase tracking-widest mb-1">Hitos de Autónomo</h4>
-                              
-                              <div className="space-y-2">
-                                <div className="flex justify-between items-center py-1 border-b border-zinc-900">
-                                  <span className="text-zinc-400">Alta en AEAT (Hacienda):</span>
-                                  {selectedUser.aeatDate ? (
-                                    <span className="text-emerald-400 font-semibold">{new Date(selectedUser.aeatDate).toLocaleDateString('es-ES')}</span>
-                                  ) : (
-                                    <span className="text-zinc-550 font-medium">Pendiente</span>
-                                  )}
-                                </div>
-                                <div className="flex justify-between items-center py-1">
-                                  <span className="text-zinc-400">Alta Seguridad Social:</span>
-                                  {selectedUser.ssDate ? (
-                                    <span className="text-emerald-400 font-semibold">{new Date(selectedUser.ssDate).toLocaleDateString('es-ES')}</span>
-                                  ) : (
-                                    <span className="text-zinc-550 font-medium">Pendiente</span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Descargador de Documentos Extranjería */}
-                            <div className="p-4 bg-zinc-950 border border-zinc-800/60 rounded-xl text-xs space-y-2">
-                              <h4 className="text-[10px] font-bold text-zinc-450 uppercase tracking-widest mb-1">Expediente Extranjería</h4>
-                              {selectedUser.residencyDoc ? (
-                                <div className="flex items-center justify-between p-2.5 bg-zinc-900 border border-zinc-850 rounded-xl">
-                                  <div className="truncate pr-2">
-                                    <p className="font-bold text-zinc-200 truncate">{selectedUser.residencyDoc.name}</p>
-                                    <p className="text-[9px] text-zinc-500 mt-0.5">{selectedUser.residencyDoc.size} • Sido el {new Date(selectedUser.residencyDoc.uploadedAt).toLocaleDateString('es-ES')}</p>
-                                  </div>
-                                  <button
-                                    onClick={() => triggerDocDownload(selectedUser.residencyDoc.name)}
-                                    className="p-1.5 text-indigo-400 hover:text-indigo-300 bg-indigo-950/20 border border-indigo-900/30 rounded-lg hover:scale-105 transition-all cursor-pointer flex items-center justify-center"
-                                    title="Descargar PDF"
-                                  >
-                                    <Download className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="py-3 text-center text-zinc-550 text-xs flex flex-col items-center justify-center border border-dashed border-zinc-800 rounded-xl">
-                                  <FileText className="w-5 h-5 mb-1.5 text-zinc-700" />
-                                  El estudiante no ha subido su resolución de residencia todavía.
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Control de Entrenamientos Autorizados */}
-                            <div className="p-4 bg-zinc-950 border border-zinc-800/60 rounded-xl text-xs space-y-3">
-                              <h4 className="text-[10px] font-bold text-zinc-450 uppercase tracking-widest mb-1 flex items-center justify-between">
-                                <span>Entrenamientos Autorizados</span>
-                                <span className="text-[9px] text-indigo-400 font-semibold lowercase">Toca para habilitar</span>
-                              </h4>
-                              <div className="space-y-2 max-h-48 overflow-y-auto pr-1 no-scrollbar">
-                                {resources.map(res => {
-                                  const isAllowed = (selectedUser.allowedResources || []).includes(res.id);
-                                  return (
-                                    <label 
-                                      key={res.id} 
-                                      className="flex items-start gap-2.5 p-2 bg-zinc-900/60 border border-zinc-850 hover:border-zinc-800 rounded-lg cursor-pointer transition-all hover:bg-zinc-850/20"
-                                    >
-                                      <input 
-                                        type="checkbox"
-                                        checked={isAllowed}
-                                        onChange={async () => {
-                                          const currentAllowed = selectedUser.allowedResources || [];
-                                          const newAllowed = isAllowed 
-                                            ? currentAllowed.filter(id => id !== res.id)
-                                            : [...currentAllowed, res.id];
-                                          
-                                          // Update database
-                                          await mockDb.users.update(selectedUser.id, { allowedResources: newAllowed });
-                                          
-                                          // Reload users list to keep state in sync
-                                          const updatedUsers = await mockDb.users.getAll();
-                                          setUsers(updatedUsers);
-                                          
-                                          // Update local selectedUser state
-                                          setSelectedUser(prev => ({
-                                            ...prev,
-                                            allowedResources: newAllowed
-                                          }));
-                                        }}
-                                        className="mt-0.5 rounded border-zinc-800 bg-zinc-950 text-indigo-650 focus:ring-indigo-500/30"
-                                      />
-                                      <div className="overflow-hidden">
-                                        <p className="font-bold text-zinc-300 truncate">{res.title}</p>
-                                        <p className="text-[9px] text-zinc-500 mt-0.5 truncate">{res.category}</p>
-                                      </div>
-                                    </label>
-                                  );
-                                })}
-                                {resources.length === 0 && (
-                                  <p className="text-zinc-500 text-center py-2">No hay entrenamientos cargados en el sistema.</p>
-                                )}
-                              </div>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    )
-                  )}
-                </div>
-
-                {/* Listado de Usuarios Registrados (2 Columnas) */}
-                <div className="lg:col-span-2 space-y-4">
-                  <div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl overflow-hidden">
-                    <div className="px-6 py-4 border-b border-zinc-800/60 flex justify-between items-center">
-                      <div>
-                        <h3 className="text-base font-bold text-zinc-100">Usuarios Registrados</h3>
-                        <p className="text-xs text-zinc-500">Administra accesos y visualiza la fiscalidad de cada estudiante.</p>
-                      </div>
-                      <span className="text-xs font-semibold text-zinc-400 bg-zinc-950 border border-zinc-800/60 px-3 py-1 rounded-full">
-                        {totalRegisteredUsers} en total
-                      </span>
-                    </div>
-
-                    <div className="divide-y divide-zinc-800/60 bg-zinc-900">
-                      {paginatedUsers.map(u => {
-                        const effectiveDays = calculateResidencyDays(u.arrivalDate, u.absences);
-                        return (
-                          <div 
-                            key={u.id} 
-                            onClick={() => {
-                              setSelectedUser(u);
-                              setShowCreateUserForm(false);
-                            }}
-                            className={`p-5 flex items-center justify-between gap-4 hover:bg-zinc-850/30 transition-colors cursor-pointer ${
-                              selectedUser?.id === u.id ? 'bg-zinc-805/40 border-l-2 border-indigo-505' : ''
-                            }`}
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 border bg-indigo-950/20 text-indigo-400 border-indigo-900/20`}>
-                                {u.name.charAt(0)}
-                              </div>
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <h4 className="text-sm font-bold text-zinc-200 truncate">{u.name}</h4>
-                                  <span className={`text-[9px] uppercase tracking-wider font-extrabold px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20`}>
-                                    {u.role === 'admin' ? 'Admin' : 'Nómada'}
-                                  </span>
-                                </div>
-                                <p className="text-xs text-zinc-500 truncate">{u.email}</p>
-                              </div>
-                            </div>
-
-                            {/* Información compacta fiscal o rol */}
-                            <div className="flex items-center gap-4 shrink-0 text-xs">
-                              {u.role === 'student' && (
-                                <div className="text-right hidden sm:block">
-                                  {u.arrivalDate ? (
-                                    <>
-                                      <p className="font-bold text-zinc-350">{effectiveDays} / 183 días</p>
-                                      <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
-                                        effectiveDays >= 183 
-                                          ? 'bg-emerald-950 text-emerald-450 border border-emerald-900/30' 
-                                          : 'bg-zinc-950 text-zinc-500 border border-zinc-800/60'
-                                      }`}>
-                                        {effectiveDays >= 183 ? 'Residente Fiscal' : 'No Residente'}
-                                      </span>
-                                    </>
-                                  ) : (
-                                    <span className="text-zinc-550">Sin datos de viaje</span>
-                                  )}
-                                </div>
-                              )}
-                              
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation(); // Evitar seleccionar el usuario
-                                  handleDeleteUser(u.id, u.name);
-                                }}
-                                className="p-2 text-red-500 hover:text-red-400 bg-red-950/20 border border-red-900/20 hover:border-red-800/40 rounded-xl transition-all cursor-pointer"
-                                title="Eliminar usuario"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Controles de paginación para usuarios */}
-                    {totalUsersPages > 1 && (
-                      <div className="px-6 py-4 bg-zinc-900/60 border-t border-zinc-800/60 flex items-center justify-between text-xs">
-                        <button
-                          onClick={() => setUsersPage(prev => Math.max(1, prev - 1))}
-                          disabled={currentUsersPage === 1}
-                          className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium rounded-lg disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
-                        >
-                          Anterior
-                        </button>
-                        <span className="text-zinc-400">
-                          Página <span className="text-zinc-200 font-semibold">{currentUsersPage}</span> de <span className="text-zinc-200 font-semibold">{totalUsersPages}</span>
-                        </span>
-                        <button
-                          onClick={() => setUsersPage(prev => Math.min(totalUsersPages, prev + 1))}
-                          disabled={currentUsersPage === totalUsersPages}
-                          className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium rounded-lg disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
-                        >
-                          Siguiente
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <UserManagementTable 
+                editingUserId={editingUserId}
+                handleCreateUser={handleCreateUser}
+                uName={uName} setUName={setUName}
+                uEmail={uEmail} setUEmail={setUEmail}
+                uPassword={uPassword} setUPassword={setUPassword}
+                uRole={uRole} setURole={setURole}
+                uPassport={uPassport} setUPassport={setUPassport}
+                uNie={uNie} setUNie={setUNie}
+                uArrivalDate={uArrivalDate} setUArrivalDate={setUArrivalDate}
+                uAddress={uAddress} setUAddress={setUAddress}
+                uPostalCode={uPostalCode} setUPostalCode={setUPostalCode}
+                uAeatDate={uAeatDate} setUAeatDate={setUAeatDate}
+                uSsDate={uSsDate} setUSsDate={setUSsDate}
+                userError={userError}
+                userSuccess={userSuccess}
+                creatingUser={creatingUser}
+                handleCancelEditUser={handleCancelEditUser}
+                selectedUser={selectedUser}
+                setSelectedUser={setSelectedUser}
+                handleStartEditUser={handleStartEditUser}
+                calculateResidencyDays={calculateResidencyDays}
+                triggerDocDownload={triggerDocDownload}
+                resources={resources}
+                setUsers={setUsers}
+                users={users}
+                handleDeleteUser={handleDeleteUser}
+              />
             )}
 
             {activeTab === 'messages' && (
-              <div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl overflow-hidden">
-                <div className="px-6 py-4 border-b border-zinc-800/60 flex justify-between items-center">
-                  <div>
-                    <h3 className="text-base font-bold text-zinc-100">Bandeja de Consultas</h3>
-                    <p className="text-xs text-zinc-500">Respuestas y soporte para los nómadas digitales.</p>
-                  </div>
-                  <span className="text-xs font-semibold text-zinc-400 bg-zinc-950 border border-zinc-800/60 px-3 py-1 rounded-full">
-                    {pendingMessages} pendientes
-                  </span>
-                </div>
-
-                <div className="divide-y divide-zinc-800/60 bg-zinc-900">
-                  {paginatedMessages.length === 0 ? (
-                    <div className="p-8 text-center text-zinc-500 text-xs">
-                      No hay mensajes en el canal de comunicación en este momento.
-                    </div>
-                  ) : (
-                    paginatedMessages.map(msg => (
-                      <div key={msg.id} className="p-6 space-y-4 hover:bg-zinc-850/30 transition-colors">
-                        
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-indigo-950/40 border border-indigo-900/20 flex items-center justify-center font-bold text-xs text-indigo-400">
-                              {msg.sender_name.charAt(0)}
-                            </div>
-                            <div>
-                              <p className="text-xs font-bold text-zinc-200">{msg.sender_name}</p>
-                              <p className="text-[10px] text-zinc-500">Estudiante Nómada</p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-zinc-500">
-                              {new Date(msg.created_at).toLocaleString('es-ES')}
-                            </span>
-                            {msg.reply ? (
-                              <span className="text-[10px] text-emerald-455 bg-emerald-950/40 border border-emerald-900/30 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                                Respondido
-                              </span>
-                            ) : (
-                              <span className="text-[10px] text-amber-455 bg-amber-950/40 border border-amber-900/30 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-                                <AlertCircle className="w-3 h-3 text-amber-400" />
-                                Pendiente
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="p-4 bg-zinc-950 border border-zinc-800/60 rounded-2xl">
-                          <p className="text-xs text-zinc-300 leading-relaxed font-medium">
-                            {msg.content}
-                          </p>
-                        </div>
-
-                        {msg.reply ? (
-                          <div className="p-4 bg-indigo-950/20 border border-indigo-900/20 rounded-2xl space-y-1.5 ml-6">
-                            <div className="flex items-center gap-1 text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
-                              <span>Tu Respuesta</span>
-                            </div>
-                            <p className="text-xs text-indigo-200/90 leading-relaxed">
-                              {msg.reply}
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="space-y-3 ml-6">
-                            <div className="relative">
-                              <textarea
-                                value={replyText[msg.id] || ''}
-                                onChange={(e) => handleReplyChange(msg.id, e.target.value)}
-                                rows="2"
-                                placeholder="Escribe tu respuesta oficial como administrador..."
-                                className="w-full bg-zinc-950 border border-zinc-800/60 focus:border-indigo-500/80 rounded-xl px-4 py-2.5 text-xs text-zinc-100 focus:outline-none resize-none pr-10"
-                              />
-                              <button
-                                onClick={() => handleSendReply(msg.id)}
-                                disabled={submittingReply[msg.id] || !(replyText[msg.id] && replyText[msg.id].trim())}
-                                className="absolute right-3.5 bottom-3.5 text-indigo-500 hover:text-indigo-400 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
-                              >
-                                {submittingReply[msg.id] ? (
-                                  <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                                ) : (
-                                  <Send className="w-4 h-4" />
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                {/* Controles de paginación para bandeja de mensajes */}
-                {totalMessagesPages > 1 && (
-                  <div className="px-6 py-4 bg-zinc-900/60 border-t border-zinc-800/60 flex items-center justify-between text-xs">
-                    <button
-                      onClick={() => setMessagesPage(prev => Math.max(1, prev - 1))}
-                      disabled={currentMessagesPage === 1}
-                      className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium rounded-lg disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
-                    >
-                      Anterior
-                    </button>
-                    <span className="text-zinc-400">
-                      Página <span className="text-zinc-200 font-semibold">{currentMessagesPage}</span> de <span className="text-zinc-200 font-semibold">{totalMessagesPages}</span>
-                    </span>
-                    <button
-                      onClick={() => setMessagesPage(prev => Math.min(totalMessagesPages, prev + 1))}
-                      disabled={currentMessagesPage === totalMessagesPages}
-                      className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium rounded-lg disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
-                    >
-                      Siguiente
-                    </button>
-                  </div>
-                )}
-              </div>
+              <MessagesPanel 
+                pendingMessages={pendingMessages}
+                messages={messages}
+                replyText={replyText}
+                handleReplyChange={handleReplyChange}
+                handleSendReply={handleSendReply}
+                submittingReply={submittingReply}
+              />
             )}
+            
+            {renderPreviewPlayer()}
           </div>
         )}
       </main>

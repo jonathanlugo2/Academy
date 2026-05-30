@@ -9,36 +9,36 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-64 bg-slate-900 border-r border-slate-800 flex flex-col hidden md:flex z-50">
-      <div className="h-16 flex items-center px-6 border-b border-slate-800">
-        <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center mr-3">
-          <span className="font-bold text-slate-900 text-lg leading-none">A</span>
+    <aside className="fixed left-0 top-0 bottom-0 w-64 bg-zinc-950/80 backdrop-blur-md border-r border-zinc-800/80 flex flex-col hidden md:flex z-50">
+      <div className="h-16 flex items-center px-6 border-b border-zinc-800/80">
+        <div className="w-8 h-8 rounded-lg bg-indigo-950/60 border border-indigo-500/30 flex items-center justify-center mr-3 text-indigo-400 shadow-[0_0_10px_rgba(0,242,254,0.15)]">
+          <span className="font-extrabold text-indigo-400 text-sm leading-none font-mono">A</span>
         </div>
-        <span className="font-bold text-slate-200 tracking-tight">Academy</span>
+        <span className="font-extrabold text-zinc-100 tracking-wider text-sm font-mono uppercase">Academy Portal</span>
       </div>
       
       <div className="flex-1 py-6 px-4">
-        <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-4 px-2">Menu Principal</div>
-        <nav className="space-y-1">
+        <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4 px-2 font-mono">MAIN MENU</div>
+        <nav className="space-y-1.5">
           {navItems.map((item, index) => (
             <button
               key={index}
-              className={`w-full flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`w-full flex items-center px-3 py-2.5 text-xs font-semibold uppercase tracking-wider rounded-xl transition-all cursor-pointer font-mono ${
                 item.active 
-                  ? 'bg-slate-800 text-white' 
-                  : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                  ? 'bg-indigo-950/40 border border-indigo-500/20 text-indigo-400 shadow-[0_0_12px_rgba(0,242,254,0.08)]' 
+                  : 'text-zinc-400 border border-transparent hover:bg-zinc-900/40 hover:text-zinc-200'
               }`}
             >
-              <item.icon className={`mr-3 h-5 w-5 ${item.active ? 'text-blue-400' : 'text-slate-500'}`} />
+              <item.icon className={`mr-3 h-4.5 w-4.5 shrink-0 ${item.active ? 'text-indigo-400' : 'text-zinc-500'}`} />
               {item.label}
             </button>
           ))}
         </nav>
       </div>
 
-      <div className="p-4 border-t border-slate-800">
-        <button className="w-full flex items-center px-2 py-2 text-sm font-medium text-slate-400 rounded-md hover:bg-slate-800/50 hover:text-slate-200 transition-colors">
-          <Settings className="mr-3 h-5 w-5 text-slate-500" />
+      <div className="p-4 border-t border-zinc-800/80">
+        <button className="w-full flex items-center px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-zinc-400 border border-transparent rounded-xl hover:bg-zinc-900/40 hover:text-zinc-200 transition-all cursor-pointer font-mono">
+          <Settings className="mr-3 h-4.5 w-4.5 text-zinc-500" />
           Ajustes
         </button>
       </div>

@@ -1,256 +1,224 @@
-// Base de datos simulada en LocalStorage para el MVP
-// Esto facilita la migración directa a Supabase en la siguiente fase
+import { supabase } from './supabaseClient';
 
-const SEED_USERS = [
-  {
-    id: 'admin-test-id',
-    email: 'admin@nomadahub.es',
-    password: 'admin123',
-    name: 'Carlos Admin',
-    role: 'admin',
-    passport: 'PA102030',
-    nie: 'X1020304-Y',
-    address: 'Calle Serrano 14, 2B',
-    postalCode: '28001',
-    arrivalDate: '2025-01-01',
-    absences: 0,
-    aeatDate: null,
-    ssDate: null,
-    residencyDoc: null
-  },
-  {
-    id: 'nomada-test-id',
-    email: 'nomada@nomadahub.es',
-    password: 'nomada123',
-    name: 'Juan Pérez',
-    role: 'student',
-    passport: 'PA987654',
-    nie: 'Y1234567-X',
-    address: 'Calle Gran Vía 12, 4A',
-    postalCode: '28013',
-    arrivalDate: '2026-01-15',
-    absences: 12,
-    aeatDate: '2026-02-10',
-    ssDate: '2026-02-15',
-    allowedResources: ['1', '3'],
-    residencyDoc: {
-      name: 'Resolucion_Extranjeria_Aprobada.pdf',
-      size: '840 KB',
-      uploadedAt: '2026-03-01T15:24:00Z',
-      url: '#'
-    }
-  }
-];
-
-const SEED_RESOURCES = [
-  {
-    id: '1',
-    title: 'Guía Completa del Visado de Nómada Digital en España',
-    type: 'document', // 'document', 'video', 'presentation'
-    url: 'https://www.exteriores.gob.es/es/ServiciosAlCiudadano/Paginas/Servicios-Consulares.aspx',
-    description: 'Documento oficial con los requisitos, plazos y documentos necesarios para solicitar el visado de nómada digital desde el consulado o en España.',
-    category: 'Trámites y Visados',
-    tags: ['Visado', 'Trámites', 'Legal'],
-    created_at: new Date('2026-04-10T10:00:00Z').toISOString()
-  },
-  {
-    id: '2',
-    title: 'Cómo registrarse como Autónomo paso a paso',
-    type: 'video',
-    url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    description: 'Video tutorial explicando el proceso de alta en la Seguridad Social y en Hacienda para comenzar a facturar en España como nómada digital.',
-    category: 'Impuestos y Autónomos',
-    tags: ['Autónomo', 'Hacienda', 'Seguridad Social'],
-    created_at: new Date('2026-04-15T12:30:00Z').toISOString()
-  },
-  {
-    id: '3',
-    title: 'Presentación: Impuestos para Nómadas Digitales (Ley Beckham y IRPF)',
-    type: 'presentation',
-    url: 'https://docs.google.com/presentation/d/1example',
-    description: 'Diapositivas guía explicando las diferencias entre el IRPF ordinario y la Ley Beckham, ventajas fiscales y cómo aplicarla.',
-    category: 'Impuestos y Autónomos',
-    tags: ['Ley Beckham', 'IRPF', 'Impuestos'],
-    created_at: new Date('2026-04-20T09:00:00Z').toISOString()
-  },
-  {
-    id: '4',
-    title: 'Mapa de Coworkings y Colivings top en España 2026',
-    type: 'document',
-    url: 'https://www.google.com/maps',
-    description: 'Listado y mapa interactivo con los mejores espacios de coworking y opciones de coliving adaptadas para nómadas en España (comunidades activas, velocidad de internet, etc.).',
-    category: 'Coworkings y Colivings',
-    tags: ['Coworking', 'Coliving', 'Comunidad'],
-    created_at: new Date('2026-05-01T15:45:00Z').toISOString()
-  }
-];
-
-const SEED_MESSAGES = [
-  {
-    id: '1',
-    sender_id: 'nomada-test-id',
-    sender_name: 'Juan Pérez (Nómada)',
-    sender_role: 'student',
-    content: 'Hola, tengo una duda sobre la Ley Beckham. ¿Puedo solicitarla si soy autónomo de una empresa en EE.UU. o solo si tengo un contrato de trabajo cuenta ajena?',
-    reply: '¡Hola Juan! Para acogerte a la Ley Beckham debes tener un contrato de trabajo con una empresa española o ser desplazado por una empresa extranjera. Como autónomo general es más complejo, pero si facturas a una sola startup/empresa que te contrata, hay matices. Te recomiendo ver la presentación de Impuestos y consultar con nuestro gestor asociado.',
-    created_at: new Date('2026-05-24T18:30:00Z').toISOString()
-  },
-  {
-    id: '2',
-    sender_id: 'nomada-test-id',
-    sender_name: 'Juan Pérez (Nómada)',
-    sender_role: 'student',
-    content: '¿Hay algún grupo de Slack o Telegram para los nómadas en Madrid? Me gustaría conectar con gente al llegar la próxima semana.',
-    reply: null,
-    created_at: new Date('2026-05-25T11:00:00Z').toISOString()
-  }
-];
-
-// Inicializar base de datos
-const getStorageItem = (key, defaultValue) => {
-  const data = localStorage.getItem(key);
-  if (!data) {
-    localStorage.setItem(key, JSON.stringify(defaultValue));
-    return defaultValue;
-  }
-  return JSON.parse(data);
-};
-
-const setStorageItem = (key, data) => {
-  localStorage.setItem(key, JSON.stringify(data));
+// Mapeador de perfiles de base de datos a formato camelCase de React
+const mapProfile = (p) => {
+  if (!p) return null;
+  return {
+    id: p.id,
+    name: p.name,
+    role: p.role,
+    passport: p.passport,
+    nie: p.nie,
+    address: p.address,
+    postalCode: p.postal_code,
+    arrivalDate: p.arrival_date,
+    absences: p.absences || 0,
+    aeatDate: p.aeat_date,
+    ssDate: p.ss_date,
+    allowedResources: p.allowed_resources || [],
+    residencyDoc: p.residency_doc,
+    email: p.email
+  };
 };
 
 export const mockDb = {
   users: {
     getAll: async () => {
-      await new Promise(resolve => setTimeout(resolve, 200));
-      return getStorageItem('nomada_users', SEED_USERS);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*');
+      
+      if (error) throw error;
+      return data.map(mapProfile);
     },
     create: async (userData) => {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const users = getStorageItem('nomada_users', SEED_USERS);
-      
-      // Validar correo único
-      const emailExists = users.some(u => u.email.toLowerCase() === userData.email.toLowerCase().trim());
-      if (emailExists) {
-        throw new Error('Ya existe un usuario registrado con este correo electrónico.');
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) throw new Error('Not authenticated');
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-student`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionData.session.access_token}`
+        },
+        body: JSON.stringify(userData)
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Error creating student');
       }
 
-      const newUser = {
-        id: Date.now().toString(),
-        absences: 0,
-        aeatDate: null,
-        ssDate: null,
-        residencyDoc: null,
-        ...userData,
+      const { profile } = await response.json();
+
+      return {
+        ...mapProfile(profile),
         email: userData.email.toLowerCase().trim()
       };
-      
-      users.push(newUser);
-      setStorageItem('nomada_users', users);
-      return newUser;
     },
     update: async (id, userData) => {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const users = getStorageItem('nomada_users', SEED_USERS);
-      const updated = users.map(u => {
-        if (u.id === id) {
-          return { ...u, ...userData };
-        }
-        return u;
-      });
-      setStorageItem('nomada_users', updated);
-      return updated.find(u => u.id === id);
+      const dbData = {};
+      if (userData.name !== undefined) dbData.name = userData.name;
+      if (userData.role !== undefined) dbData.role = userData.role;
+      if (userData.passport !== undefined) dbData.passport = userData.passport;
+      if (userData.nie !== undefined) dbData.nie = userData.nie;
+      if (userData.address !== undefined) dbData.address = userData.address;
+      if (userData.postalCode !== undefined) dbData.postal_code = userData.postalCode;
+      if (userData.arrivalDate !== undefined) dbData.arrival_date = userData.arrivalDate;
+      if (userData.absences !== undefined) dbData.absences = userData.absences;
+      if (userData.aeatDate !== undefined) dbData.aeat_date = userData.aeatDate;
+      if (userData.ssDate !== undefined) dbData.ss_date = userData.ssDate;
+      if (userData.allowedResources !== undefined) dbData.allowed_resources = userData.allowedResources;
+      if (userData.residencyDoc !== undefined) dbData.residency_doc = userData.residencyDoc;
+      dbData.updated_at = new Date().toISOString();
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(dbData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return mapProfile(data);
     },
     delete: async (id) => {
-      await new Promise(resolve => setTimeout(resolve, 200));
-      const users = getStorageItem('nomada_users', SEED_USERS);
-      const updated = users.filter(u => u.id !== id);
-      setStorageItem('nomada_users', updated);
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
       return true;
     }
   },
   resources: {
     getAll: async () => {
-      await new Promise(resolve => setTimeout(resolve, 200));
-      return getStorageItem('nomada_resources', SEED_RESOURCES);
+      const { data, error } = await supabase
+        .from('resources')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
     },
     create: async (resourceData) => {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const resources = getStorageItem('nomada_resources', SEED_RESOURCES);
-      const newResource = {
-        id: Date.now().toString(),
-        created_at: new Date().toISOString(),
-        ...resourceData,
-        tags: typeof resourceData.tags === 'string' 
-          ? resourceData.tags.split(',').map(t => t.trim()).filter(Boolean)
-          : resourceData.tags || []
-      };
-      resources.unshift(newResource);
-      setStorageItem('nomada_resources', resources);
-      return newResource;
+      const { data, error } = await supabase
+        .from('resources')
+        .insert({
+          title: resourceData.title,
+          type: resourceData.type,
+          url: resourceData.url,
+          description: resourceData.description,
+          category: resourceData.category,
+          tags: typeof resourceData.tags === 'string' 
+            ? resourceData.tags.split(',').map(t => t.trim()).filter(Boolean)
+            : resourceData.tags || []
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     },
     update: async (id, resourceData) => {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const resources = getStorageItem('nomada_resources', SEED_RESOURCES);
-      const updated = resources.map(r => {
-        if (r.id === id) {
-          return { 
-            ...r, 
-            ...resourceData,
-            tags: typeof resourceData.tags === 'string' 
-              ? resourceData.tags.split(',').map(t => t.trim()).filter(Boolean)
-              : resourceData.tags || []
-          };
-        }
-        return r;
-      });
-      setStorageItem('nomada_resources', updated);
-      return updated.find(r => r.id === id);
+      const { data, error } = await supabase
+        .from('resources')
+        .update({
+          title: resourceData.title,
+          type: resourceData.type,
+          url: resourceData.url,
+          description: resourceData.description,
+          category: resourceData.category,
+          tags: typeof resourceData.tags === 'string' 
+            ? resourceData.tags.split(',').map(t => t.trim()).filter(Boolean)
+            : resourceData.tags || []
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     },
     delete: async (id) => {
-      await new Promise(resolve => setTimeout(resolve, 200));
-      const resources = getStorageItem('nomada_resources', SEED_RESOURCES);
-      const updated = resources.filter(r => r.id !== id);
-      setStorageItem('nomada_resources', updated);
+      const { error } = await supabase
+        .from('resources')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
       return true;
     }
   },
   messages: {
     getAll: async () => {
-      await new Promise(resolve => setTimeout(resolve, 200));
-      return getStorageItem('nomada_messages', SEED_MESSAGES);
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*, sender:profiles(name, role)')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      return data.map(m => ({
+        id: m.id,
+        sender_id: m.sender_id,
+        sender_name: m.sender?.name || 'Estudiante Nómada',
+        sender_role: m.sender?.role || 'student',
+        content: m.content,
+        reply: m.reply,
+        created_at: m.created_at
+      }));
     },
     create: async (messageData) => {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const messages = getStorageItem('nomada_messages', SEED_MESSAGES);
-      const newMessage = {
-        id: Date.now().toString(),
-        created_at: new Date().toISOString(),
-        reply: null,
-        ...messageData
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          sender_id: messageData.sender_id,
+          content: messageData.content
+        })
+        .select('*, sender:profiles(name, role)')
+        .single();
+
+      if (error) throw error;
+
+      return {
+        id: data.id,
+        sender_id: data.sender_id,
+        sender_name: data.sender?.name || 'Estudiante Nómada',
+        sender_role: data.sender?.role || 'student',
+        content: data.content,
+        reply: data.reply,
+        created_at: data.created_at
       };
-      messages.unshift(newMessage);
-      setStorageItem('nomada_messages', messages);
-      return newMessage;
     },
     reply: async (id, replyContent) => {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const messages = getStorageItem('nomada_messages', SEED_MESSAGES);
-      const updated = messages.map(m => {
-        if (m.id === id) {
-          return { ...m, reply: replyContent };
-        }
-        return m;
-      });
-      setStorageItem('nomada_messages', updated);
-      return updated.find(m => m.id === id);
+      const { data, error } = await supabase
+        .from('messages')
+        .update({ reply: replyContent })
+        .eq('id', id)
+        .select('*, sender:profiles(name, role)')
+        .single();
+
+      if (error) throw error;
+
+      return {
+        id: data.id,
+        sender_id: data.sender_id,
+        sender_name: data.sender?.name || 'Estudiante Nómada',
+        sender_role: data.sender?.role || 'student',
+        content: data.content,
+        reply: data.reply,
+        created_at: data.created_at
+      };
     },
     delete: async (id) => {
-      await new Promise(resolve => setTimeout(resolve, 200));
-      const messages = getStorageItem('nomada_messages', SEED_MESSAGES);
-      const updated = messages.filter(m => m.id !== id);
-      setStorageItem('nomada_messages', updated);
+      const { error } = await supabase
+        .from('messages')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
       return true;
     }
   }
