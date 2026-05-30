@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AuthContext } from './AuthContext';
 import { supabase } from '../utils/supabaseClient';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Ref (no state) para evitar que el listener compita con login()
+  // useRef no causa re-render ni re-crea la suscripción
+  const isLoggingInRef = useRef(false);
 
   // Helper para obtener el perfil detallado del usuario de la base de datos
   const fetchProfile = async (uid) => {
@@ -31,6 +34,7 @@ export function AuthProvider({ children }) {
         aeatDate: data.aeat_date,
         ssDate: data.ss_date,
         allowedResources: data.allowed_resources || [],
+        completedResources: data.completed_resources || [],
         residencyDoc: data.residency_doc,
         email: data.email
       };
@@ -71,9 +75,13 @@ export function AuthProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      // Si login() está en curso, dejar que login() maneje el estado
+      // para evitar race conditions con setUser()
+      if (isLoggingInRef.current) return;
+
+      if (event === 'TOKEN_REFRESHED') {
+        // Solo refrescar el perfil en token refresh automático
         if (session) {
-          // Only fetch profile if user info has changed or not yet set
           const profile = await fetchProfile(session.user.id);
           if (profile && mounted) {
             setUser({
@@ -86,6 +94,7 @@ export function AuthProvider({ children }) {
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
       }
+      // Ignorar SIGNED_IN (se maneja en login()), INITIAL_SESSION, USER_UPDATED, etc.
       
       // Ensure loading is false after handling the event
       if (mounted) setLoading(false);
@@ -98,23 +107,28 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password: password
-    });
+    isLoggingInRef.current = true;
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password
+      });
 
-    if (error) {
-      throw new Error(error.message);
+      if (error) {
+        throw new Error(error.message);
+      }
+      
+      const profile = await fetchProfile(data.user.id);
+      const sessionUser = {
+        id: data.user.id,
+        email: data.user.email,
+        ...profile
+      };
+      setUser(sessionUser);
+      return sessionUser;
+    } finally {
+      isLoggingInRef.current = false;
     }
-    
-    const profile = await fetchProfile(data.user.id);
-    const sessionUser = {
-      id: data.user.id,
-      email: data.user.email,
-      ...profile
-    };
-    setUser(sessionUser);
-    return sessionUser;
   };
 
   const logout = async () => {

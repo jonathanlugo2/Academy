@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { supabase } from '../utils/supabaseClient';
 import { Mail, Lock, ArrowRight, ShieldAlert, Scale, GraduationCap, Building2, CheckCircle2 } from 'lucide-react';
 
 export default function Login() {
@@ -29,6 +30,10 @@ export default function Login() {
     setIsSubmitting(true);
 
     try {
+      // Limpiar cualquier sesión corrupta anterior en localStorage
+      // antes de intentar un nuevo login (no toca el servidor)
+      await supabase.auth.signOut({ scope: 'local' });
+      
       const loggedUser = await login(email, password);
       if (loggedUser.role === 'admin') {
         navigate('/admin');

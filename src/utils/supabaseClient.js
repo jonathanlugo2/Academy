@@ -7,4 +7,13 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn("Faltan las credenciales de Supabase. Revisa tu archivo .env.");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+    // Clave única para evitar colisiones de localStorage entre pestañas
+    // y prevenir corrupción de tokens al crear usuarios desde Edge Functions
+    storageKey: 'academy-auth-token',
+  }
+});

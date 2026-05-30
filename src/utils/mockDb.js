@@ -16,6 +16,7 @@ const mapProfile = (p) => {
     aeatDate: p.aeat_date,
     ssDate: p.ss_date,
     allowedResources: p.allowed_resources || [],
+    completedResources: p.completed_resources || [],
     residencyDoc: p.residency_doc,
     email: p.email
   };
@@ -35,11 +36,15 @@ export const mockDb = {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) throw new Error('Not authenticated');
 
+      // Guardar tokens del admin ANTES de la operación para poder restaurar si se corrompe
+      const adminAccessToken = sessionData.session.access_token;
+      const adminRefreshToken = sessionData.session.refresh_token;
+
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-student`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionData.session.access_token}`
+          'Authorization': `Bearer ${adminAccessToken}`
         },
         body: JSON.stringify(userData)
       });
@@ -50,6 +55,14 @@ export const mockDb = {
       }
 
       const { profile } = await response.json();
+
+      // Verificar que la sesión del admin sigue activa después de la operación
+      const { data: currentSession } = await supabase.auth.getSession();
+      if (!currentSession.session || currentSession.session.access_token !== adminAccessToken) {
+        // La sesión se corrompió — restaurar con refresh token
+        console.warn('Session affected by user creation. Refreshing admin session...');
+        await supabase.auth.refreshSession({ refresh_token: adminRefreshToken });
+      }
 
       return {
         ...mapProfile(profile),
@@ -69,6 +82,7 @@ export const mockDb = {
       if (userData.aeatDate !== undefined) dbData.aeat_date = userData.aeatDate;
       if (userData.ssDate !== undefined) dbData.ss_date = userData.ssDate;
       if (userData.allowedResources !== undefined) dbData.allowed_resources = userData.allowedResources;
+      if (userData.completedResources !== undefined) dbData.completed_resources = userData.completedResources;
       if (userData.residencyDoc !== undefined) dbData.residency_doc = userData.residencyDoc;
       dbData.updated_at = new Date().toISOString();
 
