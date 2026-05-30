@@ -71,7 +71,7 @@ export default function Login() {
               Tu campus profesional para instalarte en España con claridad.
             </h1>
             <p className="mt-4 text-zinc-400 text-sm leading-relaxed max-w-md">
-              Accede a recursos guiados sobre residencia, fiscalidad y herramientas prácticas para expatriados, con una experiencia estructurada y elegante.
+              Accede a recursos guiados sobre residencia, fiscalidad y herramientas prácticas para expatriados.
             </p>
           </div>
 

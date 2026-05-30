@@ -364,6 +364,21 @@ export default function UserManagementTable({
                         <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 font-mono ml-1">Dirección de Residencia</label>
                         <input type="text" value={uAddress} onChange={(e) => setUAddress(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3.5 text-xs text-zinc-200 outline-none focus:border-indigo-500/50 transition-all font-mono" placeholder="Calle, Número, Piso" />
                       </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 font-mono ml-1">Código Postal</label>
+                        <input type="text" value={uPostalCode} onChange={(e) => setUPostalCode(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3.5 text-xs text-zinc-200 outline-none focus:border-indigo-500/50 transition-all font-mono" placeholder="28001" />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 font-mono ml-1">Fecha Alta en la AEAT</label>
+                        <input type="date" value={uAeatDate} onChange={(e) => setUAeatDate(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 text-xs text-zinc-300 outline-none focus:border-indigo-500/50 transition-all font-mono" />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 font-mono ml-1">Fecha Alta en Seguridad Social</label>
+                        <input type="date" value={uSsDate} onChange={(e) => setUSsDate(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 text-xs text-zinc-300 outline-none focus:border-indigo-500/50 transition-all font-mono" />
+                      </div>
                     </div>
                   )}
                 </div>
