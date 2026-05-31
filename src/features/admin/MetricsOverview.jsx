@@ -8,7 +8,7 @@ export default function MetricsOverview({
   totalAdmins, 
   users, 
   calculateResidencyDays,
-  messages
+  tickets
 }) {
   return (
     <>
@@ -120,18 +120,18 @@ export default function MetricsOverview({
             </h3>
             <p className="text-[10px] text-zinc-500 uppercase font-mono tracking-widest mb-4">Preguntas urgentes enviadas por estudiantes.</p>
             
-            {messages.filter(m => !m.reply).length === 0 ? (
-              <div className="py-8 flex flex-col items-center justify-center text-zinc-550 bg-zinc-950/40 rounded-xl border border-zinc-805/60 font-mono">
+            {tickets.filter(t => t.status === 'open').length === 0 ? (
+              <div className="py-8 flex flex-col items-center justify-center text-zinc-555 bg-zinc-950/40 rounded-xl border border-zinc-800/60 font-mono">
                 <CheckCircle2 className="w-8 h-8 text-emerald-500/60 mb-2 animate-pulse" />
-                <p className="text-[10px] font-bold uppercase tracking-wider">¡Bandeja al día! Sin consultas pendientes.</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider">¡Bandeja al día! Sin tickets pendientes.</p>
               </div>
             ) : (
               <div className="space-y-3 max-h-[180px] overflow-y-auto pr-2 no-scrollbar font-mono">
-                {messages.filter(m => !m.reply).map(msg => (
-                  <div key={msg.id} className="p-3 bg-zinc-950/80 border border-zinc-800/80 rounded-xl flex items-center justify-between gap-4 text-[10px]">
+                {tickets.filter(t => t.status === 'open').map(ticket => (
+                  <div key={ticket.id} className="p-3 bg-zinc-950/80 border border-zinc-800/80 rounded-xl flex items-center justify-between gap-4 text-[10px]">
                     <div className="truncate pr-2">
-                      <p className="font-bold text-zinc-200 truncate">{msg.content}</p>
-                      <p className="text-[9px] text-zinc-500 mt-1 uppercase tracking-wide">Por {msg.sender_name}</p>
+                      <p className="font-bold text-zinc-200 truncate">{ticket.title}</p>
+                      <p className="text-[9px] text-zinc-500 mt-1 uppercase tracking-wide">Por {ticket.student_name}</p>
                     </div>
                     <button 
                       onClick={() => setActiveTab('messages')}

@@ -156,12 +156,65 @@ export const mockDb = {
       return data;
     },
     delete: async (id) => {
-      const { error } = await supabase
+      // 1. Fetch resource to check if it has a storage_path
+      const { data: res, error: fetchErr } = await supabase
+        .from('resources')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (fetchErr && fetchErr.code !== 'PGRST116') {
+        console.warn("Error fetching resource before deletion:", fetchErr.message);
+      }
+
+      // 2. Delete file from storage if it exists
+      if (res && res.storage_path) {
+        const bucket = res.type === 'video' ? 'academy-videos' : 'academy-resources';
+        const { error: storageErr } = await supabase.storage
+          .from(bucket)
+          .remove([res.storage_path]);
+        if (storageErr) {
+          console.warn("Failed to delete storage file from bucket:", storageErr.message);
+        }
+      }
+
+      // 3. Delete the resource row from resources table
+      const { error: deleteError } = await supabase
         .from('resources')
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (deleteError) throw deleteError;
+
+      // 4. Cascade cleanup of student profiles (allowed_resources / completed_resources arrays)
+      try {
+        const { data: profiles, error: pError } = await supabase
+          .from('profiles')
+          .select('id, allowed_resources, completed_resources');
+
+        if (!pError && profiles) {
+          const updatePromises = profiles
+            .filter(p => 
+              (p.allowed_resources && p.allowed_resources.includes(id)) || 
+              (p.completed_resources && p.completed_resources.includes(id))
+            )
+            .map(p => {
+              const newAllowed = (p.allowed_resources || []).filter(rid => rid !== id);
+              const newCompleted = (p.completed_resources || []).filter(rid => rid !== id);
+              return supabase
+                .from('profiles')
+                .update({ 
+                  allowed_resources: newAllowed,
+                  completed_resources: newCompleted
+                })
+                .eq('id', p.id);
+            });
+          await Promise.all(updatePromises);
+        }
+      } catch (err) {
+        console.error("Error doing cascade profiles cleanup:", err);
+      }
+
       return true;
     }
   },
@@ -235,5 +288,160 @@ export const mockDb = {
       if (error) throw error;
       return true;
     }
+  },
+  tickets: {
+    getAll: async () => {
+      const { data, error } = await supabase
+        .from('tickets')
+        .select('*, student:profiles(name, role)')
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+
+      return data.map(t => ({
+        id: t.id,
+        student_id: t.student_id,
+        student_name: t.student?.name || 'Estudiante Nómada',
+        title: t.title,
+        status: t.status,
+        created_at: t.created_at,
+        updated_at: t.updated_at
+      }));
+    },
+    create: async (ticketData) => {
+      const { data: ticket, error: ticketError } = await supabase
+        .from('tickets')
+        .insert({
+          student_id: ticketData.student_id,
+          title: ticketData.title
+        })
+        .select()
+        .single();
+
+      if (ticketError) throw ticketError;
+
+      const { data: message, error: messageError } = await supabase
+        .from('ticket_messages')
+        .insert({
+          ticket_id: ticket.id,
+          sender_id: ticketData.student_id,
+          content: ticketData.content,
+          attachment_url: ticketData.attachment_url,
+          attachment_name: ticketData.attachment_name,
+          attachment_type: ticketData.attachment_type
+        })
+        .select()
+        .single();
+
+      if (messageError) {
+        await supabase.from('tickets').delete().eq('id', ticket.id);
+        throw messageError;
+      }
+
+      return {
+        ...ticket,
+        first_message: message
+      };
+    },
+    close: async (id) => {
+      const { data, error } = await supabase
+        .from('tickets')
+        .update({ status: 'closed', updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    getMessages: async (ticketId) => {
+      const { data, error } = await supabase
+        .from('ticket_messages')
+        .select('*, sender:profiles(name, role), ticket:tickets(student_id)')
+        .eq('ticket_id', ticketId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      return data.map(m => {
+        const isStudent = m.sender_id === m.ticket?.student_id;
+        return {
+          id: m.id,
+          ticket_id: m.ticket_id,
+          sender_id: m.sender_id,
+          sender_name: isStudent ? (m.sender?.name || 'Estudiante') : (m.sender?.name || 'Soporte ExpatFiscal'),
+          sender_role: isStudent ? 'student' : 'admin',
+          content: m.content,
+          created_at: m.created_at,
+          attachment_url: m.attachment_url,
+          attachment_name: m.attachment_name,
+          attachment_type: m.attachment_type
+        };
+      });
+    },
+    createMessage: async (messageData) => {
+      const { data, error } = await supabase
+        .from('ticket_messages')
+        .insert({
+          ticket_id: messageData.ticket_id,
+          sender_id: messageData.sender_id,
+          content: messageData.content,
+          attachment_url: messageData.attachment_url,
+          attachment_name: messageData.attachment_name,
+          attachment_type: messageData.attachment_type
+        })
+        .select('*, sender:profiles(name, role), ticket:tickets(student_id)')
+        .single();
+
+      if (error) throw error;
+
+      const isStudent = data.sender_id === data.ticket?.student_id;
+      return {
+        id: data.id,
+        ticket_id: data.ticket_id,
+        sender_id: data.sender_id,
+        sender_name: isStudent ? (data.sender?.name || 'Estudiante') : (data.sender?.name || 'Soporte ExpatFiscal'),
+        sender_role: isStudent ? 'student' : 'admin',
+        content: data.content,
+        created_at: data.created_at,
+        attachment_url: data.attachment_url,
+        attachment_name: data.attachment_name,
+        attachment_type: data.attachment_type
+      };
+    },
+    uploadAttachment: async (file) => {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+      const filePath = `ticket-uploads/${fileName}`;
+
+      try {
+        const { error } = await supabase.storage
+          .from('support-attachments')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+
+        if (error) throw error;
+
+        const { data: urlData } = supabase.storage
+          .from('support-attachments')
+          .getPublicUrl(filePath);
+
+        return {
+          url: urlData.publicUrl,
+          name: file.name,
+          type: file.type.startsWith('image/') ? 'image' : 'document'
+        };
+      } catch (err) {
+        console.warn("Storage upload failed, falling back to local Object URL:", err);
+        return {
+          url: URL.createObjectURL(file),
+          name: file.name,
+          type: file.type.startsWith('image/') ? 'image' : 'document'
+        };
+      }
+    }
   }
 };
+

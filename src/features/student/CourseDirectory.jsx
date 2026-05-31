@@ -1,7 +1,38 @@
 import React from 'react';
 import { 
-  Compass, Search, Tag, ArrowRight 
+  Compass, Search, Tag
 } from 'lucide-react';
+
+const getCategoryTheme = (category) => {
+  switch (category) {
+    case 'Trámites y Visados':
+      return {
+        border: 'border-t-4 border-t-cyan-500',
+        badge: 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
+      };
+    case 'Autónomos y Hacienda':
+    case 'Impuestos e IRPF':
+      return {
+        border: 'border-t-4 border-t-purple-500',
+        badge: 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+      };
+    case 'Seguridad Social':
+      return {
+        border: 'border-t-4 border-t-emerald-500',
+        badge: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+      };
+    case 'Calculadoras':
+      return {
+        border: 'border-t-4 border-t-amber-500',
+        badge: 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+      };
+    default:
+      return {
+        border: 'border-t-4 border-t-indigo-500',
+        badge: 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+      };
+  }
+};
 
 export default function CourseDirectory({
   user,
@@ -15,13 +46,11 @@ export default function CourseDirectory({
   categories,
   filteredResources,
   paginatedResources,
-  resourcesPage,
   setResourcesPage,
   totalResourcesPages,
   currentResourcesPage,
   setSelectedResource,
-  getResourceIcon,
-  getActionButtonText
+  getResourceIcon
 }) {
   return (
     <>
@@ -75,7 +104,7 @@ export default function CourseDirectory({
               className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border font-mono uppercase tracking-wider transition-all cursor-pointer ${
                 selectedCategory === category
                   ? 'bg-indigo-950/45 text-indigo-400 border-indigo-500/30 shadow-[0_0_10px_rgba(0,242,254,0.08)]'
-                  : 'bg-zinc-950 text-zinc-550 border-zinc-800 hover:border-zinc-700 hover:text-zinc-350'
+                  : 'bg-zinc-950 text-zinc-555 border-zinc-800 hover:border-zinc-700 hover:text-zinc-350'
               }`}
             >
               {category === 'all' ? 'Ver Todas' : category}
@@ -87,63 +116,59 @@ export default function CourseDirectory({
       {filteredResources.length === 0 ? (
         <div className="py-12 flex flex-col items-center justify-center text-zinc-550 bg-zinc-900/60 border border-zinc-800/80 rounded-2xl backdrop-blur-md">
           <Search className="w-10 h-10 text-zinc-700 mb-3" />
-          <p className="text-xs font-mono uppercase tracking-wider">No trainings found matching current node filters.</p>
+          <p className="text-xs font-mono uppercase tracking-wider">No se encontraron formaciones con los filtros aplicados.</p>
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {paginatedResources.map(resource => (
-              <div 
-                key={resource.id} 
-                className="bg-zinc-900/60 border border-zinc-800/85 hover:border-indigo-500/25 rounded-2xl overflow-hidden flex flex-col justify-between group transition-all duration-300 hover:-translate-y-1 hover:bg-zinc-900/80 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.4)] hover:shadow-[0_12px_30px_rgba(0,0,0,0.6),0_0_20px_rgba(0,242,254,0.1)]"
-              >
-                <div className="p-6 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="p-2 rounded-lg bg-zinc-950/80 border border-zinc-800/80 text-zinc-450 font-mono shadow-sm">
-                      {getResourceIcon(resource.type)}
-                    </span>
-                    <span className="text-[9px] bg-zinc-950 border border-zinc-800 text-zinc-500 px-2.5 py-1 rounded-md font-bold uppercase tracking-wider font-mono">
-                      {resource.category}
-                    </span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {paginatedResources.map(resource => {
+              const theme = getCategoryTheme(resource.category);
+              return (
+                <div 
+                  key={resource.id} 
+                  onClick={() => setSelectedResource(resource)}
+                  className={`bg-zinc-900/50 border border-zinc-800 hover:border-indigo-500/30 rounded-2xl p-5 flex flex-col justify-between group transition-all duration-300 hover:-translate-y-1 hover:bg-zinc-900/80 backdrop-blur-md shadow-[0_4px_15px_rgba(0,0,0,0.3)] hover:shadow-[0_12px_25px_rgba(0,0,0,0.5),0_0_15px_rgba(0,242,254,0.08)] cursor-pointer select-none relative overflow-hidden ${theme.border}`}
+                >
+                  <div className="space-y-3.5">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[8px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider font-mono ${theme.badge}`}>
+                        {resource.category}
+                      </span>
+                      <span className="p-1.5 rounded-lg bg-zinc-950/80 border border-zinc-850 text-zinc-500 group-hover:text-indigo-400 group-hover:border-indigo-500/20 transition-all font-mono shadow-inner">
+                        {getResourceIcon(resource.type)}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5 text-left">
+                      <h4 className="text-xs font-bold text-zinc-200 leading-snug group-hover:text-indigo-300 transition-colors duration-200 font-mono uppercase">
+                        {resource.title}
+                      </h4>
+                      <p className="text-[11px] text-zinc-500 line-clamp-2 leading-relaxed font-sans font-medium">
+                        {resource.description}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-bold text-zinc-150 leading-snug group-hover:text-indigo-400 group-hover:shadow-[0_0_8px_rgba(0,242,254,0.15)] transition-colors duration-200">
-                      {resource.title}
-                    </h4>
-                    <p className="text-xs text-zinc-400 line-clamp-3 leading-relaxed">
-                      {resource.description}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5 pt-1">
+                  <div className="flex flex-wrap gap-1 mt-4 pt-3 border-t border-zinc-800/40">
                     {resource.tags && resource.tags.map((tag, idx) => (
-                      <span key={idx} className="text-[9px] text-zinc-550 bg-zinc-950/60 border border-zinc-800/60 px-2.5 py-0.5 rounded-full flex items-center gap-1 font-mono uppercase">
-                        <Tag className="w-2.5 h-2.5" />
+                      <span key={idx} className="text-[8px] text-zinc-400 bg-zinc-950/50 border border-zinc-850 px-2 py-0.5 rounded-md font-mono uppercase">
                         {tag}
                       </span>
                     ))}
                   </div>
                 </div>
-
-                <div className="px-6 py-4 border-t border-zinc-800/80 bg-zinc-900/20">
-                  <button 
-                    onClick={() => setSelectedResource(resource)}
-                    className="w-full py-3 px-4 bg-zinc-950/80 hover:bg-indigo-950/45 text-zinc-400 hover:text-indigo-400 font-bold border-t border-zinc-800/80 transition-all text-[10px] uppercase font-mono tracking-widest flex items-center justify-center gap-2 cursor-pointer shadow-inner hover:shadow-[0_0_15px_rgba(0,242,254,0.1)]"
-                  >
-                    {getActionButtonText(resource.type)}
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Controles de paginación para recursos */}
           {totalResourcesPages > 1 && (
             <div className="px-6 py-4 bg-zinc-900/60 border border-zinc-800/80 rounded-2xl flex items-center justify-between text-xs backdrop-blur-md shadow-sm font-mono">
               <button
-                onClick={() => setResourcesPage(prev => Math.max(1, prev - 1))}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setResourcesPage(prev => Math.max(1, prev - 1));
+                }}
                 disabled={currentResourcesPage === 1}
                 className="px-3 py-2 bg-zinc-950 hover:bg-zinc-800 text-zinc-450 hover:text-zinc-300 border border-zinc-805 disabled:opacity-40 disabled:pointer-events-none rounded-lg transition-all cursor-pointer uppercase text-[10px] font-bold"
               >
@@ -153,7 +178,10 @@ export default function CourseDirectory({
                 Página <span className="text-indigo-400 font-bold">{currentResourcesPage}</span> de <span className="text-zinc-300 font-bold">{totalResourcesPages}</span>
               </span>
               <button
-                onClick={() => setResourcesPage(prev => Math.min(totalResourcesPages, prev + 1))}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setResourcesPage(prev => Math.min(totalResourcesPages, prev + 1));
+                }}
                 disabled={currentResourcesPage === totalResourcesPages}
                 className="px-3 py-2 bg-zinc-950 hover:bg-zinc-800 text-zinc-450 hover:text-zinc-300 border border-zinc-805 disabled:opacity-40 disabled:pointer-events-none rounded-lg transition-all cursor-pointer uppercase text-[10px] font-bold"
               >

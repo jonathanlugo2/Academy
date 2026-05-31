@@ -38,8 +38,8 @@ export default function ResourceUploader({
   const filteredResources = useMemo(() => {
     return resources
       .filter(r => {
-        const matchesSearch = r.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                             r.description.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesSearch = (r.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                             (r.description || '').toLowerCase().includes(searchQuery.toLowerCase());
         const matchesType = filterType === 'all' || r.type === filterType;
         const matchesCategory = filterCategory === 'all' || r.category === filterCategory;
         return matchesSearch && matchesType && matchesCategory;
@@ -65,7 +65,7 @@ export default function ResourceUploader({
   };
 
   const onSubmit = async (e) => {
-    const success = await handleAddResource(e);
+    await handleAddResource(e);
     // Si handleAddResource devuelve algo que indique éxito, cerramos el modal
     // Como es async y maneja estados internos, asumimos que si no hay error se puede cerrar
     if (!formError) {
@@ -420,7 +420,7 @@ export default function ResourceUploader({
                     />
                     {studentSearchQuery.trim() !== '' && (
                       <div className="absolute left-0 right-0 mt-1 bg-zinc-900 border border-zinc-800 rounded-xl max-h-40 overflow-y-auto z-[110] p-2 shadow-2xl">
-                        {users.filter(u => u.role === 'student' && u.name.toLowerCase().includes(studentSearchQuery.toLowerCase())).map(student => {
+                        {users.filter(u => u.role === 'student' && (u.name || '').toLowerCase().includes(studentSearchQuery.toLowerCase())).map(student => {
                           const isSelected = selectedAssignUserIds.includes(student.id);
                           return (
                             <button

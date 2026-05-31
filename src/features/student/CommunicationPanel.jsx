@@ -2,7 +2,8 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   CheckCircle2, Send, Clock, MessageSquare, 
   User, Search, Inbox, Mail, Hash, HelpCircle,
-  Shield, ChevronRight, PenLine
+  Shield, ChevronRight, PenLine, AlertCircle, Lock,
+  Paperclip, Link, X, Image, FileText, ExternalLink
 } from 'lucide-react';
 
 export default function CommunicationPanel({
@@ -10,83 +11,287 @@ export default function CommunicationPanel({
   setSuccessMsg,
   newMessage,
   setNewMessage,
+  newTicketTitle,
+  setNewTicketTitle,
   sendingMessage,
-  handleSendMessage,
-  messages,
-  paginatedMessages,
-  messagesPage,
-  setMessagesPage,
-  totalMessagesPages,
-  currentMessagesPage
+  handleCreateTicket,
+  handleSendTicketMessage,
+  handleUploadAttachment,
+  tickets = [],
+  selectedTicketId,
+  setSelectedTicketId,
+  ticketMessages = [],
+  loadingMessages
 }) {
-  const [selectedMsgId, setSelectedMsgId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all'); // all, pending, replied
+  const [filterStatus, setFilterStatus] = useState('all'); // all, open, closed
   const [showComposeView, setShowComposeView] = useState(false);
+
+  // Attachment states
+  const [attachment, setAttachment] = useState(null);
+  const [inputLinkUrl, setInputLinkUrl] = useState('');
+  const [inputLinkName, setInputLinkName] = useState('');
+  const [showLinkInput, setShowLinkInput] = useState(false);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
 
   const scrollRef = useRef(null);
 
-  // Filtrado de conversaciones
-  const filteredMessages = useMemo(() => {
-    return messages
-      .filter(m => {
-        const matchesSearch = m.content.toLowerCase().includes(searchQuery.toLowerCase());
-        const isReplied = !!m.reply;
+  // Filtrado de tickets
+  const filteredTickets = useMemo(() => {
+    return tickets
+      .filter(t => {
+        const matchesSearch = (t.title || '').toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus = filterStatus === 'all' || 
-                             (filterStatus === 'pending' && !isReplied) || 
-                             (filterStatus === 'replied' && isReplied);
+                             (filterStatus === 'open' && t.status === 'open') || 
+                             (filterStatus === 'closed' && t.status === 'closed');
         return matchesSearch && matchesStatus;
       })
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  }, [messages, searchQuery, filterStatus]);
+      .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+  }, [tickets, searchQuery, filterStatus]);
 
-  const pendingCount = messages.filter(m => !m.reply).length;
+  const openTicketsCount = tickets.filter(t => t.status === 'open').length;
 
-  // Seleccionar automáticamente el primer mensaje si ninguno está seleccionado
+  // Seleccionar automáticamente el primer ticket si ninguno está seleccionado
   useEffect(() => {
-    if (filteredMessages.length > 0 && !selectedMsgId && !showComposeView) {
-      setSelectedMsgId(filteredMessages[0].id);
+    if (filteredTickets.length > 0 && !selectedTicketId && !showComposeView) {
+      setSelectedTicketId(filteredTickets[0].id);
     }
-  }, [filteredMessages, selectedMsgId, showComposeView]);
+  }, [filteredTickets, selectedTicketId, showComposeView, setSelectedTicketId]);
 
-  const activeMessage = useMemo(() => 
-    messages.find(m => m.id === selectedMsgId) || null
-  , [messages, selectedMsgId]);
+  const activeTicket = useMemo(() => 
+    tickets.find(t => t.id === selectedTicketId) || null
+  , [tickets, selectedTicketId]);
 
-  // Auto-scroll al final del chat cuando cambia el mensaje o la respuesta
+  // Auto-scroll al final del chat cuando cambia el listado de mensajes del ticket
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [selectedMsgId, activeMessage?.reply]);
+  }, [ticketMessages, loadingMessages]);
 
-  // Cuando se envía un mensaje exitosamente, volver a la vista de conversaciones
+  // Cuando se crea un ticket exitosamente, volver a la vista de conversaciones
   useEffect(() => {
     if (successMsg && showComposeView) {
-      // Pequeño delay para que el usuario vea el mensaje de éxito
       const timer = setTimeout(() => {
         setShowComposeView(false);
-        setSelectedMsgId(null); // Se auto-seleccionará el más reciente
-      }, 1500);
+        setSuccessMsg('');
+      }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [successMsg, showComposeView]);
+  }, [successMsg, showComposeView, setSuccessMsg]);
 
-  const handleSelectMessage = (msgId) => {
-    setSelectedMsgId(msgId);
+  const handleSelectTicket = (ticketId) => {
+    setSelectedTicketId(ticketId);
     setShowComposeView(false);
+    setAttachment(null);
+    setShowLinkInput(false);
   };
 
   const handleOpenCompose = () => {
     setShowComposeView(true);
-    setSelectedMsgId(null);
+    setSelectedTicketId(null);
     setSuccessMsg('');
+    setNewTicketTitle('');
+    setNewMessage('');
+    setAttachment(null);
+    setShowLinkInput(false);
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploadingAttachment(true);
+    try {
+      const res = await handleUploadAttachment(file);
+      setAttachment(res);
+    } catch (err) {
+      alert("Error al subir archivo: " + err.message);
+    } finally {
+      setUploadingAttachment(false);
+    }
+  };
+
+  const handleAddLink = (e) => {
+    e.preventDefault();
+    if (!inputLinkUrl.trim()) return;
+    setAttachment({
+      url: inputLinkUrl.trim(),
+      name: inputLinkName.trim() || "Enlace web",
+      type: "link"
+    });
+    setInputLinkUrl('');
+    setInputLinkName('');
+    setShowLinkInput(false);
+  };
+
+  const handleRemoveAttachment = () => {
+    setAttachment(null);
+  };
+
+  const onSubmitCreateTicket = (e) => {
+    e.preventDefault();
+    handleCreateTicket(e, attachment);
+    setAttachment(null);
+  };
+
+  const onSubmitSendMessage = (e) => {
+    e.preventDefault();
+    handleSendTicketMessage(e, attachment);
+    setAttachment(null);
+  };
+
+  // Render para previsualizar adjunto configurado en la caja de texto
+  const renderAttachmentPreview = () => {
+    if (uploadingAttachment) {
+      return (
+        <div className="p-3 bg-zinc-950/60 border border-zinc-800 rounded-xl flex items-center gap-2 text-[10px] text-zinc-450 font-mono mt-2 animate-pulse">
+          <div className="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
+          <span>Subiendo archivo adjunto...</span>
+        </div>
+      );
+    }
+    if (!attachment) return null;
+    return (
+      <div className="p-3 bg-indigo-950/20 border border-indigo-500/10 rounded-xl flex items-center justify-between gap-4 mt-2 animate-in slide-in-from-bottom-2 duration-200">
+        <div className="flex items-center gap-2 text-xs text-indigo-300 font-mono">
+          {attachment.type === 'image' && <Image className="w-4 h-4 text-indigo-400" />}
+          {attachment.type === 'document' && <FileText className="w-4 h-4 text-indigo-400" />}
+          {attachment.type === 'link' && <ExternalLink className="w-4 h-4 text-indigo-400" />}
+          <span className="truncate max-w-[220px] font-bold">{attachment.name}</span>
+        </div>
+        <button 
+          type="button"
+          onClick={handleRemoveAttachment}
+          className="p-1 hover:bg-zinc-850 rounded-lg text-zinc-500 hover:text-white cursor-pointer transition-colors"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    );
+  };
+
+  // Botones para adjuntar archivo / enlace en el editor
+  const renderAttachmentButtons = () => {
+    return (
+      <div className="flex gap-2 items-center relative">
+        <label className="p-2 text-zinc-500 hover:text-zinc-200 bg-zinc-950 hover:bg-zinc-850 border border-zinc-800 rounded-xl cursor-pointer transition-colors" title="Adjuntar Archivo (PDF, Imagen...)">
+          <Paperclip className="w-4 h-4" />
+          <input 
+            type="file" 
+            accept="image/*,.pdf" 
+            onChange={handleFileChange} 
+            className="hidden" 
+            disabled={uploadingAttachment}
+          />
+        </label>
+        
+        <button
+          type="button"
+          onClick={() => setShowLinkInput(!showLinkInput)}
+          className={`p-2 border rounded-xl cursor-pointer transition-colors ${showLinkInput ? 'bg-indigo-600 text-white border-indigo-500' : 'text-zinc-500 hover:text-zinc-200 bg-zinc-950 hover:bg-zinc-850 border-zinc-800'}`}
+          title="Adjuntar Enlace Web"
+        >
+          <Link className="w-4 h-4" />
+        </button>
+
+        {showLinkInput && (
+          <div className="absolute bottom-12 left-0 z-20 bg-zinc-900 border border-zinc-800 p-4 rounded-2xl shadow-2xl w-64 space-y-3 font-mono animate-in slide-in-from-bottom-2 duration-200">
+            <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
+              <span className="text-[9px] font-bold text-white uppercase tracking-wider">Adjuntar Enlace</span>
+              <button type="button" onClick={() => setShowLinkInput(false)} className="text-zinc-500 hover:text-white"><X className="w-3 h-3" /></button>
+            </div>
+            <div className="space-y-2 text-[10px]">
+              <input 
+                type="url" 
+                placeholder="https://ejemplo.com"
+                required
+                value={inputLinkUrl}
+                onChange={(e) => setInputLinkUrl(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 px-3 py-2 rounded-lg text-zinc-200 focus:outline-none focus:border-indigo-500/50"
+              />
+              <input 
+                type="text" 
+                placeholder="Título (Ej. Sitio Web)"
+                value={inputLinkName}
+                onChange={(e) => setInputLinkName(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 px-3 py-2 rounded-lg text-zinc-200 focus:outline-none focus:border-indigo-500/50"
+              />
+              <button 
+                type="button" 
+                onClick={handleAddLink}
+                className="w-full py-2 bg-indigo-650 hover:bg-indigo-650/80 text-white font-bold rounded-lg uppercase text-[9px] tracking-widest cursor-pointer"
+              >
+                Insertar Enlace
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Render para mostrar adjuntos en la burbuja de chat
+  const renderMessageAttachment = (msg) => {
+    if (!msg.attachment_url) return null;
+    return (
+      <div className="mt-3 border-t border-zinc-800/40 pt-2.5 max-w-sm">
+        {msg.attachment_type === 'image' && (
+          <div className="space-y-2">
+            <a 
+              href={msg.attachment_url} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="block rounded-lg overflow-hidden border border-zinc-800 bg-zinc-950 hover:opacity-85 transition-opacity"
+            >
+              <img 
+                src={msg.attachment_url} 
+                alt={msg.attachment_name || "Imagen adjunta"} 
+                className="max-h-40 object-cover w-full"
+              />
+            </a>
+            <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-mono">
+              <Image className="w-3.5 h-3.5 text-zinc-600" />
+              <span className="truncate">{msg.attachment_name || "Imagen"}</span>
+            </div>
+          </div>
+        )}
+        {msg.attachment_type === 'document' && (
+          <a 
+            href={msg.attachment_url} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="flex items-center justify-between p-3 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 rounded-xl transition-colors group"
+          >
+            <div className="flex items-center gap-2 text-[10px] text-zinc-300 font-mono truncate mr-2">
+              <FileText className="w-4 h-4 text-indigo-400" />
+              <span className="truncate font-bold group-hover:text-white">{msg.attachment_name || "Documento"}</span>
+            </div>
+            <ChevronRight className="w-3.5 h-3.5 text-zinc-600 group-hover:text-white transition-colors" />
+          </a>
+        )}
+        {msg.attachment_type === 'link' && (
+          <a 
+            href={msg.attachment_url} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="flex items-center justify-between p-3 bg-indigo-950/15 hover:bg-indigo-950/30 border border-indigo-950/40 rounded-xl transition-all group"
+          >
+            <div className="flex items-center gap-2 text-[10px] text-indigo-300 font-mono truncate mr-2">
+              <ExternalLink className="w-4 h-4 text-indigo-400 animate-pulse" />
+              <span className="truncate font-bold group-hover:text-indigo-200">{msg.attachment_name || "Enlace web"}</span>
+            </div>
+            <ChevronRight className="w-3.5 h-3.5 text-indigo-400 group-hover:translate-x-0.5 transition-transform" />
+          </a>
+        )}
+      </div>
+    );
   };
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-180px)] min-h-[600px] font-sans">
       
-      {/* PANEL IZQUIERDO: LISTA DE CONVERSACIONES */}
+      {/* PANEL IZQUIERDO: LISTA DE TICKETS */}
       <div className="w-full lg:w-[380px] flex flex-col bg-zinc-900/40 border border-zinc-800/80 rounded-3xl overflow-hidden backdrop-blur-md">
         
         {/* Header de Lista */}
@@ -94,10 +299,10 @@ export default function CommunicationPanel({
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-white uppercase tracking-tight font-mono flex items-center gap-2">
               <Inbox className="w-4 h-4 text-indigo-400" />
-              Mis Consultas
+              Soporte: Mis Tickets
             </h3>
             <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/20">
-              {pendingCount > 0 ? `${pendingCount} EN ESPERA` : 'AL DÍA'}
+              {openTicketsCount > 0 ? `${openTicketsCount} ACTIVO(S)` : 'AL DÍA'}
             </span>
           </div>
           
@@ -105,7 +310,7 @@ export default function CommunicationPanel({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
             <input 
               type="text"
-              placeholder="BUSCAR EN MIS CONSULTAS..."
+              placeholder="BUSCAR TICKETS..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-9 pr-4 py-2 text-[10px] text-zinc-200 outline-none focus:border-indigo-500/30 transition-all font-mono uppercase"
@@ -120,61 +325,68 @@ export default function CommunicationPanel({
               Todos
             </button>
             <button 
-              onClick={() => setFilterStatus('pending')}
-              className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-all border cursor-pointer ${filterStatus === 'pending' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-transparent text-zinc-550 border-transparent hover:text-zinc-300'}`}
+              onClick={() => setFilterStatus('open')}
+              className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-all border cursor-pointer ${filterStatus === 'open' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-transparent text-zinc-550 border-transparent hover:text-zinc-300'}`}
             >
-              En Espera
+              Abiertos
             </button>
             <button 
-              onClick={() => setFilterStatus('replied')}
-              className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-all border cursor-pointer ${filterStatus === 'replied' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-transparent text-zinc-550 border-transparent hover:text-zinc-300'}`}
+              onClick={() => setFilterStatus('closed')}
+              className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-all border cursor-pointer ${filterStatus === 'closed' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-transparent text-zinc-550 border-transparent hover:text-zinc-300'}`}
             >
-              Respondidos
+              Resueltos
             </button>
           </div>
         </div>
 
-        {/* Listado de Mensajes */}
+        {/* Listado de Tickets */}
         <div className="flex-1 overflow-y-auto custom-scrollbar">
-          {filteredMessages.length > 0 ? (
-            filteredMessages.map(msg => (
+          {filteredTickets.length > 0 ? (
+            filteredTickets.map(ticket => (
               <div 
-                key={msg.id}
-                onClick={() => handleSelectMessage(msg.id)}
-                className={`p-4 border-b border-zinc-800/40 cursor-pointer transition-all relative group ${selectedMsgId === msg.id && !showComposeView ? 'bg-indigo-500/5 border-l-4 border-l-indigo-500' : 'hover:bg-white/[0.02]'}`}
+                key={ticket.id}
+                onClick={() => handleSelectTicket(ticket.id)}
+                className={`p-4 border-b border-zinc-800/40 cursor-pointer transition-all relative group ${selectedTicketId === ticket.id && !showComposeView ? 'bg-indigo-500/5 border-l-4 border-l-indigo-500' : 'hover:bg-white/[0.02]'}`}
               >
                 <div className="flex justify-between items-start mb-1">
                   <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${msg.reply ? 'bg-zinc-800' : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-pulse'}`}></div>
+                    <div className={`w-2 h-2 rounded-full ${ticket.status === 'closed' ? 'bg-zinc-850 border border-zinc-750' : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-pulse'}`}></div>
                     <span className="text-[11px] font-bold text-zinc-200 uppercase truncate max-w-[180px]">
-                      {msg.reply ? 'Consulta Resuelta' : 'Esperando Respuesta'}
+                      {ticket.title}
                     </span>
                   </div>
-                  <span className="text-[9px] text-zinc-600 font-mono">{new Date(msg.created_at).toLocaleDateString('es-ES')}</span>
+                  <span className="text-[9px] text-zinc-650 font-mono">
+                    {new Date(ticket.updated_at).toLocaleDateString('es-ES')}
+                  </span>
                 </div>
-                <p className="text-[10px] text-zinc-400 line-clamp-2 leading-relaxed">
-                  {msg.content}
-                </p>
                 <div className="flex justify-between items-center mt-2.5">
-                   <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest flex items-center gap-1">
-                     <Hash className="w-2.5 h-2.5" /> ID-{msg.id.toString().slice(-4)}
-                   </span>
-                   {msg.reply && <CheckCircle2 className="w-3 h-3 text-emerald-500/50" />}
+                  <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest flex items-center gap-1">
+                    <Hash className="w-2.5 h-2.5" /> ID-{ticket.id.toString().slice(-4)}
+                  </span>
+                  {ticket.status === 'closed' ? (
+                    <span className="text-[8px] font-extrabold text-emerald-450 uppercase tracking-wider bg-emerald-950/20 border border-emerald-900/30 px-1.5 py-0.5 rounded flex items-center gap-1">
+                      <CheckCircle2 className="w-2.5 h-2.5" /> Resuelto
+                    </span>
+                  ) : (
+                    <span className="text-[8px] font-extrabold text-amber-450 uppercase tracking-wider bg-amber-950/20 border border-amber-900/30 px-1.5 py-0.5 rounded flex items-center gap-1">
+                      Abierto
+                    </span>
+                  )}
                 </div>
               </div>
             ))
           ) : (
             <div className="p-12 text-center space-y-3">
               <Mail className="w-8 h-8 text-zinc-800 mx-auto" />
-              <p className="text-[10px] text-zinc-600 uppercase font-mono tracking-widest">
-                {messages.length === 0 ? 'Aún no has enviado consultas' : 'Sin resultados para este filtro'}
+              <p className="text-[10px] text-zinc-650 uppercase font-mono tracking-widest">
+                {tickets.length === 0 ? 'No tienes tickets abiertos' : 'Sin resultados'}
               </p>
             </div>
           )}
         </div>
 
         {/* Botón de Nueva Consulta */}
-        <div className="p-4 border-t border-zinc-800/80">
+        <div className="p-4 border-t border-zinc-800/80 bg-zinc-950/20">
           <button
             onClick={handleOpenCompose}
             className={`w-full py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer transition-all ${showComposeView ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'bg-zinc-950 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-600 hover:text-white hover:shadow-lg hover:shadow-indigo-500/20'}`}
@@ -185,11 +397,11 @@ export default function CommunicationPanel({
         </div>
       </div>
 
-      {/* PANEL DERECHO: VISTA DE CHAT / CONVERSACIÓN O COMPOSE */}
-      <div className="flex-1 flex flex-col bg-zinc-900/40 border border-zinc-800/80 rounded-3xl overflow-hidden backdrop-blur-md">
+      {/* PANEL DERECHO: VISTA DE CHAT O COMPOSE */}
+      <div className="flex-1 flex flex-col bg-zinc-900/40 border border-zinc-800/80 rounded-3xl overflow-hidden backdrop-blur-md relative">
         
         {showComposeView ? (
-          /* ─── VISTA DE COMPOSICIÓN ─── */
+          /* ─── VISTA DE CREACIÓN DE TICKET ─── */
           <>
             {/* Compose Header */}
             <div className="px-6 py-5 border-b border-zinc-800/80 bg-zinc-900/20 flex justify-between items-center">
@@ -198,15 +410,17 @@ export default function CommunicationPanel({
                   <PenLine className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-white uppercase tracking-tight">Nueva Consulta</h4>
+                  <h4 className="text-sm font-bold text-white uppercase tracking-tight">Crear Nuevo Ticket de Soporte</h4>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[9px] font-bold text-indigo-400 bg-indigo-500/5 px-2 py-0.5 rounded border border-indigo-500/20 uppercase tracking-widest font-mono">DIRIGIDO A SOPORTE</span>
+                    <span className="text-[9px] font-bold text-indigo-400 bg-indigo-500/5 px-2 py-0.5 rounded border border-indigo-500/20 uppercase tracking-widest font-mono">
+                      Soporte Administrativo
+                    </span>
                   </div>
                 </div>
               </div>
               <button 
                 onClick={() => setShowComposeView(false)} 
-                className="text-[10px] text-zinc-500 hover:text-zinc-200 font-bold font-mono uppercase tracking-wider bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 px-3 py-2 rounded-lg cursor-pointer transition-colors"
+                className="text-[10px] text-zinc-500 hover:text-zinc-200 font-bold font-mono uppercase tracking-wider bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 px-3 py-2 rounded-lg cursor-pointer transition-colors"
               >
                 Cancelar
               </button>
@@ -215,73 +429,74 @@ export default function CommunicationPanel({
             {/* Compose Body */}
             <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar bg-zinc-950/20">
               <div className="max-w-2xl mx-auto space-y-6">
+                
                 <div className="p-5 bg-zinc-900/60 border border-zinc-800/60 rounded-2xl space-y-2">
                   <div className="flex items-start gap-3">
                     <HelpCircle className="w-5 h-5 text-indigo-400 mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-xs font-bold text-zinc-200 uppercase tracking-wide font-mono">Centro de Soporte</p>
+                      <p className="text-xs font-bold text-zinc-200 uppercase tracking-wide font-mono">Sistema de Tickets de Soporte</p>
                       <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
-                        ¿Tienes dudas sobre visados, impuestos de autónomo, o necesitas una recomendación? Tu mensaje será enviado directamente al equipo de administración. Recibirás respuesta en el menor tiempo posible.
+                        Abre una conversación especificando un tema claro (por ejemplo: "Declaración IRPF"). Podrás adjuntar archivos (PDF, imágenes) o enlaces web para aportar contexto a tu consulta.
                       </p>
                     </div>
                   </div>
                 </div>
 
-                {successMsg && (
+                {successMsg ? (
                   <div className="p-4 bg-emerald-950/30 border border-emerald-500/20 text-emerald-300 rounded-2xl flex items-start gap-3 animate-in slide-in-from-bottom-2 duration-300">
                     <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-400 mt-0.5" />
                     <div>
-                      <p className="text-xs font-bold uppercase tracking-wide font-mono">Consulta Enviada</p>
+                      <p className="text-xs font-bold uppercase tracking-wide font-mono">Ticket Creado</p>
                       <p className="text-[11px] text-zinc-400 mt-1">{successMsg}</p>
                     </div>
                   </div>
+                ) : (
+                  <form onSubmit={onSubmitCreateTicket} className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider font-mono">Asunto / Título de Consulta</label>
+                      <input 
+                        type="text"
+                        placeholder="EJ. DECLARACIÓN IRPF, MODELO 036..."
+                        required
+                        value={newTicketTitle}
+                        onChange={(e) => setNewTicketTitle(e.target.value)}
+                        className="w-full bg-zinc-950 border border-zinc-800 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-xs text-zinc-200 placeholder-zinc-650 focus:outline-none transition-all uppercase font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider font-mono">Detalles de la Consulta</label>
+                      <div className="relative">
+                        <textarea
+                          value={newMessage}
+                          onChange={(e) => setNewMessage(e.target.value)}
+                          rows="5"
+                          placeholder="Describe detalladamente tu situación o consulta aquí..."
+                          required
+                          className="w-full bg-zinc-950 border border-zinc-800 focus:border-indigo-500/50 rounded-2xl px-5 py-4 text-xs text-zinc-200 placeholder-zinc-650 focus:outline-none resize-none pr-16 shadow-inner transition-all"
+                        />
+                        <button
+                          type="submit"
+                          disabled={sendingMessage || !newMessage.trim() || !newTicketTitle.trim() || uploadingAttachment}
+                          className="absolute right-4 bottom-4 w-10 h-10 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-all disabled:opacity-20 disabled:grayscale flex items-center justify-center shadow-lg shadow-indigo-500/20 active:scale-90 cursor-pointer"
+                        >
+                          <Send className="w-4.5 h-4.5" />
+                        </button>
+                      </div>
+                      
+                      {renderAttachmentPreview()}
+                      <div className="mt-2.5">
+                        {renderAttachmentButtons()}
+                      </div>
+                    </div>
+                  </form>
                 )}
               </div>
             </div>
-
-            {/* Compose Input */}
-            {!successMsg && (
-              <div className="p-6 bg-zinc-900/50 border-t border-zinc-800/80">
-                <form onSubmit={handleSendMessage}>
-                  <div className="relative group">
-                    <textarea
-                      value={newMessage}
-                      onChange={(e) => {
-                        setNewMessage(e.target.value);
-                        if (successMsg) setSuccessMsg('');
-                      }}
-                      rows="4"
-                      placeholder="Escribe aquí tu consulta de forma detallada..."
-                      required
-                      className="w-full bg-zinc-950 border border-zinc-800 focus:border-indigo-500/50 rounded-2xl px-6 py-5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none resize-none pr-16 shadow-inner transition-all"
-                    />
-                    <button
-                      type="submit"
-                      disabled={sendingMessage || !newMessage.trim()}
-                      className="absolute right-4 bottom-4 w-10 h-10 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-all disabled:opacity-20 disabled:grayscale flex items-center justify-center shadow-lg shadow-indigo-500/20 active:scale-90 cursor-pointer"
-                    >
-                      {sendingMessage ? (
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      ) : (
-                        <Send className="w-4.5 h-4.5" />
-                      )}
-                    </button>
-                  </div>
-                  <div className="flex justify-between items-center mt-3 px-2">
-                    <p className="text-[9px] text-zinc-600 font-mono uppercase tracking-widest flex items-center gap-1.5">
-                      <Shield className="w-3 h-3" /> Canal Privado ExpatFiscal
-                    </p>
-                    <p className="text-[9px] text-zinc-600 font-mono uppercase tracking-widest">
-                      {newMessage.length} caracteres
-                    </p>
-                  </div>
-                </form>
-              </div>
-            )}
           </>
 
-        ) : activeMessage ? (
-          /* ─── VISTA DE CONVERSACIÓN ─── */
+        ) : activeTicket ? (
+          /* ─── VISTA DE CHAT EN VIVO PARA TICKET ACTIVO ─── */
           <>
             {/* Chat Header */}
             <div className="px-6 py-5 border-b border-zinc-800/80 bg-zinc-900/20 flex justify-between items-center">
@@ -291,19 +506,21 @@ export default function CommunicationPanel({
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-white uppercase tracking-tight">
-                    Consulta #{activeMessage.id.toString().slice(-4)}
+                    {activeTicket.title}
                   </h4>
                   <div className="flex items-center gap-2 mt-0.5">
-                    {activeMessage.reply ? (
-                      <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest font-mono">RESUELTA</span>
-                    ) : (
+                    {activeTicket.status === 'open' ? (
                       <span className="text-[9px] font-bold text-amber-400 bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/20 uppercase tracking-widest font-mono flex items-center gap-1">
-                        <Clock className="w-3 h-3 animate-pulse" /> EN ESPERA
+                        <Clock className="w-3 h-3 animate-pulse" /> ABIERTO
+                      </span>
+                    ) : (
+                      <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest font-mono flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> CERRADO / HISTÓRICO
                       </span>
                     )}
                     <span className="text-[9px] text-zinc-600 flex items-center gap-1 font-mono uppercase">
                       <Clock className="w-3 h-3" />
-                      {new Date(activeMessage.created_at).toLocaleString('es-ES')}
+                      CREADO: {new Date(activeTicket.created_at).toLocaleString('es-ES')}
                     </span>
                   </div>
                 </div>
@@ -311,71 +528,89 @@ export default function CommunicationPanel({
             </div>
 
             {/* Chat Messages Area */}
-            <div ref={scrollRef} className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar bg-zinc-950/20">
-              
-              {/* Mensaje del Estudiante (alineado a la derecha, ya que es "tú") */}
-              <div className="flex flex-col items-end space-y-2 max-w-[85%] ml-auto animate-in slide-in-from-right-4 duration-300">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[8px] text-zinc-650 font-mono">{new Date(activeMessage.created_at).toLocaleTimeString('es-ES')}</span>
-                  <span className="text-[9px] font-bold text-indigo-400 uppercase font-mono tracking-widest">Tú</span>
+            <div ref={scrollRef} className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar bg-zinc-950/20">
+              {loadingMessages ? (
+                <div className="flex justify-center items-center h-full">
+                  <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
                 </div>
-                <div className="bg-indigo-600 text-white p-5 rounded-2xl rounded-tr-none shadow-lg shadow-indigo-500/10 border border-indigo-400/20">
-                  <p className="text-xs leading-relaxed font-sans whitespace-pre-wrap">
-                    {activeMessage.content}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1.5 text-[8px] text-emerald-400/70 font-bold uppercase tracking-widest">
-                  <CheckCircle2 className="w-3 h-3" /> Enviado
-                </div>
-              </div>
-
-              {/* Respuesta del Administrador (alineado a la izquierda) */}
-              {activeMessage.reply ? (
-                <div className="flex flex-col items-start space-y-2 max-w-[85%] animate-in slide-in-from-left-4 duration-300">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[9px] font-bold text-zinc-500 uppercase font-mono tracking-widest">Soporte Académico</span>
-                    <span className="text-[8px] text-zinc-650 font-mono">Respuesta</span>
-                  </div>
-                  <div className="bg-zinc-900 border border-zinc-800/80 p-5 rounded-2xl rounded-tl-none shadow-sm">
-                    <p className="text-xs text-zinc-300 leading-relaxed font-sans whitespace-pre-wrap">
-                      {activeMessage.reply}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[8px] text-emerald-400 font-bold uppercase tracking-widest">
-                    <Shield className="w-3 h-3" /> Respuesta Oficial
-                  </div>
-                </div>
-              ) : (
-                /* Indicador de espera */
-                <div className="flex flex-col items-start space-y-2 max-w-[85%] animate-in slide-in-from-left-4 duration-500">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[9px] font-bold text-zinc-600 uppercase font-mono tracking-widest">Soporte Académico</span>
-                  </div>
-                  <div className="bg-zinc-900/60 border border-zinc-800/60 border-dashed p-5 rounded-2xl rounded-tl-none">
-                    <div className="flex items-center gap-3">
-                      <div className="flex gap-1">
-                        <div className="w-2 h-2 bg-zinc-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                        <div className="w-2 h-2 bg-zinc-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                        <div className="w-2 h-2 bg-zinc-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+              ) : ticketMessages.length > 0 ? (
+                ticketMessages.map((msg) => {
+                  const isUser = msg.sender_role === 'student';
+                  return (
+                    <div 
+                      key={msg.id}
+                      className={`flex flex-col ${isUser ? 'items-end ml-auto' : 'items-start'} space-y-2 max-w-[85%] animate-in slide-in-from-bottom-2 duration-300`}
+                    >
+                      <div className="flex items-center gap-2 mb-0.5">
+                        {!isUser && <span className="text-[9px] font-bold text-indigo-400 uppercase font-mono tracking-widest">Soporte ExpatFiscal</span>}
+                        <span className="text-[8px] text-zinc-650 font-mono">
+                          {new Date(msg.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        {isUser && <span className="text-[9px] font-bold text-zinc-400 uppercase font-mono tracking-widest">Tú</span>}
                       </div>
-                      <p className="text-[10px] text-zinc-550 font-mono uppercase tracking-wider">
-                        Pendiente de respuesta del equipo...
-                      </p>
+                      <div className={`p-4 rounded-2xl ${isUser ? 'bg-indigo-650 text-white rounded-tr-none border border-indigo-550/20 shadow-lg shadow-indigo-950/10' : 'bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-tl-none shadow-sm'}`}>
+                        <p className="text-xs leading-relaxed font-sans whitespace-pre-wrap text-left">
+                          {msg.content}
+                        </p>
+                        {renderMessageAttachment(msg)}
+                      </div>
                     </div>
-                  </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-[10px] text-zinc-600 uppercase font-mono tracking-widest">No hay mensajes cargados</p>
                 </div>
               )}
             </div>
 
-            {/* Footer informativo */}
-            <div className="px-6 py-4 bg-zinc-900/30 border-t border-zinc-800/80 flex items-center justify-between">
-              <p className="text-[9px] text-zinc-600 font-mono uppercase tracking-widest flex items-center gap-1.5">
-                <Shield className="w-3 h-3" /> Canal Seguro ExpatFiscal
-              </p>
-              <p className="text-[9px] text-zinc-600 font-mono uppercase tracking-widest">
-                {activeMessage.reply ? 'CASO CERRADO' : 'ESPERANDO RESPUESTA'}
-              </p>
-            </div>
+            {/* Input para responder o aviso de cerrado */}
+            {activeTicket.status === 'open' ? (
+              <div className="p-6 bg-zinc-900/50 border-t border-zinc-800/80">
+                <form onSubmit={onSubmitSendMessage}>
+                  <div className="relative group">
+                    <textarea
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      rows="3"
+                      placeholder="Escribe un mensaje de respuesta para soporte..."
+                      required
+                      className="w-full bg-zinc-950 border border-zinc-800 focus:border-indigo-500/50 rounded-2xl px-6 py-4 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none resize-none pr-16 shadow-inner transition-all"
+                    />
+                    <button
+                      type="submit"
+                      disabled={sendingMessage || !newMessage.trim() || uploadingAttachment}
+                      className="absolute right-4 bottom-4 w-10 h-10 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-all disabled:opacity-20 disabled:grayscale flex items-center justify-center shadow-lg shadow-indigo-500/20 active:scale-90 cursor-pointer"
+                    >
+                      {sendingMessage ? (
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      ) : (
+                        <Send className="w-4.5 h-4.5" />
+                      )}
+                    </button>
+                  </div>
+                  
+                  {renderAttachmentPreview()}
+                  
+                  <div className="flex justify-between items-center mt-3 px-2">
+                    {renderAttachmentButtons()}
+                    <p className="text-[9px] text-zinc-600 font-mono uppercase tracking-widest flex items-center gap-1.5">
+                      <Shield className="w-3 h-3" /> Canal de Soporte Activo
+                    </p>
+                  </div>
+                </form>
+              </div>
+            ) : (
+              <div className="p-5 bg-amber-950/20 border-t border-amber-900/30 flex items-start gap-3 p-6 animate-in fade-in duration-300">
+                <Lock className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-amber-400 uppercase tracking-wide font-mono">Ticket Resuelto y Cerrado</p>
+                  <p className="text-[11px] text-zinc-500 mt-1 leading-relaxed">
+                    Este ticket ha sido cerrado por el administrador y se encuentra en modo histórico. No puedes enviar más mensajes. Si tienes otra duda o consulta, por favor haz clic en <span className="text-indigo-400 font-bold">"Nueva Consulta"</span> para abrir un nuevo ticket.
+                  </p>
+                </div>
+              </div>
+            )}
           </>
         ) : (
           /* ─── ESTADO VACÍO ─── */
@@ -384,8 +619,8 @@ export default function CommunicationPanel({
                <MessageSquare className="w-8 h-8" />
              </div>
              <div>
-               <h4 className="text-sm font-bold text-zinc-300 uppercase tracking-tight">Centro de Comunicación</h4>
-               <p className="text-[10px] text-zinc-600 uppercase font-mono tracking-widest mt-1">Selecciona una consulta o crea una nueva</p>
+               <h4 className="text-sm font-bold text-zinc-300 uppercase tracking-tight">Centro de Soporte Académico</h4>
+               <p className="text-[10px] text-zinc-600 uppercase font-mono tracking-widest mt-1">Selecciona un ticket de la lista o crea uno nuevo</p>
              </div>
              <button
                onClick={handleOpenCompose}

@@ -24,15 +24,15 @@ export default function AdminDashboard() {
   // Pagination states
   const [usersPage, setUsersPage] = useState(1);
   const [resourcesPage, setResourcesPage] = useState(1);
-  const [messagesPage, setMessagesPage] = useState(1);
-
   const USERS_PER_PAGE = 5;
   const RESOURCES_PER_PAGE = 5;
-  const MESSAGES_PER_PAGE = 4;
   
   // State for database lists
   const [resources, setResources] = useState([]);
-  const [messages, setMessages] = useState([]);
+  const [tickets, setTickets] = useState([]);
+  const [selectedTicketId, setSelectedTicketId] = useState(null);
+  const [ticketMessages, setTicketMessages] = useState([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -59,7 +59,7 @@ export default function AdminDashboard() {
 
   // States for User Management
   const [selectedUser, setSelectedUser] = useState(null);
-  const [showCreateUserForm, setShowCreateUserForm] = useState(true);
+  const [_showCreateUserForm, setShowCreateUserForm] = useState(true);
   
   // Form states for creating user
   const [uEmail, setUEmail] = useState('');
@@ -83,10 +83,10 @@ export default function AdminDashboard() {
   const loadData = useCallback(async () => {
     try {
       const resList = await mockDb.resources.getAll();
-      const msgList = await mockDb.messages.getAll();
+      const ticketsList = await mockDb.tickets.getAll();
       const usersList = await mockDb.users.getAll();
       setResources(resList);
-      setMessages(msgList);
+      setTickets(ticketsList);
       setUsers(usersList);
     } catch (e) {
       console.error("Error al cargar datos:", e);
@@ -98,6 +98,26 @@ export default function AdminDashboard() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Cargar mensajes del ticket seleccionado
+  useEffect(() => {
+    const fetchTicketMessages = async () => {
+      if (!selectedTicketId) {
+        setTicketMessages([]);
+        return;
+      }
+      setLoadingMessages(true);
+      try {
+        const msgs = await mockDb.tickets.getMessages(selectedTicketId);
+        setTicketMessages(msgs);
+      } catch (err) {
+        console.error("Error al cargar mensajes del ticket:", err);
+      } finally {
+        setLoadingMessages(false);
+      }
+    };
+    fetchTicketMessages();
+  }, [selectedTicketId]);
 
   // Adjust pagination pages when lists change
   useEffect(() => {
@@ -113,13 +133,6 @@ export default function AdminDashboard() {
       setResourcesPage(totalPages);
     }
   }, [resources, resourcesPage]);
-
-  useEffect(() => {
-    const totalPages = Math.ceil(messages.length / MESSAGES_PER_PAGE) || 1;
-    if (messagesPage > totalPages) {
-      setMessagesPage(totalPages);
-    }
-  }, [messages, messagesPage]);
 
   // Handler for adding/updating resource
   const handleAddResource = async (e) => {
@@ -279,26 +292,61 @@ export default function AdminDashboard() {
       await mockDb.resources.delete(id);
       const updated = await mockDb.resources.getAll();
       setResources(updated);
+      
+      // Sincronizar usuarios tras eliminar el recurso
+      const updatedUsers = await mockDb.users.getAll();
+      setUsers(updatedUsers);
+      
+      // Si se tenía seleccionado un usuario en detalles, actualizarlo
+      if (selectedUser) {
+        const freshUser = updatedUsers.find(u => u.id === selectedUser.id);
+        if (freshUser) setSelectedUser(freshUser);
+      }
     } catch (e) {
       alert('Error al borrar el recurso: ' + e.message);
     }
   };
 
-  // Handler for replying to message
-  const handleSendReply = async (messageId) => {
-    const text = replyText[messageId];
+  // Handler for replying to ticket message
+  const handleSendReply = async (ticketId, attachment = null) => {
+    const text = replyText[ticketId];
     if (!text || !text.trim()) return;
 
-    setSubmittingReply(prev => ({ ...prev, [messageId]: true }));
+    setSubmittingReply(prev => ({ ...prev, [ticketId]: true }));
     try {
-      await mockDb.messages.reply(messageId, text.trim());
-      setReplyText(prev => ({ ...prev, [messageId]: '' }));
-      const updated = await mockDb.messages.getAll();
-      setMessages(updated);
+      const newMsg = await mockDb.tickets.createMessage({
+        ticket_id: ticketId,
+        sender_id: user.id, // Admin profile ID
+        content: text.trim(),
+        attachment_url: attachment?.url || null,
+        attachment_name: attachment?.name || null,
+        attachment_type: attachment?.type || null
+      });
+
+      setReplyText(prev => ({ ...prev, [ticketId]: '' }));
+      setTicketMessages(prev => [...prev, newMsg]);
+
+      // Refresh tickets to update updated_at timestamp
+      const updatedTickets = await mockDb.tickets.getAll();
+      setTickets(updatedTickets);
     } catch (e) {
       alert('Error al enviar la respuesta: ' + e.message);
     } finally {
-      setSubmittingReply(prev => ({ ...prev, [messageId]: false }));
+      setSubmittingReply(prev => ({ ...prev, [ticketId]: false }));
+    }
+  };
+
+  // Handler for closing a ticket
+  const handleCloseTicket = async (ticketId) => {
+    if (!confirm('¿Estás seguro de que deseas cerrar este ticket y marcarlo como completado?')) return;
+    try {
+      await mockDb.tickets.close(ticketId);
+      
+      // Refresh tickets list
+      const updatedTickets = await mockDb.tickets.getAll();
+      setTickets(updatedTickets);
+    } catch (e) {
+      alert('Error al cerrar el ticket: ' + e.message);
     }
   };
 
@@ -612,24 +660,17 @@ export default function AdminDashboard() {
 
   // Métricas calculadas
   const totalResources = resources.length;
-  const pendingMessages = messages.filter(m => !m.reply).length;
+  const pendingMessages = tickets.filter(t => t.status === 'open').length;
   
-  const totalRegisteredUsers = users.length;
   const totalStudents = users.filter(u => u.role === 'student').length;
   const totalAdmins = users.filter(u => u.role === 'admin').length;
 
-  // Paginated elements
-  const totalUsersPages = Math.ceil(users.length / USERS_PER_PAGE) || 1;
-  const currentUsersPage = Math.min(usersPage, totalUsersPages);
-  const paginatedUsers = users.slice((currentUsersPage - 1) * USERS_PER_PAGE, currentUsersPage * USERS_PER_PAGE);
+  // Paginated elements page limits
+  const _totalUsersPages = Math.ceil(users.length / USERS_PER_PAGE) || 1;
+  const _currentUsersPage = Math.min(usersPage, _totalUsersPages);
 
-  const totalResourcesPages = Math.ceil(resources.length / RESOURCES_PER_PAGE) || 1;
-  const currentResourcesPage = Math.min(resourcesPage, totalResourcesPages);
-  const paginatedResources = resources.slice((currentResourcesPage - 1) * RESOURCES_PER_PAGE, currentResourcesPage * RESOURCES_PER_PAGE);
-
-  const totalMessagesPages = Math.ceil(messages.length / MESSAGES_PER_PAGE) || 1;
-  const currentMessagesPage = Math.min(messagesPage, totalMessagesPages);
-  const paginatedMessages = messages.slice((currentMessagesPage - 1) * MESSAGES_PER_PAGE, currentMessagesPage * MESSAGES_PER_PAGE);
+  const _totalResourcesPages = Math.ceil(resources.length / RESOURCES_PER_PAGE) || 1;
+  const _currentResourcesPage = Math.min(resourcesPage, _totalResourcesPages);
 
   const resourceIcon = (type) => {
     switch (type) {
@@ -700,7 +741,7 @@ export default function AdminDashboard() {
                 totalAdmins={totalAdmins}
                 users={users}
                 calculateResidencyDays={calculateResidencyDays}
-                messages={messages}
+                tickets={tickets}
               />
             )}
 
@@ -764,11 +805,17 @@ export default function AdminDashboard() {
             {activeTab === 'messages' && (
               <MessagesPanel 
                 pendingMessages={pendingMessages}
-                messages={messages}
+                tickets={tickets}
+                selectedTicketId={selectedTicketId}
+                setSelectedTicketId={setSelectedTicketId}
+                ticketMessages={ticketMessages}
+                loadingMessages={loadingMessages}
                 replyText={replyText}
                 handleReplyChange={handleReplyChange}
                 handleSendReply={handleSendReply}
                 submittingReply={submittingReply}
+                handleCloseTicket={handleCloseTicket}
+                handleUploadAttachment={mockDb.tickets.uploadAttachment}
               />
             )}
             

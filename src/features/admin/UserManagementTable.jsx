@@ -37,6 +37,7 @@ export default function UserManagementTable({
   const [showModal, setShowModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [resourceSearchQuery, setResourceSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
@@ -45,13 +46,13 @@ export default function UserManagementTable({
   const filteredUsers = useMemo(() => {
     return users
       .filter(u => {
-        const matchesSearch = u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                             u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                             (u.nie && u.nie.toLowerCase().includes(searchQuery.toLowerCase()));
+        const matchesSearch = (u.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                             (u.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                             (u.nie && (u.nie || '').toLowerCase().includes(searchQuery.toLowerCase()));
         const matchesRole = filterRole === 'all' || u.role === filterRole;
         return matchesSearch && matchesRole;
       })
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [users, searchQuery, filterRole]);
 
   // Paginación local
@@ -73,11 +74,12 @@ export default function UserManagementTable({
 
   const onViewDetails = (user) => {
     setSelectedUser(user);
+    setResourceSearchQuery('');
     setShowDetailsModal(true);
   };
 
   const onSubmit = async (e) => {
-    const success = await handleCreateUser(e);
+    await handleCreateUser(e);
     // Asumimos éxito si no hay error persistente después de un breve tiempo o si el parent indica éxito
     if (!userError) {
       setTimeout(() => {
@@ -414,7 +416,7 @@ export default function UserManagementTable({
                   </div>
                 </div>
               </div>
-              <button onClick={() => setShowDetailsModal(false)} className="p-2 hover:bg-zinc-800 rounded-xl text-zinc-500 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+              <button onClick={() => { setShowDetailsModal(false); setResourceSearchQuery(''); }} className="p-2 hover:bg-zinc-800 rounded-xl text-zinc-500 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-8">
@@ -464,35 +466,64 @@ export default function UserManagementTable({
 
                   {/* Acceso a Recursos */}
                   <div className="space-y-4">
-                    <h4 className="text-xs font-bold text-white uppercase tracking-widest flex items-center gap-2 font-mono">
-                      <Settings2 className="w-4 h-4 text-indigo-400" />
-                      Autorizaciones de Contenido
-                    </h4>
+                    <div className="flex justify-between items-center">
+                      <h4 className="text-xs font-bold text-white uppercase tracking-widest flex items-center gap-2 font-mono">
+                        <Settings2 className="w-4 h-4 text-indigo-400" />
+                        Autorizaciones de Contenido
+                      </h4>
+                    </div>
+                    
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-650" />
+                      <input 
+                        type="text"
+                        placeholder="BUSCAR CONTENIDO..."
+                        value={resourceSearchQuery}
+                        onChange={(e) => setResourceSearchQuery(e.target.value)}
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-9 pr-4 py-2 text-[10px] text-zinc-200 outline-none focus:border-indigo-500/30 transition-all font-mono uppercase"
+                      />
+                    </div>
+
                     <div className="bg-zinc-950/40 p-4 rounded-3xl border border-zinc-800/80 max-h-[220px] overflow-y-auto custom-scrollbar space-y-2">
-                      {resources.map(res => {
-                        const isAllowed = (selectedUser.allowedResources || []).includes(res.id);
-                        return (
-                          <div key={res.id} className="flex items-center justify-between p-3 bg-zinc-900/50 border border-zinc-800 rounded-xl">
-                            <div className="min-w-0 pr-4">
-                              <p className="text-[11px] font-bold text-zinc-200 truncate font-mono">{res.title}</p>
-                              <p className="text-[8px] text-zinc-600 uppercase font-mono">{res.category}</p>
-                            </div>
-                            <button
-                              onClick={async () => {
-                                const currentAllowed = selectedUser.allowedResources || [];
-                                const newAllowed = isAllowed ? currentAllowed.filter(id => id !== res.id) : [...currentAllowed, res.id];
-                                await mockDb.users.update(selectedUser.id, { allowedResources: newAllowed });
-                                const updatedUsers = await mockDb.users.getAll();
-                                setUsers(updatedUsers);
-                                setSelectedUser(prev => ({ ...prev, allowedResources: newAllowed }));
-                              }}
-                              className={`text-[8px] font-bold px-2 py-1 rounded-lg border transition-all font-mono uppercase tracking-widest ${isAllowed ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30' : 'bg-zinc-950 text-zinc-600 border-zinc-800'}`}
-                            >
-                              {isAllowed ? 'Habilitado' : 'Bloqueado'}
-                            </button>
-                          </div>
+                      {(() => {
+                        const filtered = resources.filter(res => 
+                          (res.title || '').toLowerCase().includes(resourceSearchQuery.toLowerCase()) || 
+                          (res.category || '').toLowerCase().includes(resourceSearchQuery.toLowerCase())
                         );
-                      })}
+
+                        if (filtered.length === 0) {
+                          return (
+                            <div className="p-8 text-center text-zinc-600 font-mono text-[9px] uppercase tracking-widest">
+                              No se encontraron recursos
+                            </div>
+                          );
+                        }
+
+                        return filtered.map(res => {
+                          const isAllowed = (selectedUser.allowedResources || []).includes(res.id);
+                          return (
+                            <div key={res.id} className="flex items-center justify-between p-3 bg-zinc-900/50 border border-zinc-800 rounded-xl">
+                              <div className="min-w-0 pr-4">
+                                <p className="text-[11px] font-bold text-zinc-200 truncate font-mono">{res.title}</p>
+                                <p className="text-[8px] text-zinc-600 uppercase font-mono">{res.category}</p>
+                              </div>
+                              <button
+                                onClick={async () => {
+                                  const currentAllowed = selectedUser.allowedResources || [];
+                                  const newAllowed = isAllowed ? currentAllowed.filter(id => id !== res.id) : [...currentAllowed, res.id];
+                                  await mockDb.users.update(selectedUser.id, { allowedResources: newAllowed });
+                                  const updatedUsers = await mockDb.users.getAll();
+                                  setUsers(updatedUsers);
+                                  setSelectedUser(prev => ({ ...prev, allowedResources: newAllowed }));
+                                }}
+                                className={`text-[8px] font-bold px-2 py-1 rounded-lg border transition-all font-mono uppercase tracking-widest ${isAllowed ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30' : 'bg-zinc-950 text-zinc-600 border-zinc-800'}`}
+                              >
+                                {isAllowed ? 'Habilitado' : 'Bloqueado'}
+                              </button>
+                            </div>
+                          );
+                        });
+                      })()}
                     </div>
                   </div>
 

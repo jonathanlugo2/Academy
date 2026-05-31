@@ -30,14 +30,15 @@ export default function StudentDashboard() {
 
   // Pagination states
   const [resourcesPage, setResourcesPage] = useState(1);
-  const [messagesPage, setMessagesPage] = useState(1);
 
   const RESOURCES_PER_PAGE = 6;
-  const MESSAGES_PER_PAGE = 4;
   
   // Database lists
   const [resources, setResources] = useState([]);
-  const [messages, setMessages] = useState([]);
+  const [tickets, setTickets] = useState([]);
+  const [selectedTicketId, setSelectedTicketId] = useState(null);
+  const [ticketMessages, setTicketMessages] = useState([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Search and Filter states
@@ -47,6 +48,7 @@ export default function StudentDashboard() {
 
   // Support message form states
   const [newMessage, setNewMessage] = useState('');
+  const [newTicketTitle, setNewTicketTitle] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -73,9 +75,9 @@ export default function StudentDashboard() {
   const filteredResources = useMemo(() => {
     return resources.filter(res => {
       const matchesSearch = 
-        res.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        res.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (res.tags && res.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase())));
+        (res.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+        (res.description || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (res.tags && res.tags.some(t => (t || '').toLowerCase().includes(searchQuery.toLowerCase())));
         
       const matchesCategory = selectedCategory === 'all' || res.category === selectedCategory;
       const matchesType = selectedType === 'all' || res.type === selectedType;
@@ -93,10 +95,10 @@ export default function StudentDashboard() {
       const allowedIds = dbUser?.allowedResources || [];
 
       const resList = await mockDb.resources.getAll();
-      const msgList = await mockDb.messages.getAll();
+      const ticketsList = await mockDb.tickets.getAll();
       
       setResources(resList.filter(res => allowedIds.includes(res.id)));
-      setMessages(msgList.filter(m => m.sender_id === user.id));
+      setTickets(ticketsList.filter(t => t.student_id === user.id));
     } catch (e) {
       console.error("Error al cargar datos:", e);
     } finally {
@@ -109,6 +111,26 @@ export default function StudentDashboard() {
     // Actualizar input de ausencias al cambiar de usuario
     setAbsencesInput(user?.absences || 0);
   }, [loadData, user?.absences]);
+
+  // Cargar mensajes del ticket seleccionado
+  useEffect(() => {
+    const fetchTicketMessages = async () => {
+      if (!selectedTicketId) {
+        setTicketMessages([]);
+        return;
+      }
+      setLoadingMessages(true);
+      try {
+        const msgs = await mockDb.tickets.getMessages(selectedTicketId);
+        setTicketMessages(msgs);
+      } catch (err) {
+        console.error("Error al cargar mensajes del ticket:", err);
+      } finally {
+        setLoadingMessages(false);
+      }
+    };
+    fetchTicketMessages();
+  }, [selectedTicketId]);
 
   // Reset to page 1 on filter changes
   useEffect(() => {
@@ -128,33 +150,61 @@ export default function StudentDashboard() {
     }
   }, [filteredResources.length, resourcesPage]);
 
-  useEffect(() => {
-    const totalPages = Math.ceil(messages.length / MESSAGES_PER_PAGE) || 1;
-    if (messagesPage > totalPages) {
-      setMessagesPage(totalPages);
-    }
-  }, [messages, messagesPage]);
-
-  // Handler for sending a question
-  const handleSendMessage = async (e) => {
+  // Handler for creating a new ticket
+  const handleCreateTicket = async (e, attachment = null) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    if (!newTicketTitle.trim() || !newMessage.trim()) return;
 
     setSendingMessage(true);
     setSuccessMsg('');
     try {
-      await mockDb.messages.create({
+      const res = await mockDb.tickets.create({
+        student_id: user.id,
+        title: newTicketTitle.trim(),
+        content: newMessage.trim(),
+        attachment_url: attachment?.url || null,
+        attachment_name: attachment?.name || null,
+        attachment_type: attachment?.type || null
+      });
+
+      setNewTicketTitle('');
+      setNewMessage('');
+      setSuccessMsg('Tu ticket de soporte ha sido creado con éxito.');
+      
+      const ticketsList = await mockDb.tickets.getAll();
+      setTickets(ticketsList.filter(t => t.student_id === user.id));
+      if (res && res.id) {
+        setSelectedTicketId(res.id);
+      }
+    } catch (err) {
+      alert('Error al crear el ticket: ' + err.message);
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
+  // Handler for sending a message in a ticket
+  const handleSendTicketMessage = async (e, attachment = null) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !selectedTicketId) return;
+
+    setSendingMessage(true);
+    try {
+      const newMsg = await mockDb.tickets.createMessage({
+        ticket_id: selectedTicketId,
         sender_id: user.id,
-        sender_name: `${user.name} (Nómada)`,
-        sender_role: 'student',
-        content: newMessage.trim()
+        content: newMessage.trim(),
+        attachment_url: attachment?.url || null,
+        attachment_name: attachment?.name || null,
+        attachment_type: attachment?.type || null
       });
 
       setNewMessage('');
-      setSuccessMsg('Tu pregunta ha sido enviada al equipo de administración. Recibirás respuesta pronto.');
-      
-      const msgList = await mockDb.messages.getAll();
-      setMessages(msgList.filter(m => m.sender_id === user.id));
+      setTicketMessages(prev => [...prev, newMsg]);
+
+      // Refresh tickets to update updated_at timestamp
+      const ticketsList = await mockDb.tickets.getAll();
+      setTickets(ticketsList.filter(t => t.student_id === user.id));
     } catch (err) {
       alert('Error al enviar el mensaje: ' + err.message);
     } finally {
@@ -269,9 +319,6 @@ export default function StudentDashboard() {
   const currentResourcesPage = Math.min(resourcesPage, totalResourcesPages);
   const paginatedResources = filteredResources.slice((currentResourcesPage - 1) * RESOURCES_PER_PAGE, currentResourcesPage * RESOURCES_PER_PAGE);
 
-  const totalMessagesPages = Math.ceil(messages.length / MESSAGES_PER_PAGE) || 1;
-  const currentMessagesPage = Math.min(messagesPage, totalMessagesPages);
-  const paginatedMessages = messages.slice((currentMessagesPage - 1) * MESSAGES_PER_PAGE, currentMessagesPage * MESSAGES_PER_PAGE);
 
   if (!user) return null;
 
@@ -647,14 +694,17 @@ export default function StudentDashboard() {
                 setSuccessMsg={setSuccessMsg}
                 newMessage={newMessage}
                 setNewMessage={setNewMessage}
+                newTicketTitle={newTicketTitle}
+                setNewTicketTitle={setNewTicketTitle}
                 sendingMessage={sendingMessage}
-                handleSendMessage={handleSendMessage}
-                messages={messages}
-                paginatedMessages={paginatedMessages}
-                messagesPage={messagesPage}
-                setMessagesPage={setMessagesPage}
-                totalMessagesPages={totalMessagesPages}
-                currentMessagesPage={currentMessagesPage}
+                handleCreateTicket={handleCreateTicket}
+                handleSendTicketMessage={handleSendTicketMessage}
+                handleUploadAttachment={mockDb.tickets.uploadAttachment}
+                tickets={tickets}
+                selectedTicketId={selectedTicketId}
+                setSelectedTicketId={setSelectedTicketId}
+                ticketMessages={ticketMessages}
+                loadingMessages={loadingMessages}
               />
             )}
 
