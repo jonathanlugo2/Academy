@@ -127,7 +127,8 @@ export const mockDb = {
           category: resourceData.category,
           tags: typeof resourceData.tags === 'string' 
             ? resourceData.tags.split(',').map(t => t.trim()).filter(Boolean)
-            : resourceData.tags || []
+            : resourceData.tags || [],
+          image_url: resourceData.imageUrl || null
         })
         .select()
         .single();
@@ -146,7 +147,8 @@ export const mockDb = {
           category: resourceData.category,
           tags: typeof resourceData.tags === 'string' 
             ? resourceData.tags.split(',').map(t => t.trim()).filter(Boolean)
-            : resourceData.tags || []
+            : resourceData.tags || [],
+          image_url: resourceData.imageUrl || null
         })
         .eq('id', id)
         .select()

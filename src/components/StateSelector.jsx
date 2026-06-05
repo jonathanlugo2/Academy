@@ -9,10 +9,10 @@ export default function StateSelector({ states, activeState, onChange }) {
         >
           {state.label}
           {state.count !== undefined && (
-            <span className={`ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-mono rounded-full ${
+            <span className={`ml-2 inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-mono rounded-full ${
               activeState === state.id 
-                ? 'bg-slate-600 text-slate-100' 
-                : 'bg-slate-800 text-slate-400'
+                ? 'bg-text-active/15 text-text-active' 
+                : 'bg-bg-main/50 text-text-muted'
             }`}>
               {state.count}
             </span>

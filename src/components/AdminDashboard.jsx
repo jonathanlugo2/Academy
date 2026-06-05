@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { mockDb } from '../utils/mockDb';
+import { supabase } from '../utils/supabaseClient';
 import { 
   ExternalLink, Video, Presentation, FileText, Code
 } from 'lucide-react';
@@ -48,6 +49,8 @@ export default function AdminDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingResourceId, setEditingResourceId] = useState(null);
   const [previewResource, setPreviewResource] = useState(null);
+  const [newImageUrl, setNewImageUrl] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // States for replies
   const [replyText, setReplyText] = useState({});
@@ -156,7 +159,8 @@ export default function AdminDashboard() {
           url: newUrl,
           description: newDesc,
           category: newCategory,
-          tags: newTags ? newTags.split(',').map(t => t.trim()) : []
+          tags: newTags ? newTags.split(',').map(t => t.trim()) : [],
+          imageUrl: newImageUrl
         });
         setFormSuccess('¡Recurso formativo actualizado con éxito!');
         setEditingResourceId(null);
@@ -168,7 +172,8 @@ export default function AdminDashboard() {
           url: newUrl,
           description: newDesc,
           category: newCategory,
-          tags: newTags ? newTags.split(',').map(t => t.trim()) : []
+          tags: newTags ? newTags.split(',').map(t => t.trim()) : [],
+          imageUrl: newImageUrl
         });
         setFormSuccess('¡Recurso formativo creado con éxito!');
       }
@@ -200,6 +205,7 @@ export default function AdminDashboard() {
       setNewCategory('Trámites y Visados');
       setSelectedAssignUserIds([]);
       setStudentSearchQuery('');
+      setNewImageUrl('');
       
       const updated = await mockDb.resources.getAll();
       setResources(updated);
@@ -243,6 +249,55 @@ export default function AdminDashboard() {
     reader.readAsDataURL(file);
   };
 
+  // Handler for uploading Course Cover image with dynamic fallback
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setFormError('Por favor selecciona únicamente archivos de imagen.');
+      return;
+    }
+
+    setUploadingImage(true);
+    setFormError('');
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `course-covers/${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+      
+      const { error } = await supabase.storage
+        .from('academy-resources')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) throw error;
+
+      const { data: urlData } = supabase.storage
+        .from('academy-resources')
+        .getPublicUrl(fileName);
+
+      setNewImageUrl(urlData.publicUrl);
+      setFormSuccess('¡Imagen subida y asignada con éxito!');
+      setTimeout(() => setFormSuccess(''), 3000);
+    } catch (err) {
+      console.warn("Storage upload failed, falling back to local FileReader dataURL:", err);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setNewImageUrl(event.target.result); // Base64 Data URL
+        setFormSuccess('¡Imagen cargada localmente con éxito!');
+        setTimeout(() => setFormSuccess(''), 3000);
+      };
+      reader.onerror = () => {
+        setFormError('Error al leer el archivo de imagen.');
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   // Handler to start editing a resource
   const handleStartEditResource = (resource) => {
     setEditingResourceId(resource.id);
@@ -252,6 +307,7 @@ export default function AdminDashboard() {
     setNewDesc(resource.description);
     setNewCategory(resource.category || 'Trámites y Visados');
     setNewTags(resource.tags ? resource.tags.join(', ') : '');
+    setNewImageUrl(resource.image_url || '');
     
     // Cargar estudiantes que ya tienen este entrenamiento asignado
     const studentsWithAccess = users
@@ -263,7 +319,7 @@ export default function AdminDashboard() {
     setFormError('');
     setFormSuccess('');
     
-    // Desplazar suavemente el foco al formulario en móviles
+    // Desplazar suavemente el foco al formulario en el panel
     const formElement = document.getElementById('resource-form');
     if (formElement) {
       formElement.scrollIntoView({ behavior: 'smooth' });
@@ -281,6 +337,7 @@ export default function AdminDashboard() {
     setNewCategory('Trámites y Visados');
     setSelectedAssignUserIds([]);
     setStudentSearchQuery('');
+    setNewImageUrl('');
     setFormError('');
     setFormSuccess('');
   };
@@ -548,18 +605,18 @@ export default function AdminDashboard() {
     }
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/90 backdrop-blur-md">
-        <div className="bg-zinc-950/90 border border-zinc-800/80 rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-          <div className="h-14 border-b border-zinc-850 px-6 flex items-center justify-between bg-zinc-950/40 shrink-0 font-mono text-xs uppercase">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-main/90 backdrop-blur-md">
+        <div className="bg-bg-card border border-border-main rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+          <div className="h-14 border-b border-border-main px-6 flex items-center justify-between bg-bg-main/40 shrink-0 font-mono text-xs uppercase">
             <div>
-              <span className="text-[9px] text-indigo-400 font-bold uppercase tracking-wider bg-indigo-950/45 border border-indigo-500/25 px-2 py-1 rounded-md">
+              <span className="text-[9px] text-text-active font-bold uppercase tracking-wider bg-bg-active px-2 py-1 rounded-md border border-border-active">
                 VISTA PREVIA ADMIN
               </span>
-              <h3 className="text-xs font-bold text-zinc-350 mt-2.5 truncate max-w-lg">{previewResource.title}</h3>
+              <h3 className="text-xs font-bold text-text-title mt-2.5 truncate max-w-lg">{previewResource.title}</h3>
             </div>
             <button 
               onClick={() => setPreviewResource(null)}
-              className="text-[10px] text-zinc-400 hover:text-zinc-200 font-bold bg-zinc-900 hover:bg-zinc-800 border border-zinc-805 px-3 py-2 rounded-lg cursor-pointer transition-colors"
+              className="text-[10px] text-text-muted hover:text-text-main font-bold bg-bg-input hover:bg-bg-card border border-border-main px-3 py-2 rounded-lg cursor-pointer transition-colors"
             >
               CERRAR VISTA PREVIA
             </button>
@@ -579,17 +636,17 @@ export default function AdminDashboard() {
                 <video 
                   src={embedUrl} 
                   controls 
-                  className="w-full max-h-full rounded-xl border border-zinc-800/80 shadow-2xl bg-black"
+                  className="w-full max-h-full rounded-xl border border-border-main shadow-2xl bg-black"
                 ></video>
               </div>
             ) : (
-              <div className="max-w-md w-full bg-zinc-900 border border-zinc-800/80 rounded-2xl p-8 text-center space-y-5">
-                <div className="w-14 h-14 rounded-2xl bg-indigo-950/60 text-indigo-400 border border-indigo-500/20 flex items-center justify-center mx-auto shadow-[0_0_12px_rgba(0,242,254,0.1)]">
+              <div className="max-w-md w-full bg-bg-card border border-border-main rounded-2xl p-8 text-center space-y-5">
+                <div className="w-14 h-14 rounded-2xl bg-bg-active text-text-active border border-border-active flex items-center justify-center mx-auto shadow-[0_0_12px_rgba(99,102,241,0.1)]">
                   <ExternalLink className="w-6 h-6" />
                 </div>
                 <div className="space-y-2 font-mono">
-                  <h4 className="text-xs font-bold text-zinc-200 uppercase tracking-wider">Enlace Externo Recomendado</h4>
-                  <p className="text-xs text-zinc-500 leading-relaxed font-sans font-medium">
+                  <h4 className="text-xs font-bold text-text-title uppercase tracking-wider">Enlace Externo Recomendado</h4>
+                  <p className="text-xs text-text-muted leading-relaxed font-sans font-medium">
                     Este tipo de recurso no se puede incrustar por restricciones de seguridad externas.
                   </p>
                 </div>
@@ -597,7 +654,7 @@ export default function AdminDashboard() {
                   href={previewResource.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-2 py-2.5 px-6 bg-indigo-650 hover:bg-indigo-600 text-zinc-950 rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition-all cursor-pointer shadow-[0_0_10px_rgba(0,242,254,0.15)]"
+                  className="inline-flex items-center gap-2 py-2.5 px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition-all cursor-pointer shadow-[0_0_10px_rgba(99,102,241,0.15)]"
                 >
                   Abrir enlace en pestaña nueva
                   <ExternalLink className="w-4 h-4" />
@@ -606,9 +663,9 @@ export default function AdminDashboard() {
             )}
           </div>
           
-          <div className="h-14 border-t border-zinc-850 px-6 flex items-center justify-between bg-zinc-950/40 shrink-0 font-mono text-[10px] text-zinc-550 uppercase tracking-widest">
-            <span>TIPO: <strong className="text-zinc-350">{previewResource.type}</strong></span>
-            <span>CATEGORÍA: <strong className="text-zinc-350">{previewResource.category}</strong></span>
+          <div className="h-14 border-t border-border-main px-6 flex items-center justify-between bg-bg-main/40 shrink-0 font-mono text-[10px] text-text-muted uppercase tracking-widest">
+            <span>TIPO: <strong className="text-text-title">{previewResource.type}</strong></span>
+            <span>CATEGORÍA: <strong className="text-text-title">{previewResource.category}</strong></span>
           </div>
         </div>
       </div>
@@ -679,14 +736,14 @@ export default function AdminDashboard() {
       case 'document': return <FileText className="w-4 h-4 text-sky-400" />;
       case 'html_video': return <Code className="w-4 h-4 text-emerald-450" />;
       case 'link': return <ExternalLink className="w-4 h-4 text-indigo-400" />;
-      default: return <FileText className="w-4 h-4 text-zinc-400" />;
+      default: return <FileText className="w-4 h-4 text-text-muted" />;
     }
   };
 
   if (!user) return null;
 
   return (
-    <div className="h-screen overflow-hidden bg-zinc-950 flex flex-col md:flex-row text-zinc-100 font-sans cyber-grid">
+    <div className="h-screen overflow-hidden bg-bg-main flex flex-col md:flex-row text-text-main font-sans cyber-grid">
       
       <AdminSidebar 
         isSidebarCollapsed={isSidebarCollapsed}
@@ -699,34 +756,34 @@ export default function AdminDashboard() {
 
       {/* CONTENIDO PRINCIPAL */}
       <main className="flex-1 flex flex-col h-full overflow-hidden">
-        <header className="h-16 border-b border-zinc-800/80 bg-zinc-950/60 backdrop-blur-md flex items-center justify-between px-6 shrink-0">
-          <h2 className="text-xs font-extrabold uppercase tracking-wider text-zinc-100 font-mono">
+        <header className="h-16 border-b border-border-main bg-bg-card/60 backdrop-blur-md flex items-center justify-between px-6 shrink-0">
+          <h2 className="text-xs font-extrabold uppercase tracking-wider text-text-title font-mono">
             {activeTab === 'overview' && 'SYSTEM SUMMARY // OVERVIEW'}
             {activeTab === 'content' && 'CONTENT MANAGEMENT // ARCHIVE'}
             {activeTab === 'users' && 'USER ADMINISTRATION // ROLES'}
             {activeTab === 'messages' && 'COMMUNICATION HUB // SUPPORT TICKET'}
           </h2>
           <div className="flex items-center gap-3">
-            <div className="text-[10px] text-indigo-400 bg-indigo-950/40 border border-indigo-500/25 px-3 py-1.5 rounded-xl font-bold font-mono uppercase tracking-wider hidden sm:inline-block shadow-[0_0_10px_rgba(0,242,254,0.05)]">
+            <div className="text-[10px] text-text-active bg-bg-active border border-border-active px-3 py-1.5 rounded-xl font-bold font-mono uppercase tracking-wider hidden sm:inline-block shadow-[0_0_10px_rgba(99,102,241,0.05)]">
               Modo Administrador
             </div>
-            <div className="flex items-center gap-2.5 pl-3 border-l border-zinc-850">
-              <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-bold text-indigo-400 text-xs font-mono shadow-sm">
+            <div className="flex items-center gap-2.5 pl-3 border-l border-border-main">
+              <div className="w-8 h-8 rounded-xl bg-bg-input border border-border-main flex items-center justify-center font-bold text-text-active text-xs font-mono shadow-sm">
                 {user?.name?.charAt(0) || 'A'}
               </div>
               <div className="hidden md:block text-left">
-                <p className="text-xs font-semibold text-zinc-200 leading-none">{user?.name}</p>
-                <p className="text-[9px] text-zinc-550 mt-1 uppercase tracking-wider font-bold font-mono leading-none">Administrador</p>
+                <p className="text-xs font-semibold text-text-main leading-none">{user?.name}</p>
+                <p className="text-[9px] text-text-muted mt-1 uppercase tracking-wider font-bold font-mono leading-none">Administrador</p>
               </div>
             </div>
           </div>
         </header>
 
         {loading ? (
-          <div className="flex-1 flex items-center justify-center bg-zinc-950">
+          <div className="flex-1 flex items-center justify-center bg-bg-main">
             <div className="flex flex-col items-center">
               <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-              <p className="mt-3 text-xs text-zinc-550 font-mono uppercase tracking-wider">Loading Database...</p>
+              <p className="mt-3 text-xs text-text-muted font-mono uppercase tracking-wider">Loading Database...</p>
             </div>
           </div>
         ) : (
@@ -768,6 +825,9 @@ export default function AdminDashboard() {
                 handleStartEditResource={handleStartEditResource}
                 handleDeleteResource={handleDeleteResource}
                 resourceIcon={resourceIcon}
+                newImageUrl={newImageUrl} setNewImageUrl={setNewImageUrl}
+                uploadingImage={uploadingImage}
+                handleImageUpload={handleImageUpload}
               />
             )}
 

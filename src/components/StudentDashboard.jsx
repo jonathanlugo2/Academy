@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { mockDb } from '../utils/mockDb';
 import { 
@@ -7,8 +7,9 @@ import {
   Video, Presentation, Search, Tag, ExternalLink, Calendar, 
   Send, HelpCircle, CheckCircle2, Clock, AlertCircle, ArrowRight,
   User, MapPin, Upload, Shield, Plane, Download, Scale, ChevronLeft, ChevronRight,
-  Code
+  Code, Sun, Moon, ChevronDown
 } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 
 // New Features Imports
 import StudentSidebar from '../features/student/StudentSidebar';
@@ -18,12 +19,33 @@ import CommunicationPanel from '../features/student/CommunicationPanel';
 
 export default function StudentDashboard() {
   const { user, logout, refreshUser } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   
   // Sidebar state
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
   // Navigation Tabs
   const [activeTab, setActiveTab] = useState('resources'); // 'resources', 'fiscal', 'support'
+
+  // Dropdown menu state
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setIsProfileMenuOpen(false);
+      }
+    }
+    if (isProfileMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isProfileMenuOpen]);
 
   // Selected resource for embedded player
   const [selectedResource, setSelectedResource] = useState(null);
@@ -323,7 +345,7 @@ export default function StudentDashboard() {
   if (!user) return null;
 
   return (
-    <div className="h-screen overflow-hidden bg-zinc-950 flex flex-col md:flex-row text-zinc-100 font-sans cyber-grid">
+    <div className="h-screen overflow-hidden bg-bg-main flex flex-col md:flex-row text-text-main font-sans transition-colors duration-200">
       
       {/* SIDEBAR */}
       <StudentSidebar 
@@ -336,37 +358,102 @@ export default function StudentDashboard() {
 
       {/* CONTENIDO PRINCIPAL */}
       <main className="flex-1 flex flex-col h-full overflow-hidden">
-        <header className="h-16 border-b border-zinc-800/80 bg-zinc-950/60 backdrop-blur-md flex items-center justify-between px-6 shrink-0">
-          <h2 className="text-xs font-extrabold uppercase tracking-wider text-zinc-100 font-mono">
+        <header className="h-16 border-b border-border-main bg-bg-card backdrop-blur-md flex items-center justify-between px-6 shrink-0 relative z-40">
+          <h2 className="text-xs font-extrabold uppercase tracking-wider text-text-title font-mono">
             {activeTab === 'resources' && 'RECURSOS DEL SISTEMA // FORMACIONES'}
             {activeTab === 'fiscal' && 'DOSSIER FISCAL // ESTADO'}
             {activeTab === 'support' && 'COMUNICACIÓN DIRECTA // SOPORTE'}
           </h2>
           <div className="flex items-center gap-3">
-            <div className="text-[10px] text-indigo-400 bg-indigo-950/40 border border-indigo-500/25 px-3 py-1.5 rounded-xl font-bold font-mono uppercase tracking-wider hidden sm:inline-block shadow-[0_0_10px_rgba(0,242,254,0.05)]">
+            <div className="text-[10px] text-text-active bg-bg-active border border-border-active px-3 py-1.5 rounded-xl font-bold font-mono uppercase tracking-wider hidden sm:inline-block">
               Nómada Activo
             </div>
-            <div className="flex items-center gap-2.5 pl-3 border-l border-zinc-805">
-              <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-bold text-indigo-400 text-xs font-mono shadow-sm">
-                {user?.name?.charAt(0) || 'N'}
-              </div>
-              <div className="hidden md:block text-left">
-                <p className="text-xs font-semibold text-zinc-200 leading-none">{user?.name}</p>
-                <p className="text-[9px] text-zinc-550 mt-1 uppercase tracking-wider font-bold font-mono leading-none">Estudiante</p>
-              </div>
+            
+            <div className="relative" ref={profileMenuRef}>
+              <button 
+                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                className="flex items-center gap-2.5 pl-3 border-l border-border-main hover:opacity-85 transition-opacity cursor-pointer text-left"
+              >
+                <div className="w-8 h-8 rounded-xl bg-bg-input border border-border-main flex items-center justify-center font-bold text-text-active text-xs font-mono shadow-sm">
+                  {user?.name?.charAt(0) || 'N'}
+                </div>
+                <div className="hidden md:block">
+                  <div className="flex items-center gap-1">
+                    <p className="text-xs font-semibold text-text-title leading-none">{user?.name}</p>
+                    <ChevronDown className={`w-3 h-3 text-text-muted transition-transform duration-200 ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
+                  </div>
+                  <p className="text-[9px] text-text-muted mt-1 uppercase tracking-wider font-bold font-mono leading-none">Estudiante</p>
+                </div>
+              </button>
+
+              {isProfileMenuOpen && (
+                <>
+                  {/* Dropdown Menu */}
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-bg-card border border-border-main rounded-2xl p-2 shadow-2xl backdrop-blur-md z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="px-3 py-2 border-b border-border-main/50 mb-1.5">
+                      <p className="text-xs font-bold text-text-title truncate">{user?.name}</p>
+                      <p className="text-[9px] text-text-muted truncate mt-0.5">{user?.email}</p>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setActiveTab('fiscal');
+                        setIsProfileMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold font-mono uppercase tracking-wider text-text-muted hover:text-text-main hover:bg-bg-input rounded-xl transition-all cursor-pointer text-left font-mono"
+                    >
+                      <Shield className="w-4 h-4 text-text-active" />
+                      Mi Perfil Fiscal
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        toggleTheme();
+                        setIsProfileMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold font-mono uppercase tracking-wider text-text-muted hover:text-text-main hover:bg-bg-input rounded-xl transition-all cursor-pointer text-left font-mono"
+                    >
+                      {theme === 'dark' ? (
+                        <>
+                          <Sun className="w-4 h-4 text-amber-400" />
+                          Modo Claro
+                        </>
+                      ) : (
+                        <>
+                          <Moon className="w-4 h-4 text-indigo-500" />
+                          Modo Oscuro
+                        </>
+                      )}
+                    </button>
+
+                    <div className="border-t border-border-main/50 my-1.5" />
+
+                    <button
+                      onClick={() => {
+                        logout();
+                        setIsProfileMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold font-mono uppercase tracking-wider text-red-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all cursor-pointer text-left font-mono"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Cerrar Sesión
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </header>
 
         {loading ? (
-          <div className="flex-1 flex items-center justify-center bg-zinc-950">
+          <div className="flex-1 flex items-center justify-center bg-bg-main">
             <div className="flex flex-col items-center">
               <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-              <p className="mt-3 text-xs text-zinc-500 font-mono uppercase tracking-wider">Loading System Data...</p>
+              <p className="mt-3 text-xs text-text-muted font-mono uppercase tracking-wider">Loading System Data...</p>
             </div>
           </div>
         ) : (
-          <div className={`flex-1 ${selectedResource && activeTab === 'resources' ? 'p-0 h-full overflow-hidden bg-zinc-950' : 'p-6 max-w-7xl w-full mx-auto space-y-6 overflow-y-auto no-scrollbar'}`}>
+          <div className={`flex-1 ${selectedResource && activeTab === 'resources' ? 'p-0 h-full overflow-hidden bg-bg-main' : 'p-6 max-w-7xl w-full mx-auto space-y-6 overflow-y-auto no-scrollbar'}`}>
             
             {activeTab === 'resources' && (
               selectedResource ? (
@@ -408,70 +495,70 @@ export default function StudentDashboard() {
                 {/* Panel Lateral: Perfil e Hitos */}
                 <div className="space-y-6">
                   {/* Datos Personales */}
-                  <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-6 backdrop-blur-md shadow-sm">
-                    <h3 className="text-sm font-bold text-zinc-100 mb-4 flex items-center gap-2 font-mono uppercase tracking-wider">
-                      <User className="w-5 h-5 text-indigo-400" />
+                  <div className="bg-bg-card border border-border-main rounded-2xl p-6 backdrop-blur-md shadow-sm">
+                    <h3 className="text-sm font-bold text-text-title mb-4 flex items-center gap-2 font-mono uppercase tracking-wider">
+                      <User className="w-5 h-5 text-text-active" />
                       DATOS PERSONALES
                     </h3>
                     
                     <div className="space-y-3.5 text-xs font-mono">
                       <div>
-                        <span className="text-zinc-550 block text-[9px] uppercase tracking-widest font-bold">PASAPORTE</span>
-                        <p className="text-zinc-250 font-medium mt-0.5">{user.passport || 'NO REGISTRADO'}</p>
+                        <span className="text-text-muted block text-[9px] uppercase tracking-widest font-bold">PASAPORTE</span>
+                        <p className="text-text-main font-medium mt-0.5">{user.passport || 'NO REGISTRADO'}</p>
                       </div>
-                      <div className="pt-2.5 border-t border-zinc-800/80">
-                        <span className="text-zinc-550 block text-[9px] uppercase tracking-widest font-bold">NIE</span>
-                        <p className="text-zinc-250 font-medium mt-0.5">{user.nie || 'NO REGISTRADO'}</p>
+                      <div className="pt-2.5 border-t border-border-main">
+                        <span className="text-text-muted block text-[9px] uppercase tracking-widest font-bold">NIE</span>
+                        <p className="text-text-main font-medium mt-0.5">{user.nie || 'NO REGISTRADO'}</p>
                       </div>
-                      <div className="pt-2.5 border-t border-zinc-800/80">
-                        <span className="text-zinc-550 block text-[9px] uppercase tracking-widest font-bold">DIRECCIÓN FISCAL (ESPAÑA)</span>
+                      <div className="pt-2.5 border-t border-border-main">
+                        <span className="text-text-muted block text-[9px] uppercase tracking-widest font-bold">DIRECCIÓN FISCAL (ESPAÑA)</span>
                         {user.address ? (
-                          <div className="flex items-start gap-1.5 text-zinc-300 mt-1 font-sans text-xs">
-                            <MapPin className="w-4 h-4 text-zinc-550 shrink-0 mt-0.5" />
+                          <div className="flex items-start gap-1.5 text-text-main mt-1 font-sans text-xs">
+                            <MapPin className="w-4 h-4 text-text-muted shrink-0 mt-0.5" />
                             <p>{user.address} (C.P. {user.postalCode})</p>
                           </div>
                         ) : (
-                          <p className="text-zinc-550 italic mt-0.5">SIN DIRECCIÓN GUARDADA</p>
+                          <p className="text-text-muted italic mt-0.5">SIN DIRECCIÓN GUARDADA</p>
                         )}
                       </div>
                     </div>
                   </div>
 
                   {/* Hitos Autónomo */}
-                  <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-6 text-xs space-y-4 backdrop-blur-md shadow-sm font-mono">
-                    <h3 className="text-sm font-bold text-zinc-100 flex items-center gap-2 uppercase tracking-wider">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                  <div className="bg-bg-card border border-border-main rounded-2xl p-6 text-xs space-y-4 backdrop-blur-md shadow-sm font-mono">
+                    <h3 className="text-sm font-bold text-text-title flex items-center gap-2 uppercase tracking-wider">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-500" />
                       HITOS ADMINISTRATIVOS
                     </h3>
 
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 bg-zinc-950/80 border border-zinc-800/80 rounded-xl">
+                      <div className="flex items-center justify-between p-3 bg-bg-input border border-border-main rounded-xl">
                         <div>
-                          <p className="font-bold text-zinc-300 text-[10px] uppercase tracking-wider">Alta en la AEAT</p>
-                          <p className="text-[9px] text-zinc-550 mt-0.5 uppercase">Modelo 036 / 037 Hacienda</p>
+                          <p className="font-bold text-text-main text-[10px] uppercase tracking-wider">Alta en la AEAT</p>
+                          <p className="text-[9px] text-text-muted mt-0.5 uppercase">Modelo 036 / 037 Hacienda</p>
                         </div>
                         {user.aeatDate ? (
-                          <span className="text-[9px] bg-emerald-950/40 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-md font-bold">
+                          <span className="text-[9px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded-md font-bold">
                             {new Date(user.aeatDate).toLocaleDateString('es-ES')}
                           </span>
                         ) : (
-                          <span className="text-[9px] bg-zinc-900 text-zinc-550 border border-zinc-805 px-2 py-0.5 rounded-md uppercase font-bold">
+                          <span className="text-[9px] bg-bg-card text-text-muted border border-border-main px-2 py-0.5 rounded-md uppercase font-bold">
                             PENDIENTE
                           </span>
                         )}
                       </div>
 
-                      <div className="flex items-center justify-between p-3 bg-zinc-950/80 border border-zinc-800/80 rounded-xl">
+                      <div className="flex items-center justify-between p-3 bg-bg-input border border-border-main rounded-xl">
                         <div>
-                          <p className="font-bold text-zinc-300 text-[10px] uppercase tracking-wider">Alta Seguridad Social</p>
-                          <p className="text-[9px] text-zinc-550 mt-0.5 uppercase">Régimen Especial RETA</p>
+                          <p className="font-bold text-text-main text-[10px] uppercase tracking-wider">Alta Seguridad Social</p>
+                          <p className="text-[9px] text-text-muted mt-0.5 uppercase">Régimen Especial RETA</p>
                         </div>
                         {user.ssDate ? (
-                          <span className="text-[9px] bg-emerald-950/40 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-md font-bold">
+                          <span className="text-[9px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded-md font-bold">
                             {new Date(user.ssDate).toLocaleDateString('es-ES')}
                           </span>
                         ) : (
-                          <span className="text-[9px] bg-zinc-900 text-zinc-550 border border-zinc-805 px-2 py-0.5 rounded-md uppercase font-bold">
+                          <span className="text-[9px] bg-bg-card text-text-muted border border-border-main px-2 py-0.5 rounded-md uppercase font-bold">
                             PENDIENTE
                           </span>
                         )}
@@ -484,13 +571,13 @@ export default function StudentDashboard() {
                 <div className="lg:col-span-2 space-y-6">
                   
                   {/* Calculadora Fiscal */}
-                  <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-6 space-y-5 backdrop-blur-md shadow-sm">
+                  <div className="bg-bg-card border border-border-main rounded-2xl p-6 space-y-5 backdrop-blur-md shadow-sm">
                     <div>
-                      <h3 className="text-sm font-bold text-zinc-100 flex items-center gap-2 font-mono uppercase tracking-wider">
-                        <Compass className="w-5 h-5 text-indigo-400" />
+                      <h3 className="text-sm font-bold text-text-title flex items-center gap-2 font-mono uppercase tracking-wider">
+                        <Compass className="w-5 h-5 text-text-active" />
                         CÓMPUTO DE RESIDENCIA FISCAL (183 DÍAS)
                       </h3>
-                      <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                      <p className="text-xs text-text-muted mt-1 leading-relaxed">
                         En España se considera que eres Residente Fiscal si pasas más de 183 días en el territorio durante el año natural. Controla tus días efectivos de estancia.
                       </p>
                     </div>
@@ -498,35 +585,35 @@ export default function StudentDashboard() {
                     {user.arrivalDate ? (
                       <div className="space-y-4">
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono">
-                          <div className="p-4 bg-zinc-950/80 border border-zinc-800/80 rounded-xl text-center shadow-inner">
-                            <span className="text-[9px] font-bold text-zinc-500 block uppercase tracking-wider">Entrada a España</span>
-                            <p className="text-xs font-bold text-zinc-200 mt-1.5">{new Date(user.arrivalDate).toLocaleDateString('es-ES')}</p>
+                          <div className="p-4 bg-bg-input border border-border-main rounded-xl text-center shadow-inner">
+                            <span className="text-[9px] font-bold text-text-muted block uppercase tracking-wider">Entrada a España</span>
+                            <p className="text-xs font-bold text-text-main mt-1.5">{new Date(user.arrivalDate).toLocaleDateString('es-ES')}</p>
                           </div>
                           
-                          <div className="p-4 bg-zinc-950/80 border border-zinc-800/80 rounded-xl text-center shadow-inner">
-                            <span className="text-[9px] font-bold text-zinc-500 block uppercase tracking-wider">Ausencias / Viajes</span>
-                            <p className="text-xs font-bold text-zinc-200 mt-1.5">{user.absences || 0} DÍAS</p>
+                          <div className="p-4 bg-bg-input border border-border-main rounded-xl text-center shadow-inner">
+                            <span className="text-[9px] font-bold text-text-muted block uppercase tracking-wider">Ausencias / Viajes</span>
+                            <p className="text-xs font-bold text-text-main mt-1.5">{user.absences || 0} DÍAS</p>
                           </div>
 
-                          <div className="p-4 bg-zinc-950/80 border border-zinc-800/80 rounded-xl text-center shadow-inner">
-                            <span className="text-[9px] font-bold text-zinc-500 block uppercase tracking-wider">Estancia Efectiva</span>
-                            <p className="text-xs font-bold text-indigo-400 mt-1.5 shadow-[0_0_8px_rgba(0,242,254,0.05)]">{effectiveDays} DÍAS</p>
+                          <div className="p-4 bg-bg-input border border-border-main rounded-xl text-center shadow-inner">
+                            <span className="text-[9px] font-bold text-text-muted block uppercase tracking-wider">Estancia Efectiva</span>
+                            <p className="text-xs font-bold text-text-active mt-1.5">{effectiveDays} DÍAS</p>
                           </div>
                         </div>
 
                         {/* Barra de progreso */}
                         <div className="space-y-2 font-mono">
                           <div className="flex justify-between text-[10px] uppercase font-bold tracking-wider">
-                            <span className="text-zinc-450">Progreso Residencia Fiscal</span>
-                            <span className="text-zinc-200">{effectiveDays} / 183 DÍAS ({progressPercent.toFixed(0)}%)</span>
+                            <span className="text-text-muted">Progreso Residencia Fiscal</span>
+                            <span className="text-text-title">{effectiveDays} / 183 DÍAS ({progressPercent.toFixed(0)}%)</span>
                           </div>
                           
-                          <div className="w-full h-3.5 bg-zinc-950 rounded-full overflow-hidden border border-zinc-800/80 p-0.5">
+                          <div className="w-full h-3.5 bg-bg-input rounded-full overflow-hidden border border-border-main p-0.5">
                             <div 
                               className={`h-full rounded-full transition-all duration-500 ${
                                 effectiveDays >= 183
-                                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
-                                  : 'bg-indigo-500 shadow-[0_0_10px_rgba(0,242,254,0.25)]'
+                                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
+                                  : 'bg-indigo-650 shadow-[0_0_10px_rgba(99,102,241,0.1)]'
                               }`}
                               style={{ width: `${progressPercent}%` }}
                             ></div>
@@ -536,23 +623,23 @@ export default function StudentDashboard() {
                         {/* Status Message */}
                         <div className={`p-4 rounded-xl border flex items-start gap-3 ${
                           effectiveDays >= 183
-                            ? 'bg-emerald-950/20 text-emerald-350 border-emerald-900/30'
-                            : 'bg-indigo-950/20 text-indigo-350 border-indigo-900/30'
+                            ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:text-emerald-450'
+                            : 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20 dark:text-indigo-450'
                         }`}>
                           <div className="mt-0.5">
                             {effectiveDays >= 183 ? (
-                              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
                             ) : (
-                              <Clock className="w-5 h-5 text-indigo-400" />
+                              <Clock className="w-5 h-5 text-indigo-500" />
                             )}
                           </div>
                           <div className="text-xs font-mono">
-                            <p className="font-bold uppercase tracking-wider text-zinc-200">
+                            <p className="font-bold uppercase tracking-wider text-text-title">
                               {effectiveDays >= 183 
                                 ? 'UMBRAL DE 183 DÍAS ALCANZADO' 
                                 : `FALTAN ${183 - effectiveDays} DÍAS PARA RESIDENCIA FISCAL`}
                             </p>
-                            <p className="text-zinc-400 mt-1 font-sans text-xs leading-relaxed">
+                            <p className="text-text-muted mt-1 font-sans text-xs leading-relaxed">
                               {effectiveDays >= 183 
                                 ? 'A partir de este momento eres considerado residente fiscal en España para el ejercicio tributario correspondiente.'
                                 : 'Si continúas en España, superarás el umbral. Registra tus viajes fuera de España en el formulario inferior para que se descuenten del cómputo.'}
@@ -561,10 +648,10 @@ export default function StudentDashboard() {
                         </div>
 
                         {/* Formulario para guardar ausencias */}
-                        <form onSubmit={handleSaveAbsences} className="pt-4 border-t border-zinc-800/80 flex flex-col sm:flex-row items-end gap-4 font-mono">
+                        <form onSubmit={handleSaveAbsences} className="pt-4 border-t border-border-main flex flex-col sm:flex-row items-end gap-4 font-mono">
                           <div className="w-full sm:max-w-xs">
-                            <label className="block text-[10px] font-bold text-zinc-550 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                              <Plane className="w-4 h-4 text-indigo-400" /> REGISTRAR AUSENCIAS (VIAJES)
+                            <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                              <Plane className="w-4 h-4 text-text-active" /> REGISTRAR AUSENCIAS (VIAJES)
                             </label>
                             <input 
                               type="number" 
@@ -575,54 +662,54 @@ export default function StudentDashboard() {
                                   setAbsencesInput(e.target.value);
                                   if (absencesSuccess) setAbsencesSuccess(false);
                               }}
-                              className="w-full bg-zinc-950 border border-zinc-800/80 focus:border-indigo-400/85 focus:shadow-[0_0_12px_rgba(0,242,254,0.12)] rounded-xl px-4 py-3 text-xs text-zinc-200 focus:outline-none transition-all duration-200"
+                              className="w-full bg-bg-input border border-border-main focus:border-border-hover focus:shadow-[0_0_12px_rgba(99,102,241,0.08)] rounded-xl px-4 py-3 text-xs text-text-main focus:outline-none transition-all duration-200"
                             />
                           </div>
 
                           <button
                             type="submit"
                             disabled={savingAbsences}
-                            className="bg-indigo-650 hover:bg-indigo-600 text-zinc-950 border border-indigo-500/20 rounded-xl py-3 px-5 text-[10px] font-bold uppercase tracking-widest shrink-0 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 shadow-[0_0_10px_rgba(0,242,254,0.15)]"
+                            className="bg-indigo-650 hover:bg-indigo-600 text-white border border-indigo-500/20 rounded-xl py-3 px-5 text-[10px] font-bold uppercase tracking-widest shrink-0 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
                           >
                             {savingAbsences ? 'GUARDANDO...' : 'ACTUALIZAR DATOS'}
                           </button>
 
                           {absencesSuccess && (
-                            <span className="text-[10px] text-emerald-400 font-bold mb-3.5 animate-pulse uppercase tracking-wider">
+                            <span className="text-[10px] text-emerald-500 font-bold mb-3.5 animate-pulse uppercase tracking-wider">
                               ¡Guardado con éxito!
                             </span>
                           )}
                         </form>
                       </div>
                     ) : (
-                      <div className="text-xs text-zinc-500 font-mono uppercase text-center py-8 border border-dashed border-zinc-800 rounded-xl">
-                        <AlertCircle className="w-8 h-8 text-zinc-700 mb-2 mx-auto" />
+                      <div className="text-xs text-text-muted font-mono uppercase text-center py-8 border border-dashed border-border-main rounded-xl">
+                        <AlertCircle className="w-8 h-8 text-text-muted mb-2 mx-auto" />
                         No tienes una fecha de entrada asignada por administración para calcular tu residencia.
                       </div>
                     )}
                   </div>
 
                   {/* Gestor Documental Extranjería */}
-                  <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-6 space-y-4 backdrop-blur-md shadow-sm">
+                  <div className="bg-bg-card border border-border-main rounded-2xl p-6 space-y-4 backdrop-blur-md shadow-sm">
                     <div>
-                      <h3 className="text-sm font-bold text-zinc-100 flex items-center gap-2 font-mono uppercase tracking-wider">
-                        <Upload className="w-5 h-5 text-indigo-400" />
+                      <h3 className="text-sm font-bold text-text-title flex items-center gap-2 font-mono uppercase tracking-wider">
+                        <Upload className="w-5 h-5 text-text-active" />
                         EXPEDIENTE DE EXTRANJERÍA (RESOLUCIÓN)
                       </h3>
-                      <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                      <p className="text-xs text-text-muted mt-1 leading-relaxed">
                         Sube tu resolución aprobada de residencia para tenerla disponible de consulta y permitir que el equipo de soporte administrativo la verifique.
                       </p>
                     </div>
 
                     {user.residencyDoc ? (
-                      <div className="p-4 bg-zinc-950/80 border border-zinc-800/80 rounded-xl flex items-center justify-between gap-4 font-mono">
+                      <div className="p-4 bg-bg-input border border-border-main rounded-xl flex items-center justify-between gap-4 font-mono">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-indigo-400 shrink-0">
+                          <div className="p-2.5 rounded-lg bg-bg-card border border-border-main text-text-active shrink-0">
                             <FileText className="w-6 h-6" />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-bold text-zinc-200 truncate uppercase tracking-wide">{user.residencyDoc.name}</p>
-                            <p className="text-[9px] text-zinc-550 mt-1 uppercase tracking-wider">
+                            <p className="text-xs font-bold text-text-title truncate uppercase tracking-wide">{user.residencyDoc.name}</p>
+                            <p className="text-[9px] text-text-muted mt-1 uppercase tracking-wider">
                               TAMAÑO: {user.residencyDoc.size} • SUBIDO: {new Date(user.residencyDoc.uploadedAt).toLocaleDateString('es-ES')}
                             </p>
                           </div>
@@ -631,14 +718,14 @@ export default function StudentDashboard() {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => alert('[MVP SIMULACIÓN] Descargando tu documento de extranjería.')}
-                            className="p-2.5 text-zinc-400 hover:text-zinc-200 bg-zinc-900 border border-zinc-800 rounded-lg hover:border-zinc-700 transition-all cursor-pointer"
+                            className="p-2.5 text-text-muted hover:text-text-main bg-bg-card border border-border-main hover:border-border-hover rounded-lg transition-all cursor-pointer"
                             title="Descargar"
                           >
                             <Download className="w-4 h-4" />
                           </button>
                           
                           {/* Re-subir */}
-                          <label className="p-2.5 text-indigo-400 hover:text-indigo-300 bg-indigo-950/20 border border-indigo-900/30 hover:border-indigo-500/30 rounded-lg cursor-pointer hover:scale-105 transition-all text-center border">
+                          <label className="p-2.5 text-text-active hover:text-indigo-400 bg-bg-active border border-border-active hover:border-border-hover rounded-lg cursor-pointer hover:scale-105 transition-all text-center border">
                             <Upload className="w-4 h-4 inline" />
                             <input 
                               type="file" 
@@ -650,15 +737,15 @@ export default function StudentDashboard() {
                         </div>
                       </div>
                     ) : (
-                      <div className="border border-dashed border-zinc-805 rounded-2xl p-8 text-center flex flex-col items-center justify-center bg-zinc-950/40 relative overflow-hidden group hover:border-indigo-500/20 transition-all duration-300">
-                        <Upload className="w-8 h-8 text-zinc-600 group-hover:text-indigo-400 transition-colors mb-3" />
-                        <p className="text-xs font-bold text-zinc-300 font-mono uppercase tracking-wider">Selecciona el archivo de tu resolución</p>
-                        <p className="text-[9px] text-zinc-550 font-mono uppercase tracking-widest mt-1">Formatos PDF, PNG, JPG (Máx. 5MB)</p>
+                      <div className="border border-dashed border-border-main rounded-2xl p-8 text-center flex flex-col items-center justify-center bg-bg-input/40 relative overflow-hidden group hover:border-border-hover transition-all duration-300">
+                        <Upload className="w-8 h-8 text-text-muted group-hover:text-text-active transition-colors mb-3" />
+                        <p className="text-xs font-bold text-text-title font-mono uppercase tracking-wider">Selecciona el archivo de tu resolución</p>
+                        <p className="text-[9px] text-text-muted font-mono uppercase tracking-widest mt-1">Formatos PDF, PNG, JPG (Máx. 5MB)</p>
                         
-                        <label className="mt-4 px-4 py-2.5 bg-zinc-950 hover:bg-indigo-950/45 text-zinc-400 hover:text-indigo-400 border border-zinc-800 hover:border-indigo-500/30 rounded-xl text-[10px] font-bold font-mono uppercase tracking-widest cursor-pointer transition-colors block">
+                        <label className="mt-4 px-4 py-2.5 bg-bg-input hover:bg-bg-card text-text-muted hover:text-text-main border border-border-main hover:border-border-hover rounded-xl text-[10px] font-bold font-mono uppercase tracking-widest cursor-pointer transition-colors block">
                           {uploadingDoc ? (
                             <span className="flex items-center gap-1.5">
-                              <div className="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
+                              <div className="w-3.5 h-3.5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
                               Subiendo...
                             </span>
                           ) : (
@@ -676,8 +763,8 @@ export default function StudentDashboard() {
                     )}
 
                     {uploadSuccess && (
-                      <div className="p-3 bg-emerald-950/30 border border-emerald-900/20 text-emerald-450 text-xs rounded-xl flex items-center gap-2 font-mono">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs rounded-xl flex items-center gap-2 font-mono">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                         <span className="uppercase text-[9px] font-bold tracking-wider">Documento registrado en tu expediente digital local.</span>
                       </div>
                     )}

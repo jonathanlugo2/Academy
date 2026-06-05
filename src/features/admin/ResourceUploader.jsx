@@ -25,7 +25,10 @@ export default function ResourceUploader({
   setPreviewResource,
   handleStartEditResource,
   handleDeleteResource,
-  resourceIcon
+  resourceIcon,
+  newImageUrl, setNewImageUrl,
+  uploadingImage,
+  handleImageUpload
 }) {
   const [showModal, setShowModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -78,13 +81,13 @@ export default function ResourceUploader({
   return (
     <div className="space-y-6">
       {/* HEADER DE SECCIÓN CON BOTÓN DE ACCIÓN */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-zinc-900/40 p-4 rounded-2xl border border-zinc-800/80 backdrop-blur-sm">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-bg-card/40 p-4 rounded-2xl border border-border-main/80 backdrop-blur-sm">
         <div>
-          <h3 className="text-lg font-bold text-white flex items-center gap-2 font-mono uppercase tracking-tight">
-            <LayoutGrid className="w-5 h-5 text-indigo-400" />
+          <h3 className="text-lg font-bold text-text-title flex items-center gap-2 font-mono uppercase tracking-tight">
+            <LayoutGrid className="w-5 h-5 text-text-active" />
             Gestión de Contenido Académico
           </h3>
-          <p className="text-xs text-zinc-500 font-mono mt-0.5">Directorio centralizado de formaciones y recursos.</p>
+          <p className="text-xs text-text-muted font-mono mt-0.5">Directorio centralizado de formaciones y recursos.</p>
         </div>
         <button
           onClick={openCreateModal}
@@ -96,22 +99,22 @@ export default function ResourceUploader({
       </div>
 
       {/* BARRA DE BÚSQUEDA Y FILTROS INTELIGENTES */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-zinc-900/20 p-3 rounded-2xl border border-zinc-800/40">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-bg-input/20 p-3 rounded-2xl border border-border-main/40">
         <div className="md:col-span-2 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
           <input
             type="text"
             placeholder="BUSCAR POR TÍTULO O DESCRIPCIÓN..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-zinc-950 border border-zinc-800/80 rounded-xl pl-10 pr-4 py-2.5 text-xs text-zinc-200 focus:border-indigo-500/50 outline-none font-mono"
+            className="w-full bg-bg-input border border-border-main rounded-xl pl-10 pr-4 py-2.5 text-xs text-text-main focus:border-border-hover/50 outline-none font-mono"
           />
         </div>
         <div>
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
-            className="w-full bg-zinc-950 border border-zinc-800/80 rounded-xl px-4 py-2.5 text-xs text-zinc-300 focus:border-indigo-500/50 outline-none font-mono cursor-pointer"
+            className="w-full bg-bg-input border border-border-main rounded-xl px-4 py-2.5 text-xs text-text-main focus:border-border-hover/50 outline-none font-mono cursor-pointer"
           >
             <option value="all">TODOS LOS TIPOS</option>
             <option value="video">VÍDEOS</option>
@@ -125,7 +128,7 @@ export default function ResourceUploader({
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
-            className="w-full bg-zinc-950 border border-zinc-800/80 rounded-xl px-4 py-2.5 text-xs text-zinc-300 focus:border-indigo-500/50 outline-none font-mono cursor-pointer"
+            className="w-full bg-bg-input border border-border-main rounded-xl px-4 py-2.5 text-xs text-text-main focus:border-border-hover/50 outline-none font-mono cursor-pointer"
           >
             <option value="all">TODAS LAS CATEGORÍAS</option>
             <option value="Trámites y Visados">TRÁMITES Y VISADOS</option>
@@ -137,11 +140,11 @@ export default function ResourceUploader({
       </div>
 
       {/* TABLA ESTILO ERP MODERNO */}
-      <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl overflow-hidden backdrop-blur-md">
+      <div className="bg-bg-card border border-border-main rounded-2xl overflow-hidden backdrop-blur-md">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-zinc-800/80 bg-zinc-950/40 text-[10px] text-zinc-500 font-mono uppercase tracking-widest">
+              <tr className="border-b border-border-main bg-bg-input/40 text-[10px] text-text-muted font-mono uppercase tracking-widest">
                 <th className="px-6 py-4 font-bold">Recurso / Formación</th>
                 <th className="px-6 py-4 font-bold">Tipo</th>
                 <th className="px-6 py-4 font-bold">Categoría</th>
@@ -149,54 +152,54 @@ export default function ResourceUploader({
                 <th className="px-6 py-4 font-bold text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800/40">
+            <tbody className="divide-y divide-border-main/40">
               {paginatedData.length > 0 ? (
                 paginatedData.map((resource) => (
-                  <tr key={resource.id} className="group hover:bg-white/[0.02] transition-colors">
+                  <tr key={resource.id} className="group hover:bg-bg-input/10 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-zinc-950 border border-zinc-800 flex items-center justify-center text-zinc-400 group-hover:text-indigo-400 group-hover:border-indigo-500/30 transition-all shadow-inner">
+                        <div className="w-10 h-10 rounded-xl bg-bg-input border border-border-main flex items-center justify-center text-text-muted group-hover:text-text-active group-hover:border-border-active transition-all shadow-inner">
                           {resourceIcon(resource.type)}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-bold text-zinc-200 truncate group-hover:text-white transition-colors">{resource.title}</p>
-                          <p className="text-[10px] text-zinc-500 truncate font-mono mt-0.5 uppercase tracking-tight">{resource.tags?.join(' • ') || 'SIN ETIQUETAS'}</p>
+                          <p className="text-sm font-bold text-text-main truncate group-hover:text-text-title transition-colors">{resource.title}</p>
+                          <p className="text-[10px] text-text-muted truncate font-mono mt-0.5 uppercase tracking-tight">{resource.tags?.join(' • ') || 'SIN ETIQUETAS'}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-[9px] font-bold text-zinc-400 bg-zinc-950 border border-zinc-800 px-2.5 py-1 rounded-lg uppercase font-mono tracking-wider">
+                      <span className="text-[9px] font-bold text-text-muted bg-bg-input border border-border-main px-2.5 py-1 rounded-lg uppercase font-mono tracking-wider">
                         {resource.type === 'html_video' ? 'CÓDIGO' : resource.type}
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-xs text-zinc-400 font-medium">{resource.category}</span>
+                      <span className="text-xs text-text-main font-medium">{resource.category}</span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
-                        <span className="text-xs text-zinc-300 font-mono">{new Date(resource.created_at).toLocaleDateString('es-ES')}</span>
-                        <span className="text-[9px] text-zinc-600 font-mono uppercase">Sistema Sync</span>
+                        <span className="text-xs text-text-main font-mono">{new Date(resource.created_at).toLocaleDateString('es-ES')}</span>
+                        <span className="text-[9px] text-text-muted font-mono uppercase">Sistema Sync</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => setPreviewResource(resource)}
-                          className="p-2 text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-all"
+                          className="p-2 text-text-active hover:bg-bg-active rounded-lg transition-all cursor-pointer"
                           title="Visualizar"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => onEdit(resource)}
-                          className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-all"
+                          className="p-2 text-text-muted hover:text-text-title hover:bg-bg-input rounded-lg transition-all cursor-pointer"
                           title="Editar"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteResource(resource.id)}
-                          className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                          className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-all cursor-pointer"
                           title="Eliminar"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -207,7 +210,7 @@ export default function ResourceUploader({
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" className="px-6 py-12 text-center text-zinc-550 font-mono text-xs uppercase tracking-widest">
+                  <td colSpan="5" className="px-6 py-12 text-center text-text-muted font-mono text-xs uppercase tracking-widest">
                     No se encontraron resultados para los filtros aplicados.
                   </td>
                 </tr>
@@ -218,15 +221,15 @@ export default function ResourceUploader({
 
         {/* PAGINACIÓN MODERNA */}
         {totalPages > 1 && (
-          <div className="px-6 py-4 bg-zinc-950/20 border-t border-zinc-800/80 flex items-center justify-between">
-            <p className="text-[10px] text-zinc-500 font-mono uppercase">
-              Mostrando <span className="text-zinc-300">{paginatedData.length}</span> de <span className="text-zinc-300">{filteredResources.length}</span> recursos
+          <div className="px-6 py-4 bg-bg-input/25 border-t border-border-main flex items-center justify-between">
+            <p className="text-[10px] text-text-muted font-mono uppercase">
+              Mostrando <span className="text-text-main">{paginatedData.length}</span> de <span className="text-text-main">{filteredResources.length}</span> recursos
             </p>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="p-2 bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-400 disabled:opacity-30 hover:bg-zinc-900 transition-colors"
+                className="p-2 bg-bg-input border border-border-main rounded-lg text-text-muted disabled:opacity-30 hover:bg-bg-card transition-colors cursor-pointer"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -235,10 +238,10 @@ export default function ResourceUploader({
                   <button
                     key={i}
                     onClick={() => setCurrentPage(i + 1)}
-                    className={`w-8 h-8 rounded-lg text-[10px] font-bold font-mono transition-all ${
+                    className={`w-8 h-8 rounded-lg text-[10px] font-bold font-mono transition-all cursor-pointer ${
                       currentPage === i + 1 
-                        ? 'bg-indigo-600 text-white border border-indigo-500' 
-                        : 'bg-zinc-950 text-zinc-500 border border-zinc-800 hover:text-zinc-300'
+                        ? 'bg-indigo-600 text-white border border-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.2)]' 
+                        : 'bg-bg-input text-text-muted border border-border-main hover:text-text-main hover:bg-bg-card'
                     }`}
                   >
                     {i + 1}
@@ -248,7 +251,7 @@ export default function ResourceUploader({
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="p-2 bg-zinc-950 border border-zinc-800 rounded-lg text-zinc-400 disabled:opacity-30 hover:bg-zinc-900 transition-colors"
+                className="p-2 bg-bg-input border border-border-main rounded-lg text-text-muted disabled:opacity-30 hover:bg-bg-card transition-colors cursor-pointer"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -260,23 +263,23 @@ export default function ResourceUploader({
       {/* MODAL EMERGENTE PARA CREACIÓN/EDICIÓN (ESTILO ERP) */}
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className="bg-bg-card border border-border-main rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-200">
             {/* Modal Header */}
-            <div className="px-8 py-6 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
+            <div className="px-8 py-6 border-b border-border-main flex justify-between items-center bg-bg-input/50">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                <div className="w-10 h-10 rounded-2xl bg-bg-active border border-border-active flex items-center justify-center text-text-active">
                   {editingResourceId ? <Edit2 className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white uppercase tracking-tight font-mono">
+                  <h3 className="text-base font-bold text-text-title uppercase tracking-tight font-mono">
                     {editingResourceId ? 'Editar Formación' : 'Añadir Nueva Formación'}
                   </h3>
-                  <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest">Panel de Creación de Contenido</p>
+                  <p className="text-[10px] text-text-muted font-mono uppercase tracking-widest">Panel de Creación de Contenido</p>
                 </div>
               </div>
               <button 
                 onClick={() => setShowModal(false)}
-                className="p-2 hover:bg-zinc-800 rounded-xl text-zinc-500 hover:text-white transition-colors"
+                className="p-2 hover:bg-bg-input rounded-xl text-text-muted hover:text-text-title transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -293,7 +296,7 @@ export default function ResourceUploader({
                 )}
 
                 {formSuccess && (
-                  <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs rounded-2xl flex items-start gap-3 font-mono">
+                  <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-450 dark:text-emerald-450 text-xs rounded-2xl flex items-start gap-3 font-mono">
                     <CheckCircle2 className="w-5 h-5 shrink-0" />
                     <span>{formSuccess}</span>
                   </div>
@@ -301,23 +304,23 @@ export default function ResourceUploader({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="md:col-span-2">
-                    <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 font-mono ml-1">Título de la Formación *</label>
+                    <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 font-mono ml-1">Título de la Formación *</label>
                     <input 
                       type="text" 
                       value={newTitle}
                       onChange={(e) => setNewTitle(e.target.value)}
                       placeholder="Ej. Guía de Residencia 2024"
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3.5 text-xs text-zinc-200 placeholder-zinc-650 focus:border-indigo-500/50 outline-none transition-all font-mono shadow-inner"
+                      className="w-full bg-bg-input border border-border-main rounded-2xl px-5 py-3.5 text-xs text-text-main placeholder-text-muted focus:border-border-hover outline-none transition-all font-mono shadow-inner"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 font-mono ml-1">Tipo de Recurso</label>
+                    <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 font-mono ml-1">Tipo de Recurso</label>
                     <div className="relative">
                       <select 
                         value={newType} 
                         onChange={(e) => setNewType(e.target.value)}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3.5 text-xs text-zinc-200 outline-none font-mono cursor-pointer appearance-none focus:border-indigo-500/50 transition-all shadow-inner"
+                        className="w-full bg-bg-input border border-border-main rounded-2xl px-5 py-3.5 text-xs text-text-main outline-none font-mono cursor-pointer appearance-none focus:border-border-hover transition-all shadow-inner"
                       >
                         <option value="video">VÍDEO (EXTERNAL)</option>
                         <option value="presentation">GOOGLE SLIDES</option>
@@ -329,11 +332,11 @@ export default function ResourceUploader({
                   </div>
                   
                   <div>
-                    <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 font-mono ml-1">Categoría Académica</label>
+                    <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 font-mono ml-1">Categoría Académica</label>
                     <select 
                       value={newCategory} 
                       onChange={(e) => setNewCategory(e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3.5 text-xs text-zinc-200 outline-none font-mono cursor-pointer appearance-none focus:border-indigo-500/50 transition-all shadow-inner"
+                      className="w-full bg-bg-input border border-border-main rounded-2xl px-5 py-3.5 text-xs text-text-main outline-none font-mono cursor-pointer appearance-none focus:border-border-hover transition-all shadow-inner"
                     >
                       <option value="Trámites y Visados">TRÁMITES Y VISADOS</option>
                       <option value="Impuestos y Autónomos">IMPUESTOS Y FISCALIDAD</option>
@@ -345,21 +348,21 @@ export default function ResourceUploader({
                   <div className="md:col-span-2">
                     {newType === 'document' ? (
                       <div>
-                        <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 font-mono ml-1">Cargar Documento PDF *</label>
+                        <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 font-mono ml-1">Cargar Documento PDF *</label>
                         <input type="file" accept=".pdf" id="pdf-upload-erp" onChange={handlePdfFileChange} className="hidden" />
                         <label 
                           htmlFor="pdf-upload-erp"
-                          className="w-full flex flex-col items-center justify-center gap-2 border-2 border-dashed border-zinc-800 hover:border-indigo-500/40 bg-zinc-950/40 hover:bg-zinc-950/80 rounded-2xl py-8 transition-all cursor-pointer group"
+                          className="w-full flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border-main hover:border-border-hover/45 bg-bg-input/40 hover:bg-bg-input/80 rounded-2xl py-8 transition-all cursor-pointer group"
                         >
-                          <Upload className="w-6 h-6 text-zinc-600 group-hover:text-indigo-400 group-hover:scale-110 transition-all" />
-                          <p className="text-[10px] font-bold text-zinc-500 font-mono uppercase tracking-widest group-hover:text-zinc-300">
+                          <Upload className="w-6 h-6 text-text-muted group-hover:text-text-active group-hover:scale-110 transition-all" />
+                          <p className="text-[10px] font-bold text-text-muted font-mono uppercase tracking-widest group-hover:text-text-main">
                             {newUrl && newUrl.startsWith('data:application/pdf') ? 'Archivo PDF Seleccionado' : 'Arrastra o selecciona el archivo'}
                           </p>
                         </label>
                       </div>
                     ) : (
                       <div>
-                        <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 font-mono ml-1">
+                        <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 font-mono ml-1">
                           {newType === 'html_video' ? 'Código de Inserción / URL MP4 *' : 'Enlace del Recurso *'}
                         </label>
                         <input 
@@ -367,59 +370,151 @@ export default function ResourceUploader({
                           value={newUrl}
                           onChange={(e) => setNewUrl(e.target.value)}
                           placeholder="https://..."
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3.5 text-xs text-zinc-200 placeholder-zinc-650 focus:border-indigo-500/50 outline-none transition-all font-mono shadow-inner"
+                          className="w-full bg-bg-input border border-border-main rounded-2xl px-5 py-3.5 text-xs text-text-main placeholder-text-muted focus:border-border-hover outline-none transition-all font-mono shadow-inner"
                         />
                       </div>
                     )}
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 font-mono ml-1">Descripción Breve *</label>
+                    <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 font-mono ml-1">Descripción Breve *</label>
                     <textarea 
                       rows="3"
                       value={newDesc}
                       onChange={(e) => setNewDesc(e.target.value)}
                       placeholder="Resume el contenido para los alumnos..."
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3.5 text-xs text-zinc-200 focus:border-indigo-500/50 outline-none transition-all font-mono resize-none shadow-inner"
+                      className="w-full bg-bg-input border border-border-main rounded-2xl px-5 py-3.5 text-xs text-text-main placeholder-text-muted focus:border-border-hover outline-none transition-all font-mono resize-none shadow-inner"
                     />
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1 font-mono ml-1">Etiquetas del Sistema</label>
-                    <span className="text-[9px] text-zinc-600 font-mono uppercase tracking-tight block mb-2 ml-1">Separar por comas (Ej: Fiscal, Hacienda, 2024)</span>
+                    <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-1 font-mono ml-1">Etiquetas del Sistema</label>
+                    <span className="text-[9px] text-text-muted font-mono uppercase tracking-tight block mb-2 ml-1">Separar por comas (Ej: Fiscal, Hacienda, 2024)</span>
                     <input 
                       type="text" 
                       value={newTags}
                       onChange={(e) => setNewTags(e.target.value)}
                       placeholder="Etiquetas..."
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3.5 text-xs text-zinc-200 outline-none focus:border-indigo-500/50 transition-all font-mono shadow-inner"
+                      className="w-full bg-bg-input border border-border-main rounded-2xl px-5 py-3.5 text-xs text-text-main outline-none focus:border-border-hover transition-all font-mono shadow-inner"
                     />
+                  </div>
+
+                  <div className="md:col-span-2 space-y-4 pt-3 border-t border-border-main/40">
+                    <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest font-mono ml-1">Imagen de Portada (Tarjeta de Curso)</label>
+                    
+                    {/* Presets Grid */}
+                    <div className="space-y-2">
+                      <span className="text-[9px] text-text-muted font-mono uppercase tracking-tight block ml-1">Seleccionar Ilustración ExpatFiscal</span>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setNewImageUrl('/preset_tramites.png')}
+                          className={`px-3 py-2 rounded-xl text-[9px] font-bold font-mono uppercase border cursor-pointer text-center transition-colors ${newImageUrl === '/preset_tramites.png' ? 'bg-bg-active text-text-active border-border-active shadow-[0_0_10px_rgba(99,102,241,0.1)]' : 'bg-bg-input text-text-muted border-border-main hover:border-border-hover hover:text-text-main'}`}
+                        >
+                          Trámites
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewImageUrl('/preset_impuestos.png')}
+                          className={`px-3 py-2 rounded-xl text-[9px] font-bold font-mono uppercase border cursor-pointer text-center transition-colors ${newImageUrl === '/preset_impuestos.png' ? 'bg-bg-active text-text-active border-border-active shadow-[0_0_10px_rgba(99,102,241,0.1)]' : 'bg-bg-input text-text-muted border-border-main hover:border-border-hover hover:text-text-main'}`}
+                        >
+                          Impuestos
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewImageUrl('/preset_coworking.png')}
+                          className={`px-3 py-2 rounded-xl text-[9px] font-bold font-mono uppercase border cursor-pointer text-center transition-colors ${newImageUrl === '/preset_coworking.png' ? 'bg-bg-active text-text-active border-border-active shadow-[0_0_10px_rgba(99,102,241,0.1)]' : 'bg-bg-input text-text-muted border-border-main hover:border-border-hover hover:text-text-main'}`}
+                        >
+                          Coworking
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewImageUrl('/preset_herramientas.png')}
+                          className={`px-3 py-2 rounded-xl text-[9px] font-bold font-mono uppercase border cursor-pointer text-center transition-colors ${newImageUrl === '/preset_herramientas.png' ? 'bg-bg-active text-text-active border-border-active shadow-[0_0_10px_rgba(99,102,241,0.1)]' : 'bg-bg-input text-text-muted border-border-main hover:border-border-hover hover:text-text-main'}`}
+                        >
+                          Herramientas
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Image URL & File Upload */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-[9px] text-text-muted font-mono uppercase tracking-tight block mb-2 ml-1">URL de Imagen Personalizada</span>
+                        <input 
+                          type="text" 
+                          value={newImageUrl && !newImageUrl.startsWith('/preset_') && !newImageUrl.startsWith('data:') ? newImageUrl : ''}
+                          onChange={(e) => setNewImageUrl(e.target.value)}
+                          placeholder="https://..."
+                          className="w-full bg-bg-input border border-border-main rounded-2xl px-5 py-3 text-xs text-text-main outline-none focus:border-border-hover transition-all font-mono shadow-inner"
+                        />
+                      </div>
+                      <div>
+                        <span className="text-[9px] text-text-muted font-mono uppercase tracking-tight block mb-2 ml-1">Cargar Archivo de Portada</span>
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          id="image-upload-uploader" 
+                          onChange={handleImageUpload} 
+                          className="hidden" 
+                        />
+                        <label 
+                          htmlFor="image-upload-uploader"
+                          className="w-full flex items-center justify-center gap-2 border border-dashed border-border-main hover:border-border-hover/40 bg-bg-input/40 hover:bg-bg-input/85 rounded-2xl py-3 transition-all cursor-pointer group text-center"
+                        >
+                          <Upload className="w-4 h-4 text-text-muted group-hover:text-text-active transition-all" />
+                          <span className="text-[9px] font-bold text-text-muted font-mono uppercase tracking-widest group-hover:text-text-main">
+                            {uploadingImage ? 'Subiendo...' : 'Examinar Archivo'}
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Image Preview */}
+                    {newImageUrl && (
+                      <div className="p-3 bg-bg-input/40 border border-border-main rounded-2xl flex items-center gap-3 animate-in fade-in duration-200">
+                        <div className="w-16 h-10 rounded-lg overflow-hidden border border-border-main shrink-0">
+                          <img src={newImageUrl} alt="Cover Preview" className="w-full h-full object-cover" />
+                        </div>
+                        <div className="min-w-0 flex-1 text-left">
+                          <span className="text-[8px] text-text-active font-bold uppercase tracking-wider font-mono">Vista Previa Asignada</span>
+                          <p className="text-[9px] text-text-muted truncate font-mono mt-0.5">{newImageUrl}</p>
+                        </div>
+                        <button 
+                          type="button" 
+                          onClick={() => setNewImageUrl('')} 
+                          className="text-[9px] text-red-500 hover:text-red-400 font-bold font-mono px-3 py-1.5 border border-border-main hover:border-border-hover hover:bg-bg-input rounded-xl cursor-pointer transition-colors"
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div className="bg-zinc-950/40 p-6 rounded-3xl border border-zinc-800/80 space-y-4">
+                <div className="bg-bg-input/40 p-6 rounded-3xl border border-border-main/80 space-y-4">
                   <div className="flex justify-between items-center">
-                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest font-mono">Control de Acceso Estudiantes</label>
+                    <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest font-mono">Control de Acceso Estudiantes</label>
                     <button
                       type="button"
                       onClick={() => setSelectedAssignUserIds(users.filter(u => u.role === 'student').map(u => u.id))}
-                      className="text-[9px] text-indigo-400 hover:bg-indigo-500/10 px-3 py-1.5 rounded-lg font-bold border border-indigo-500/20 uppercase transition-all"
+                      className="text-[9px] text-text-active hover:bg-bg-active px-3 py-1.5 rounded-lg font-bold border border-border-active uppercase transition-all cursor-pointer"
                     >
                       Asignar a todos
                     </button>
                   </div>
                   
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                     <input
                       type="text"
                       value={studentSearchQuery}
                       onChange={(e) => setStudentSearchQuery(e.target.value)}
                       placeholder="FILTRAR ESTUDIANTES..."
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-[10px] text-zinc-200 outline-none focus:border-indigo-500/30 transition-all uppercase font-mono"
+                      className="w-full bg-bg-input border border-border-main rounded-xl pl-10 pr-4 py-2.5 text-[10px] text-text-main outline-none focus:border-border-hover/40 transition-all uppercase font-mono"
                     />
                     {studentSearchQuery.trim() !== '' && (
-                      <div className="absolute left-0 right-0 mt-1 bg-zinc-900 border border-zinc-800 rounded-xl max-h-40 overflow-y-auto z-[110] p-2 shadow-2xl">
+                      <div className="absolute left-0 right-0 mt-1 bg-bg-card border border-border-main rounded-xl max-h-40 overflow-y-auto z-[110] p-2 shadow-2xl">
                         {users.filter(u => u.role === 'student' && (u.name || '').toLowerCase().includes(studentSearchQuery.toLowerCase())).map(student => {
                           const isSelected = selectedAssignUserIds.includes(student.id);
                           return (
@@ -427,7 +522,7 @@ export default function ResourceUploader({
                               key={student.id}
                               type="button"
                               onClick={() => isSelected ? setSelectedAssignUserIds(prev => prev.filter(id => id !== student.id)) : setSelectedAssignUserIds(prev => [...prev, student.id])}
-                              className={`w-full flex items-center justify-between p-2 rounded-lg text-left text-[10px] transition-colors mb-1 ${isSelected ? 'bg-indigo-500/10 text-indigo-400' : 'hover:bg-zinc-800 text-zinc-500'}`}
+                              className={`w-full flex items-center justify-between p-2 rounded-lg text-left text-[10px] transition-colors mb-1 cursor-pointer ${isSelected ? 'bg-bg-active text-text-active' : 'hover:bg-bg-input text-text-muted'}`}
                             >
                               <span>{student.name}</span>
                               <span className="font-bold">{isSelected ? 'QUITAR' : 'AÑADIR'}</span>
@@ -440,23 +535,23 @@ export default function ResourceUploader({
 
                   <div className="flex flex-wrap gap-2 pt-2">
                     {users.filter(u => selectedAssignUserIds.includes(u.id)).map(student => (
-                      <span key={student.id} className="text-[9px] bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg text-zinc-400 flex items-center gap-1.5 font-mono">
+                      <span key={student.id} className="text-[9px] bg-bg-input border border-border-main px-2.5 py-1 rounded-lg text-text-main flex items-center gap-1.5 font-mono">
                         {student.name}
-                        <button type="button" onClick={() => setSelectedAssignUserIds(prev => prev.filter(id => id !== student.id))} className="text-red-500 hover:text-red-400 text-base">×</button>
+                        <button type="button" onClick={() => setSelectedAssignUserIds(prev => prev.filter(id => id !== student.id))} className="text-red-550 hover:text-red-400 text-base cursor-pointer">×</button>
                       </span>
                     ))}
-                    {selectedAssignUserIds.length === 0 && <span className="text-[9px] text-zinc-600 italic font-mono uppercase">Solo administradores tendrán acceso.</span>}
+                    {selectedAssignUserIds.length === 0 && <span className="text-[9px] text-text-muted italic font-mono uppercase">Solo administradores tendrán acceso.</span>}
                   </div>
                 </div>
               </form>
             </div>
 
             {/* Modal Footer */}
-            <div className="px-8 py-6 border-t border-zinc-800 bg-zinc-900/50 flex gap-3">
+            <div className="px-8 py-6 border-t border-border-main bg-bg-card/50 flex gap-3">
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                className="flex-1 px-6 py-3.5 bg-zinc-950 border border-zinc-800 text-zinc-400 hover:text-white rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all font-mono"
+                className="flex-1 px-6 py-3.5 bg-bg-input border border-border-main text-text-muted hover:text-text-title rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all font-mono cursor-pointer"
               >
                 Cancelar
               </button>
@@ -464,7 +559,7 @@ export default function ResourceUploader({
                 type="submit"
                 disabled={isSubmitting}
                 onClick={onSubmit}
-                className="flex-[2] px-6 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all font-mono flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/10"
+                className="flex-[2] px-6 py-3.5 bg-indigo-650 hover:bg-indigo-600 text-white rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all font-mono flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/10 cursor-pointer"
               >
                 {isSubmitting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : (editingResourceId ? 'Guardar Cambios' : 'Confirmar Creación')}
               </button>

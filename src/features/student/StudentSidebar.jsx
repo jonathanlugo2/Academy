@@ -1,8 +1,9 @@
 import React from 'react';
 import { 
-  Scale, ChevronRight, ChevronLeft, BookOpen, 
-  Shield, MessageSquare, LogOut 
+  GraduationCap, ChevronRight, ChevronLeft, BookOpen, 
+  MessageSquare
 } from 'lucide-react';
+import { useTheme } from '../../context/ThemeContext';
 
 export default function StudentSidebar({ 
   isSidebarCollapsed, 
@@ -11,22 +12,24 @@ export default function StudentSidebar({
   setActiveTab, 
   logout 
 }) {
+  const { theme, toggleTheme } = useTheme();
+
   return (
-    <aside className={`w-full ${isSidebarCollapsed ? 'md:w-20' : 'md:w-64'} bg-zinc-950/80 backdrop-blur-md border-r border-zinc-800/80 flex flex-col shrink-0 h-auto md:h-full transition-all duration-300 ease-in-out`}>
-      <div className="h-16 flex items-center px-6 border-b border-zinc-800/80 justify-between">
+    <aside className={`w-full ${isSidebarCollapsed ? 'md:w-20' : 'md:w-64'} bg-bg-sidebar backdrop-blur-md border-r border-border-main flex flex-col shrink-0 h-auto md:h-full transition-all duration-300 ease-in-out shadow-sm`}>
+      <div className="h-16 flex items-center px-6 border-b border-border-main justify-between">
         <div className="flex items-center overflow-hidden">
-          <div className="w-8 h-8 rounded-lg bg-indigo-950/60 border border-indigo-500/30 flex items-center justify-center mr-3 text-indigo-400 shadow-[0_0_10px_rgba(0,242,254,0.15)] shrink-0 animate-pulse">
-            <Scale className="w-4.5 h-4.5" />
+          <div className={`w-8 h-8 rounded-lg bg-bg-active border border-border-active flex items-center justify-center text-text-active shadow-[0_0_10px_rgba(99,102,241,0.15)] shrink-0 ${isSidebarCollapsed ? 'mr-0' : 'mr-3'}`}>
+            <GraduationCap className="w-4.5 h-4.5" />
           </div>
           {!isSidebarCollapsed && (
-            <span className="font-extrabold text-zinc-100 tracking-wider text-sm whitespace-nowrap transition-opacity duration-300 font-mono uppercase">
+            <span className="font-extrabold text-text-title tracking-wider text-sm whitespace-nowrap transition-opacity duration-300 font-mono uppercase">
               ExpatFiscal
             </span>
           )}
         </div>
         <button
           onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60 transition-colors hidden md:block shrink-0 cursor-pointer"
+          className="p-1.5 rounded-lg text-text-muted hover:text-text-main hover:bg-bg-input transition-colors hidden md:block shrink-0 cursor-pointer"
           title={isSidebarCollapsed ? "Expandir menú" : "Contraer menú"}
         >
           {isSidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -41,8 +44,8 @@ export default function StudentSidebar({
             isSidebarCollapsed ? 'justify-center px-0' : 'px-3'
           } ${
             activeTab === 'resources' 
-              ? 'bg-indigo-950/40 text-indigo-400 border border-indigo-500/20 shadow-[0_0_12px_rgba(0,242,254,0.08)]' 
-              : 'text-zinc-400 border border-transparent hover:bg-zinc-900/40 hover:text-zinc-200'
+              ? 'bg-bg-active text-text-active border border-border-active shadow-[0_0_12px_rgba(99,102,241,0.08)]' 
+              : 'text-text-muted border border-transparent hover:bg-bg-input hover:text-text-main'
           }`}
           title={isSidebarCollapsed ? "Material Formativo" : undefined}
         >
@@ -51,28 +54,13 @@ export default function StudentSidebar({
         </button>
 
         <button
-          onClick={() => setActiveTab('fiscal')}
-          className={`w-full flex items-center py-2.5 text-xs font-semibold uppercase tracking-wider rounded-xl transition-all cursor-pointer font-mono ${
-            isSidebarCollapsed ? 'justify-center px-0' : 'px-3'
-          } ${
-            activeTab === 'fiscal' 
-              ? 'bg-indigo-950/40 text-indigo-400 border border-indigo-500/20 shadow-[0_0_12px_rgba(0,242,254,0.08)]' 
-              : 'text-zinc-400 border border-transparent hover:bg-zinc-900/40 hover:text-zinc-200'
-          }`}
-          title={isSidebarCollapsed ? "Mi Perfil Fiscal" : undefined}
-        >
-          <Shield className={`${isSidebarCollapsed ? 'm-0' : 'mr-3'} h-5 w-5 shrink-0`} />
-          {!isSidebarCollapsed && <span className="whitespace-nowrap transition-opacity duration-300">Mi Perfil Fiscal</span>}
-        </button>
-
-        <button
           onClick={() => setActiveTab('support')}
           className={`w-full flex items-center py-2.5 text-xs font-semibold uppercase tracking-wider rounded-xl transition-all cursor-pointer font-mono ${
             isSidebarCollapsed ? 'justify-center px-0' : 'px-3'
           } ${
             activeTab === 'support' 
-              ? 'bg-indigo-950/40 text-indigo-400 border border-indigo-500/20 shadow-[0_0_12px_rgba(0,242,254,0.08)]' 
-              : 'text-zinc-400 border border-transparent hover:bg-zinc-900/40 hover:text-zinc-200'
+              ? 'bg-bg-active text-text-active border border-border-active shadow-[0_0_12px_rgba(99,102,241,0.08)]' 
+              : 'text-text-muted border border-transparent hover:bg-bg-input hover:text-text-main'
           }`}
           title={isSidebarCollapsed ? "Canal de Soporte" : undefined}
         >
@@ -80,20 +68,6 @@ export default function StudentSidebar({
           {!isSidebarCollapsed && <span className="whitespace-nowrap transition-opacity duration-300">Canal de Soporte</span>}
         </button>
       </nav>
-
-      {/* Cerrar Sesión */}
-      <div className="p-4 border-t border-zinc-800/80 mt-auto font-mono">
-        <button
-          onClick={logout}
-          className={`w-full flex items-center py-2.5 text-xs font-bold uppercase tracking-wider text-red-400 border border-transparent rounded-xl hover:bg-red-950/20 hover:text-red-300 transition-colors cursor-pointer ${
-            isSidebarCollapsed ? 'justify-center px-0' : 'px-3'
-          }`}
-          title={isSidebarCollapsed ? "Cerrar Sesión" : undefined}
-        >
-          <LogOut className={`${isSidebarCollapsed ? 'm-0' : 'mr-3'} h-5 w-5 shrink-0`} />
-          {!isSidebarCollapsed && <span className="whitespace-nowrap transition-opacity duration-300">Cerrar Sesión</span>}
-        </button>
-      </div>
     </aside>
   );
 }

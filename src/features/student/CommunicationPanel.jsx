@@ -145,25 +145,25 @@ export default function CommunicationPanel({
   const renderAttachmentPreview = () => {
     if (uploadingAttachment) {
       return (
-        <div className="p-3 bg-zinc-950/60 border border-zinc-800 rounded-xl flex items-center gap-2 text-[10px] text-zinc-450 font-mono mt-2 animate-pulse">
-          <div className="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
+        <div className="p-3 bg-bg-input/60 border border-border-main rounded-xl flex items-center gap-2 text-[10px] text-text-muted font-mono mt-2 animate-pulse">
+          <div className="w-3.5 h-3.5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
           <span>Subiendo archivo adjunto...</span>
         </div>
       );
     }
     if (!attachment) return null;
     return (
-      <div className="p-3 bg-indigo-950/20 border border-indigo-500/10 rounded-xl flex items-center justify-between gap-4 mt-2 animate-in slide-in-from-bottom-2 duration-200">
-        <div className="flex items-center gap-2 text-xs text-indigo-300 font-mono">
-          {attachment.type === 'image' && <Image className="w-4 h-4 text-indigo-400" />}
-          {attachment.type === 'document' && <FileText className="w-4 h-4 text-indigo-400" />}
-          {attachment.type === 'link' && <ExternalLink className="w-4 h-4 text-indigo-400" />}
+      <div className="p-3 bg-bg-active border border-border-active rounded-xl flex items-center justify-between gap-4 mt-2 animate-in slide-in-from-bottom-2 duration-200">
+        <div className="flex items-center gap-2 text-xs text-text-active font-mono">
+          {attachment.type === 'image' && <Image className="w-4 h-4 text-text-active" />}
+          {attachment.type === 'document' && <FileText className="w-4 h-4 text-text-active" />}
+          {attachment.type === 'link' && <ExternalLink className="w-4 h-4 text-text-active" />}
           <span className="truncate max-w-[220px] font-bold">{attachment.name}</span>
         </div>
         <button 
           type="button"
           onClick={handleRemoveAttachment}
-          className="p-1 hover:bg-zinc-850 rounded-lg text-zinc-500 hover:text-white cursor-pointer transition-colors"
+          className="p-1 hover:bg-bg-input rounded-lg text-text-muted hover:text-text-main cursor-pointer transition-colors"
         >
           <X className="w-3.5 h-3.5" />
         </button>
@@ -175,7 +175,7 @@ export default function CommunicationPanel({
   const renderAttachmentButtons = () => {
     return (
       <div className="flex gap-2 items-center relative">
-        <label className="p-2 text-zinc-500 hover:text-zinc-200 bg-zinc-950 hover:bg-zinc-850 border border-zinc-800 rounded-xl cursor-pointer transition-colors" title="Adjuntar Archivo (PDF, Imagen...)">
+        <label className="p-2 text-text-muted hover:text-text-main bg-bg-input hover:bg-bg-card border border-border-main rounded-xl cursor-pointer transition-colors" title="Adjuntar Archivo (PDF, Imagen...)">
           <Paperclip className="w-4 h-4" />
           <input 
             type="file" 
@@ -189,17 +189,17 @@ export default function CommunicationPanel({
         <button
           type="button"
           onClick={() => setShowLinkInput(!showLinkInput)}
-          className={`p-2 border rounded-xl cursor-pointer transition-colors ${showLinkInput ? 'bg-indigo-600 text-white border-indigo-500' : 'text-zinc-500 hover:text-zinc-200 bg-zinc-950 hover:bg-zinc-850 border-zinc-800'}`}
+          className={`p-2 border rounded-xl cursor-pointer transition-colors ${showLinkInput ? 'bg-indigo-600 text-white border-indigo-500' : 'text-text-muted hover:text-text-main bg-bg-input hover:bg-bg-card border-border-main'}`}
           title="Adjuntar Enlace Web"
         >
           <Link className="w-4 h-4" />
         </button>
 
         {showLinkInput && (
-          <div className="absolute bottom-12 left-0 z-20 bg-zinc-900 border border-zinc-800 p-4 rounded-2xl shadow-2xl w-64 space-y-3 font-mono animate-in slide-in-from-bottom-2 duration-200">
-            <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
-              <span className="text-[9px] font-bold text-white uppercase tracking-wider">Adjuntar Enlace</span>
-              <button type="button" onClick={() => setShowLinkInput(false)} className="text-zinc-500 hover:text-white"><X className="w-3 h-3" /></button>
+          <div className="absolute bottom-12 left-0 z-20 bg-bg-card border border-border-main p-4 rounded-2xl shadow-2xl w-64 space-y-3 font-mono animate-in slide-in-from-bottom-2 duration-200">
+            <div className="flex justify-between items-center border-b border-border-main pb-2">
+              <span className="text-[9px] font-bold text-text-title uppercase tracking-wider">Adjuntar Enlace</span>
+              <button type="button" onClick={() => setShowLinkInput(false)} className="text-text-muted hover:text-text-main"><X className="w-3 h-3" /></button>
             </div>
             <div className="space-y-2 text-[10px]">
               <input 
@@ -208,19 +208,19 @@ export default function CommunicationPanel({
                 required
                 value={inputLinkUrl}
                 onChange={(e) => setInputLinkUrl(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 px-3 py-2 rounded-lg text-zinc-200 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-bg-input border border-border-main px-3 py-2 rounded-lg text-text-main focus:outline-none focus:border-border-hover"
               />
               <input 
                 type="text" 
                 placeholder="Título (Ej. Sitio Web)"
                 value={inputLinkName}
                 onChange={(e) => setInputLinkName(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 px-3 py-2 rounded-lg text-zinc-200 focus:outline-none focus:border-indigo-500/50"
+                className="w-full bg-bg-input border border-border-main px-3 py-2 rounded-lg text-text-main focus:outline-none focus:border-border-hover"
               />
               <button 
                 type="button" 
                 onClick={handleAddLink}
-                className="w-full py-2 bg-indigo-650 hover:bg-indigo-650/80 text-white font-bold rounded-lg uppercase text-[9px] tracking-widest cursor-pointer"
+                className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg uppercase text-[9px] tracking-widest cursor-pointer"
               >
                 Insertar Enlace
               </button>
@@ -235,14 +235,14 @@ export default function CommunicationPanel({
   const renderMessageAttachment = (msg) => {
     if (!msg.attachment_url) return null;
     return (
-      <div className="mt-3 border-t border-zinc-800/40 pt-2.5 max-w-sm">
+      <div className="mt-3 border-t border-border-main/40 pt-2.5 max-w-sm">
         {msg.attachment_type === 'image' && (
-          <div className="space-y-2">
+          <div className="space-y-2 text-left">
             <a 
               href={msg.attachment_url} 
               target="_blank" 
               rel="noopener noreferrer" 
-              className="block rounded-lg overflow-hidden border border-zinc-800 bg-zinc-950 hover:opacity-85 transition-opacity"
+              className="block rounded-lg overflow-hidden border border-border-main bg-bg-input hover:opacity-85 transition-opacity"
             >
               <img 
                 src={msg.attachment_url} 
@@ -250,8 +250,8 @@ export default function CommunicationPanel({
                 className="max-h-40 object-cover w-full"
               />
             </a>
-            <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-mono">
-              <Image className="w-3.5 h-3.5 text-zinc-600" />
+            <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-mono">
+              <Image className="w-3.5 h-3.5 text-text-muted animate-pulse" />
               <span className="truncate">{msg.attachment_name || "Imagen"}</span>
             </div>
           </div>
@@ -261,13 +261,13 @@ export default function CommunicationPanel({
             href={msg.attachment_url} 
             target="_blank" 
             rel="noopener noreferrer" 
-            className="flex items-center justify-between p-3 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 rounded-xl transition-colors group"
+            className="flex items-center justify-between p-3 bg-bg-input hover:bg-bg-card border border-border-main rounded-xl transition-colors group"
           >
-            <div className="flex items-center gap-2 text-[10px] text-zinc-300 font-mono truncate mr-2">
-              <FileText className="w-4 h-4 text-indigo-400" />
-              <span className="truncate font-bold group-hover:text-white">{msg.attachment_name || "Documento"}</span>
+            <div className="flex items-center gap-2 text-[10px] text-text-main font-mono truncate mr-2">
+              <FileText className="w-4 h-4 text-text-active" />
+              <span className="truncate font-bold group-hover:text-text-title">{msg.attachment_name || "Documento"}</span>
             </div>
-            <ChevronRight className="w-3.5 h-3.5 text-zinc-600 group-hover:text-white transition-colors" />
+            <ChevronRight className="w-3.5 h-3.5 text-text-muted group-hover:text-text-title transition-colors" />
           </a>
         )}
         {msg.attachment_type === 'link' && (
@@ -275,13 +275,13 @@ export default function CommunicationPanel({
             href={msg.attachment_url} 
             target="_blank" 
             rel="noopener noreferrer" 
-            className="flex items-center justify-between p-3 bg-indigo-950/15 hover:bg-indigo-950/30 border border-indigo-950/40 rounded-xl transition-all group"
+            className="flex items-center justify-between p-3 bg-bg-active hover:bg-bg-active/85 border border-border-active rounded-xl transition-all group"
           >
-            <div className="flex items-center gap-2 text-[10px] text-indigo-300 font-mono truncate mr-2">
-              <ExternalLink className="w-4 h-4 text-indigo-400 animate-pulse" />
-              <span className="truncate font-bold group-hover:text-indigo-200">{msg.attachment_name || "Enlace web"}</span>
+            <div className="flex items-center gap-2 text-[10px] text-text-active font-mono truncate mr-2">
+              <ExternalLink className="w-4 h-4 text-text-active" />
+              <span className="truncate font-bold group-hover:text-indigo-400 dark:group-hover:text-indigo-200">{msg.attachment_name || "Enlace web"}</span>
             </div>
-            <ChevronRight className="w-3.5 h-3.5 text-indigo-400 group-hover:translate-x-0.5 transition-transform" />
+            <ChevronRight className="w-3.5 h-3.5 text-text-active group-hover:translate-x-0.5 transition-transform" />
           </a>
         )}
       </div>
@@ -289,50 +289,50 @@ export default function CommunicationPanel({
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-180px)] min-h-[600px] font-sans">
+    <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-180px)] min-h-[600px] font-sans text-left">
       
       {/* PANEL IZQUIERDO: LISTA DE TICKETS */}
-      <div className="w-full lg:w-[380px] flex flex-col bg-zinc-900/40 border border-zinc-800/80 rounded-3xl overflow-hidden backdrop-blur-md">
+      <div className="w-full lg:w-[380px] flex flex-col bg-bg-card border border-border-main rounded-3xl overflow-hidden shadow-sm">
         
         {/* Header de Lista */}
-        <div className="p-5 border-b border-zinc-800/80 space-y-4">
+        <div className="p-5 border-b border-border-main space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white uppercase tracking-tight font-mono flex items-center gap-2">
-              <Inbox className="w-4 h-4 text-indigo-400" />
+            <h3 className="text-sm font-bold text-text-title uppercase tracking-tight font-mono flex items-center gap-2">
+              <Inbox className="w-4 h-4 text-text-active" />
               Soporte: Mis Tickets
             </h3>
-            <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/20">
+            <span className="text-[10px] font-bold text-text-active bg-bg-active px-2.5 py-1 rounded-lg border border-border-active">
               {openTicketsCount > 0 ? `${openTicketsCount} ACTIVO(S)` : 'AL DÍA'}
             </span>
           </div>
           
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted" />
             <input 
               type="text"
               placeholder="BUSCAR TICKETS..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-9 pr-4 py-2 text-[10px] text-zinc-200 outline-none focus:border-indigo-500/30 transition-all font-mono uppercase"
+              className="w-full bg-bg-input border border-border-main rounded-xl pl-9 pr-4 py-2 text-[10px] text-text-main outline-none focus:border-border-hover transition-all font-mono uppercase focus:outline-none"
             />
           </div>
 
           <div className="flex gap-2">
             <button 
               onClick={() => setFilterStatus('all')}
-              className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-all border cursor-pointer ${filterStatus === 'all' ? 'bg-zinc-800 text-white border-zinc-700' : 'bg-transparent text-zinc-550 border-transparent hover:text-zinc-300'}`}
+              className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-all border cursor-pointer ${filterStatus === 'all' ? 'bg-bg-input text-text-title border-border-main' : 'bg-transparent text-text-muted border-transparent hover:text-text-main'}`}
             >
               Todos
             </button>
             <button 
               onClick={() => setFilterStatus('open')}
-              className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-all border cursor-pointer ${filterStatus === 'open' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-transparent text-zinc-550 border-transparent hover:text-zinc-300'}`}
+              className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-all border cursor-pointer ${filterStatus === 'open' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-transparent text-text-muted border-transparent hover:text-text-main'}`}
             >
               Abiertos
             </button>
             <button 
               onClick={() => setFilterStatus('closed')}
-              className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-all border cursor-pointer ${filterStatus === 'closed' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-transparent text-zinc-550 border-transparent hover:text-zinc-300'}`}
+              className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-all border cursor-pointer ${filterStatus === 'closed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-transparent text-text-muted border-transparent hover:text-text-main'}`}
             >
               Resueltos
             </button>
@@ -346,29 +346,29 @@ export default function CommunicationPanel({
               <div 
                 key={ticket.id}
                 onClick={() => handleSelectTicket(ticket.id)}
-                className={`p-4 border-b border-zinc-800/40 cursor-pointer transition-all relative group ${selectedTicketId === ticket.id && !showComposeView ? 'bg-indigo-500/5 border-l-4 border-l-indigo-500' : 'hover:bg-white/[0.02]'}`}
+                className={`p-4 border-b border-border-main/40 cursor-pointer transition-all relative group ${selectedTicketId === ticket.id && !showComposeView ? 'bg-bg-active border-l-4 border-l-indigo-500' : 'hover:bg-bg-input/50'}`}
               >
                 <div className="flex justify-between items-start mb-1">
                   <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${ticket.status === 'closed' ? 'bg-zinc-850 border border-zinc-750' : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-pulse'}`}></div>
-                    <span className="text-[11px] font-bold text-zinc-200 uppercase truncate max-w-[180px]">
+                    <div className={`w-2 h-2 rounded-full ${ticket.status === 'closed' ? 'bg-bg-input border border-border-main' : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-pulse'}`}></div>
+                    <span className="text-[11px] font-bold text-text-main uppercase truncate max-w-[180px]">
                       {ticket.title}
                     </span>
                   </div>
-                  <span className="text-[9px] text-zinc-650 font-mono">
+                  <span className="text-[9px] text-text-muted font-mono">
                     {new Date(ticket.updated_at).toLocaleDateString('es-ES')}
                   </span>
                 </div>
                 <div className="flex justify-between items-center mt-2.5">
-                  <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest flex items-center gap-1">
+                  <span className="text-[8px] font-bold text-text-muted uppercase tracking-widest flex items-center gap-1">
                     <Hash className="w-2.5 h-2.5" /> ID-{ticket.id.toString().slice(-4)}
                   </span>
                   {ticket.status === 'closed' ? (
-                    <span className="text-[8px] font-extrabold text-emerald-450 uppercase tracking-wider bg-emerald-950/20 border border-emerald-900/30 px-1.5 py-0.5 rounded flex items-center gap-1">
+                    <span className="text-[8px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded flex items-center gap-1">
                       <CheckCircle2 className="w-2.5 h-2.5" /> Resuelto
                     </span>
                   ) : (
-                    <span className="text-[8px] font-extrabold text-amber-450 uppercase tracking-wider bg-amber-950/20 border border-amber-900/30 px-1.5 py-0.5 rounded flex items-center gap-1">
+                    <span className="text-[8px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-wider bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded flex items-center gap-1">
                       Abierto
                     </span>
                   )}
@@ -377,8 +377,8 @@ export default function CommunicationPanel({
             ))
           ) : (
             <div className="p-12 text-center space-y-3">
-              <Mail className="w-8 h-8 text-zinc-800 mx-auto" />
-              <p className="text-[10px] text-zinc-650 uppercase font-mono tracking-widest">
+              <Mail className="w-8 h-8 text-text-muted mx-auto" />
+              <p className="text-[10px] text-text-muted uppercase font-mono tracking-widest">
                 {tickets.length === 0 ? 'No tienes tickets abiertos' : 'Sin resultados'}
               </p>
             </div>
@@ -386,10 +386,10 @@ export default function CommunicationPanel({
         </div>
 
         {/* Botón de Nueva Consulta */}
-        <div className="p-4 border-t border-zinc-800/80 bg-zinc-950/20">
+        <div className="p-4 border-t border-border-main bg-bg-input/20">
           <button
             onClick={handleOpenCompose}
-            className={`w-full py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer transition-all ${showComposeView ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'bg-zinc-950 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-600 hover:text-white hover:shadow-lg hover:shadow-indigo-500/20'}`}
+            className={`w-full py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer transition-all ${showComposeView ? 'bg-indigo-600 text-white shadow-lg' : 'bg-bg-input text-text-active border border-border-active hover:bg-indigo-600 hover:text-white hover:shadow-lg'}`}
           >
             <PenLine className="w-3.5 h-3.5" />
             Nueva Consulta
@@ -398,21 +398,21 @@ export default function CommunicationPanel({
       </div>
 
       {/* PANEL DERECHO: VISTA DE CHAT O COMPOSE */}
-      <div className="flex-1 flex flex-col bg-zinc-900/40 border border-zinc-800/80 rounded-3xl overflow-hidden backdrop-blur-md relative">
+      <div className="flex-1 flex flex-col bg-bg-card border border-border-main rounded-3xl overflow-hidden relative shadow-sm">
         
         {showComposeView ? (
           /* ─── VISTA DE CREACIÓN DE TICKET ─── */
           <>
             {/* Compose Header */}
-            <div className="px-6 py-5 border-b border-zinc-800/80 bg-zinc-900/20 flex justify-between items-center">
+            <div className="px-6 py-5 border-b border-border-main bg-bg-input/20 flex justify-between items-center">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-zinc-950 border border-zinc-800 flex items-center justify-center text-indigo-400 shadow-inner">
+                <div className="w-12 h-12 rounded-2xl bg-bg-input border border-border-main flex items-center justify-center text-text-active shadow-inner">
                   <PenLine className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-white uppercase tracking-tight">Crear Nuevo Ticket de Soporte</h4>
+                  <h4 className="text-sm font-bold text-text-title uppercase tracking-tight">Crear Nuevo Ticket de Soporte</h4>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[9px] font-bold text-indigo-400 bg-indigo-500/5 px-2 py-0.5 rounded border border-indigo-500/20 uppercase tracking-widest font-mono">
+                    <span className="text-[9px] font-bold text-text-active bg-bg-active px-2.5 py-0.5 rounded border border-border-active uppercase tracking-widest font-mono">
                       Soporte Administrativo
                     </span>
                   </div>
@@ -420,22 +420,22 @@ export default function CommunicationPanel({
               </div>
               <button 
                 onClick={() => setShowComposeView(false)} 
-                className="text-[10px] text-zinc-500 hover:text-zinc-200 font-bold font-mono uppercase tracking-wider bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 px-3 py-2 rounded-lg cursor-pointer transition-colors"
+                className="text-[10px] text-text-muted hover:text-text-main font-bold font-mono uppercase tracking-wider bg-bg-card hover:bg-bg-input border border-border-main px-3 py-2 rounded-lg cursor-pointer transition-colors"
               >
                 Cancelar
               </button>
             </div>
 
             {/* Compose Body */}
-            <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar bg-zinc-950/20">
+            <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar bg-bg-input/10">
               <div className="max-w-2xl mx-auto space-y-6">
                 
-                <div className="p-5 bg-zinc-900/60 border border-zinc-800/60 rounded-2xl space-y-2">
+                <div className="p-5 bg-bg-card border border-border-main rounded-2xl space-y-2">
                   <div className="flex items-start gap-3">
-                    <HelpCircle className="w-5 h-5 text-indigo-400 mt-0.5 shrink-0" />
+                    <HelpCircle className="w-5 h-5 text-text-active mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-xs font-bold text-zinc-200 uppercase tracking-wide font-mono">Sistema de Tickets de Soporte</p>
-                      <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
+                      <p className="text-xs font-bold text-text-title uppercase tracking-wide font-mono">Sistema de Tickets de Soporte</p>
+                      <p className="text-[11px] text-text-muted mt-1 leading-relaxed">
                         Abre una conversación especificando un tema claro (por ejemplo: "Declaración IRPF"). Podrás adjuntar archivos (PDF, imágenes) o enlaces web para aportar contexto a tu consulta.
                       </p>
                     </div>
@@ -443,29 +443,29 @@ export default function CommunicationPanel({
                 </div>
 
                 {successMsg ? (
-                  <div className="p-4 bg-emerald-950/30 border border-emerald-500/20 text-emerald-300 rounded-2xl flex items-start gap-3 animate-in slide-in-from-bottom-2 duration-300">
-                    <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-400 mt-0.5" />
+                  <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-start gap-3 animate-in slide-in-from-bottom-2 duration-300">
+                    <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-500 mt-0.5" />
                     <div>
                       <p className="text-xs font-bold uppercase tracking-wide font-mono">Ticket Creado</p>
-                      <p className="text-[11px] text-zinc-400 mt-1">{successMsg}</p>
+                      <p className="text-[11px] text-text-muted mt-1">{successMsg}</p>
                     </div>
                   </div>
                 ) : (
                   <form onSubmit={onSubmitCreateTicket} className="space-y-4">
                     <div className="space-y-2">
-                      <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider font-mono">Asunto / Título de Consulta</label>
+                      <label className="text-[9px] font-bold text-text-muted uppercase tracking-wider font-mono">Asunto / Título de Consulta</label>
                       <input 
                         type="text"
                         placeholder="EJ. DECLARACIÓN IRPF, MODELO 036..."
                         required
                         value={newTicketTitle}
                         onChange={(e) => setNewTicketTitle(e.target.value)}
-                        className="w-full bg-zinc-950 border border-zinc-800 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-xs text-zinc-200 placeholder-zinc-650 focus:outline-none transition-all uppercase font-mono"
+                        className="w-full bg-bg-input border border-border-main focus:border-border-hover rounded-xl px-4 py-3 text-xs text-text-main placeholder-text-muted focus:outline-none transition-all uppercase font-mono"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider font-mono">Detalles de la Consulta</label>
+                      <label className="text-[9px] font-bold text-text-muted uppercase tracking-wider font-mono">Detalles de la Consulta</label>
                       <div className="relative">
                         <textarea
                           value={newMessage}
@@ -473,7 +473,7 @@ export default function CommunicationPanel({
                           rows="5"
                           placeholder="Describe detalladamente tu situación o consulta aquí..."
                           required
-                          className="w-full bg-zinc-950 border border-zinc-800 focus:border-indigo-500/50 rounded-2xl px-5 py-4 text-xs text-zinc-200 placeholder-zinc-650 focus:outline-none resize-none pr-16 shadow-inner transition-all"
+                          className="w-full bg-bg-input border border-border-main focus:border-border-hover rounded-2xl px-5 py-4 text-xs text-text-main placeholder-text-muted focus:outline-none resize-none pr-16 transition-all"
                         />
                         <button
                           type="submit"
@@ -499,26 +499,26 @@ export default function CommunicationPanel({
           /* ─── VISTA DE CHAT EN VIVO PARA TICKET ACTIVO ─── */
           <>
             {/* Chat Header */}
-            <div className="px-6 py-5 border-b border-zinc-800/80 bg-zinc-900/20 flex justify-between items-center">
+            <div className="px-6 py-5 border-b border-border-main bg-bg-input/20 flex justify-between items-center">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-zinc-950 border border-zinc-800 flex items-center justify-center text-indigo-400 shadow-inner">
+                <div className="w-12 h-12 rounded-2xl bg-bg-input border border-border-main flex items-center justify-center text-text-active shadow-inner">
                   <MessageSquare className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-white uppercase tracking-tight">
+                  <h4 className="text-sm font-bold text-text-title uppercase tracking-tight">
                     {activeTicket.title}
                   </h4>
                   <div className="flex items-center gap-2 mt-0.5">
                     {activeTicket.status === 'open' ? (
-                      <span className="text-[9px] font-bold text-amber-400 bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/20 uppercase tracking-widest font-mono flex items-center gap-1">
+                      <span className="text-[9px] font-bold text-amber-500 bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/20 uppercase tracking-widest font-mono flex items-center gap-1">
                         <Clock className="w-3 h-3 animate-pulse" /> ABIERTO
                       </span>
                     ) : (
-                      <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest font-mono flex items-center gap-1">
+                      <span className="text-[9px] font-bold text-emerald-500 bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest font-mono flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" /> CERRADO / HISTÓRICO
                       </span>
                     )}
-                    <span className="text-[9px] text-zinc-600 flex items-center gap-1 font-mono uppercase">
+                    <span className="text-[9px] text-text-muted flex items-center gap-1 font-mono uppercase">
                       <Clock className="w-3 h-3" />
                       CREADO: {new Date(activeTicket.created_at).toLocaleString('es-ES')}
                     </span>
@@ -528,7 +528,7 @@ export default function CommunicationPanel({
             </div>
 
             {/* Chat Messages Area */}
-            <div ref={scrollRef} className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar bg-zinc-950/20">
+            <div ref={scrollRef} className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar bg-bg-input/10">
               {loadingMessages ? (
                 <div className="flex justify-center items-center h-full">
                   <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
@@ -542,13 +542,13 @@ export default function CommunicationPanel({
                       className={`flex flex-col ${isUser ? 'items-end ml-auto' : 'items-start'} space-y-2 max-w-[85%] animate-in slide-in-from-bottom-2 duration-300`}
                     >
                       <div className="flex items-center gap-2 mb-0.5">
-                        {!isUser && <span className="text-[9px] font-bold text-indigo-400 uppercase font-mono tracking-widest">Soporte ExpatFiscal</span>}
-                        <span className="text-[8px] text-zinc-650 font-mono">
+                        {!isUser && <span className="text-[9px] font-bold text-text-active uppercase font-mono tracking-widest">Soporte ExpatFiscal</span>}
+                        <span className="text-[8px] text-text-muted font-mono">
                           {new Date(msg.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                         </span>
-                        {isUser && <span className="text-[9px] font-bold text-zinc-400 uppercase font-mono tracking-widest">Tú</span>}
+                        {isUser && <span className="text-[9px] font-bold text-text-muted uppercase font-mono tracking-widest">Tú</span>}
                       </div>
-                      <div className={`p-4 rounded-2xl ${isUser ? 'bg-indigo-650 text-white rounded-tr-none border border-indigo-550/20 shadow-lg shadow-indigo-950/10' : 'bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-tl-none shadow-sm'}`}>
+                      <div className={`p-4 rounded-2xl ${isUser ? 'bg-indigo-600 dark:bg-indigo-650 text-white rounded-tr-none border border-indigo-550/20 shadow-lg shadow-indigo-950/10' : 'bg-bg-input border border-border-main text-text-main rounded-tl-none shadow-sm'}`}>
                         <p className="text-xs leading-relaxed font-sans whitespace-pre-wrap text-left">
                           {msg.content}
                         </p>
@@ -559,14 +559,14 @@ export default function CommunicationPanel({
                 })
               ) : (
                 <div className="text-center py-8">
-                  <p className="text-[10px] text-zinc-600 uppercase font-mono tracking-widest">No hay mensajes cargados</p>
+                  <p className="text-[10px] text-text-muted uppercase font-mono tracking-widest">No hay mensajes cargados</p>
                 </div>
               )}
             </div>
 
             {/* Input para responder o aviso de cerrado */}
             {activeTicket.status === 'open' ? (
-              <div className="p-6 bg-zinc-900/50 border-t border-zinc-800/80">
+              <div className="p-6 bg-bg-input/50 border-t border-border-main/80">
                 <form onSubmit={onSubmitSendMessage}>
                   <div className="relative group">
                     <textarea
@@ -575,7 +575,7 @@ export default function CommunicationPanel({
                       rows="3"
                       placeholder="Escribe un mensaje de respuesta para soporte..."
                       required
-                      className="w-full bg-zinc-950 border border-zinc-800 focus:border-indigo-500/50 rounded-2xl px-6 py-4 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none resize-none pr-16 shadow-inner transition-all"
+                      className="w-full bg-bg-input border border-border-main focus:border-border-hover rounded-2xl px-6 py-4 text-xs text-text-main placeholder-text-muted focus:outline-none resize-none pr-16 shadow-inner transition-all"
                     />
                     <button
                       type="submit"
@@ -594,19 +594,19 @@ export default function CommunicationPanel({
                   
                   <div className="flex justify-between items-center mt-3 px-2">
                     {renderAttachmentButtons()}
-                    <p className="text-[9px] text-zinc-600 font-mono uppercase tracking-widest flex items-center gap-1.5">
+                    <p className="text-[9px] text-text-muted font-mono uppercase tracking-widest flex items-center gap-1.5">
                       <Shield className="w-3 h-3" /> Canal de Soporte Activo
                     </p>
                   </div>
                 </form>
               </div>
             ) : (
-              <div className="p-5 bg-amber-950/20 border-t border-amber-900/30 flex items-start gap-3 p-6 animate-in fade-in duration-300">
+              <div className="p-5 bg-amber-500/10 border-t border-amber-500/20 flex items-start gap-3 p-6 animate-in fade-in duration-300">
                 <Lock className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-xs font-bold text-amber-400 uppercase tracking-wide font-mono">Ticket Resuelto y Cerrado</p>
-                  <p className="text-[11px] text-zinc-500 mt-1 leading-relaxed">
-                    Este ticket ha sido cerrado por el administrador y se encuentra en modo histórico. No puedes enviar más mensajes. Si tienes otra duda o consulta, por favor haz clic en <span className="text-indigo-400 font-bold">"Nueva Consulta"</span> para abrir un nuevo ticket.
+                  <p className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide font-mono">Ticket Resuelto y Cerrado</p>
+                  <p className="text-[11px] text-text-muted mt-1 leading-relaxed">
+                    Este ticket ha sido cerrado por el administrador y se encuentra en modo histórico. No puedes enviar más mensajes. Si tienes otra duda o consulta, por favor haz clic en <span className="text-text-active font-bold">"Nueva Consulta"</span> para abrir un nuevo ticket.
                   </p>
                 </div>
               </div>
@@ -615,12 +615,12 @@ export default function CommunicationPanel({
         ) : (
           /* ─── ESTADO VACÍO ─── */
           <div className="flex-1 flex flex-col items-center justify-center text-center p-12 space-y-4">
-             <div className="w-16 h-16 rounded-3xl bg-zinc-950 border border-zinc-800 flex items-center justify-center text-zinc-700">
+             <div className="w-16 h-16 rounded-3xl bg-bg-input border border-border-main flex items-center justify-center text-text-muted">
                <MessageSquare className="w-8 h-8" />
              </div>
              <div>
-               <h4 className="text-sm font-bold text-zinc-300 uppercase tracking-tight">Centro de Soporte Académico</h4>
-               <p className="text-[10px] text-zinc-600 uppercase font-mono tracking-widest mt-1">Selecciona un ticket de la lista o crea uno nuevo</p>
+               <h4 className="text-sm font-bold text-text-title uppercase tracking-tight">Centro de Soporte Académico</h4>
+               <p className="text-[10px] text-text-muted uppercase font-mono tracking-widest mt-1">Selecciona un ticket de la lista o crea uno nuevo</p>
              </div>
              <button
                onClick={handleOpenCompose}

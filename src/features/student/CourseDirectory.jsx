@@ -1,6 +1,6 @@
 import React from 'react';
 import { 
-  Compass, Search, Tag
+  Compass, Search, Star, Users, Award, ExternalLink, FileText, Video, Presentation, Code, HelpCircle 
 } from 'lucide-react';
 
 const getCategoryTheme = (category) => {
@@ -12,6 +12,7 @@ const getCategoryTheme = (category) => {
       };
     case 'Autónomos y Hacienda':
     case 'Impuestos e IRPF':
+    case 'Impuestos y Autónomos':
       return {
         border: 'border-t-4 border-t-purple-500',
         badge: 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
@@ -21,7 +22,7 @@ const getCategoryTheme = (category) => {
         border: 'border-t-4 border-t-emerald-500',
         badge: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
       };
-    case 'Calculadoras':
+    case 'Coworkings y Colivings':
       return {
         border: 'border-t-4 border-t-amber-500',
         badge: 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
@@ -32,6 +33,35 @@ const getCategoryTheme = (category) => {
         badge: 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
       };
   }
+};
+
+const getCourseImage = (resource) => {
+  if (resource.image_url) return resource.image_url;
+  
+  // Preset images in public folder
+  switch (resource.category) {
+    case 'Trámites y Visados':
+      return '/preset_tramites.png';
+    case 'Impuestos y Autónomos':
+    case 'Autónomos y Hacienda':
+    case 'Impuestos e IRPF':
+      return '/preset_impuestos.png';
+    case 'Coworkings y Colivings':
+      return '/preset_coworking.png';
+    case 'Herramientas Digitales':
+      return '/preset_herramientas.png';
+    default:
+      return '/preset_tramites.png';
+  }
+};
+
+// Generar rating y número de alumnos de manera determinista basada en el ID
+const getDeterministicStats = (id) => {
+  if (!id) return { rating: '4.8', students: '12K' };
+  const sum = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const rating = (4.5 + (sum % 5) * 0.1).toFixed(1);
+  const students = ((sum % 80) + 15).toFixed(0) + 'K';
+  return { rating, students };
 };
 
 export default function CourseDirectory({
@@ -54,39 +84,43 @@ export default function CourseDirectory({
 }) {
   return (
     <>
-      <div className="bg-gradient-to-r from-zinc-900/80 via-indigo-950/10 to-zinc-900/80 border border-indigo-500/10 rounded-2xl p-6 relative overflow-hidden backdrop-blur-md shadow-[0_4px_25px_rgba(0,0,0,0.5)]">
-        <div className="absolute top-1/2 right-10 -translate-y-1/2 text-indigo-500/5 hidden md:block">
-          <Compass className="w-48 h-48" />
+      {/* Banner de Bienvenida */}
+      <div className="bg-gradient-to-r from-bg-card via-indigo-950/5 to-bg-card border border-border-main rounded-3xl p-6 relative overflow-hidden shadow-sm">
+        <div className="absolute top-1/2 right-10 -translate-y-1/2 text-indigo-550/5 hidden md:block">
+          <Compass className="w-40 h-40" />
         </div>
-        <h3 className="text-lg font-black text-white mb-2 font-mono uppercase tracking-wider">Centro de Control Informativo // {user.name}</h3>
-        <p className="text-zinc-400 text-xs max-w-2xl leading-relaxed">
-          Aquí encontrarás documentación oficial, guías simplificadas y videotutoriales sobre plataformas digitales para facilitarte el aterrizaje y la vida fiscal en España.
+        <h3 className="text-xl font-bold text-text-title mb-2 font-mono uppercase tracking-tight">Centro de Formación // {user.name}</h3>
+        <p className="text-text-muted text-xs max-w-2xl leading-relaxed">
+          Accede a tu material formativo asignado. Explora tutoriales paso a paso, guías de aterrizaje y visados, y computación fiscal simplificada para tu estancia en España.
         </p>
       </div>
 
-      <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-5 space-y-4 backdrop-blur-md shadow-sm">
+      {/* Buscador y Filtros */}
+      <div className="bg-bg-card border border-border-main rounded-3xl p-5 space-y-4 shadow-sm">
         <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
           
-          <div className="relative w-full max-w-md">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-550" />
+          {/* Campo de Búsqueda */}
+          <div className="relative w-full md:max-w-md">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
             <input 
               type="text" 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="BUSCAR TRÁMITES, AUTÓNOMOS, IRPF..." 
-              className="w-full bg-zinc-950/90 border border-zinc-800/80 focus:border-indigo-400/80 focus:shadow-[0_0_12px_rgba(0,242,254,0.15)] rounded-xl pl-11 pr-4 py-3 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none font-mono uppercase transition-all duration-200"
+              placeholder="Buscar curso, trámites, autónomos..." 
+              className="w-full bg-bg-input border border-border-main focus:border-border-hover focus:shadow-[0_0_12px_rgba(99,102,241,0.1)] rounded-xl pl-11 pr-4 py-3 text-xs text-text-main placeholder-text-muted focus:outline-none transition-all duration-200"
             />
           </div>
 
-          <div className="flex items-center gap-1.5 bg-zinc-950 p-1.5 rounded-xl border border-zinc-800/80 overflow-x-auto w-full md:w-auto">
+          {/* Selector de Tipo */}
+          <div className="flex items-center gap-1.5 bg-bg-input p-1.5 rounded-2xl border border-border-main overflow-x-auto w-full md:w-auto no-scrollbar">
             {types.map(type => (
               <button
                 key={type.id}
                 onClick={() => setSelectedType(type.id)}
-                className={`px-3.5 py-2 rounded-lg text-[10px] font-bold font-mono uppercase tracking-wider cursor-pointer transition-all whitespace-nowrap border ${
+                className={`px-3.5 py-2 rounded-xl text-[10px] font-bold font-mono uppercase tracking-wider cursor-pointer transition-all whitespace-nowrap border ${
                   selectedType === type.id
-                    ? 'bg-indigo-950/45 text-indigo-400 border-indigo-500/30 shadow-[0_0_10px_rgba(0,242,254,0.12)]'
-                    : 'text-zinc-500 border-transparent hover:text-zinc-300'
+                    ? 'bg-bg-active text-text-active border-border-active shadow-[0_0_10px_rgba(99,102,241,0.06)]'
+                    : 'text-text-muted border-transparent hover:text-text-main'
                 }`}
               >
                 {type.label}
@@ -96,86 +130,115 @@ export default function CourseDirectory({
 
         </div>
 
-        <div className="flex flex-wrap gap-2 border-t border-zinc-800/80 pt-4">
+        {/* Categorías (Badges) */}
+        <div className="flex flex-wrap gap-2 border-t border-border-main pt-4">
           {categories.map(category => (
             <button
               key={category}
               onClick={() => setSelectedCategory(category)}
-              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border font-mono uppercase tracking-wider transition-all cursor-pointer ${
+              className={`px-4 py-2 rounded-xl text-[10px] font-bold border font-mono uppercase tracking-wider transition-all cursor-pointer ${
                 selectedCategory === category
-                  ? 'bg-indigo-950/45 text-indigo-400 border-indigo-500/30 shadow-[0_0_10px_rgba(0,242,254,0.08)]'
-                  : 'bg-zinc-950 text-zinc-555 border-zinc-800 hover:border-zinc-700 hover:text-zinc-350'
+                  ? 'bg-bg-active text-text-active border-border-active'
+                  : 'bg-bg-input text-text-muted border-border-main hover:border-border-hover hover:text-text-main'
               }`}
             >
-              {category === 'all' ? 'Ver Todas' : category}
+              {category === 'all' ? 'Ver Todos' : category}
             </button>
           ))}
         </div>
       </div>
 
+      {/* Resultados de la Búsqueda */}
       {filteredResources.length === 0 ? (
-        <div className="py-12 flex flex-col items-center justify-center text-zinc-550 bg-zinc-900/60 border border-zinc-800/80 rounded-2xl backdrop-blur-md">
-          <Search className="w-10 h-10 text-zinc-700 mb-3" />
-          <p className="text-xs font-mono uppercase tracking-wider">No se encontraron formaciones con los filtros aplicados.</p>
+        <div className="py-16 flex flex-col items-center justify-center text-text-muted bg-bg-card border border-border-main rounded-3xl">
+          <Search className="w-12 h-12 text-text-muted/40 mb-3" />
+          <p className="text-xs font-mono uppercase tracking-wider">No se encontraron formaciones asignadas.</p>
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {/* Grid de Tarjetas Edutin Style */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {paginatedResources.map(resource => {
               const theme = getCategoryTheme(resource.category);
+              const cardImage = getCourseImage(resource);
+              const stats = getDeterministicStats(resource.id);
+              
               return (
                 <div 
                   key={resource.id} 
                   onClick={() => setSelectedResource(resource)}
-                  className={`bg-zinc-900/50 border border-zinc-800 hover:border-indigo-500/30 rounded-2xl p-5 flex flex-col justify-between group transition-all duration-300 hover:-translate-y-1 hover:bg-zinc-900/80 backdrop-blur-md shadow-[0_4px_15px_rgba(0,0,0,0.3)] hover:shadow-[0_12px_25px_rgba(0,0,0,0.5),0_0_15px_rgba(0,242,254,0.08)] cursor-pointer select-none relative overflow-hidden ${theme.border}`}
+                  className="bg-bg-card border border-border-main hover:border-border-hover rounded-3xl overflow-hidden flex flex-col group transition-all duration-300 hover:-translate-y-1.5 shadow-sm hover:shadow-md cursor-pointer select-none relative"
                 >
-                  <div className="space-y-3.5">
-                    <div className="flex items-center justify-between">
-                      <span className={`text-[8px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider font-mono ${theme.badge}`}>
-                        {resource.category}
-                      </span>
-                      <span className="p-1.5 rounded-lg bg-zinc-950/80 border border-zinc-850 text-zinc-500 group-hover:text-indigo-400 group-hover:border-indigo-500/20 transition-all font-mono shadow-inner">
-                        {getResourceIcon(resource.type)}
-                      </span>
-                    </div>
+                  {/* Imagen del Curso */}
+                  <div className="h-40 w-full relative overflow-hidden bg-bg-input">
+                    <img 
+                      src={cardImage} 
+                      alt={resource.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    
+                    {/* Badge de Categoría */}
+                    <span className={`absolute top-3.5 left-3.5 text-[8px] px-2.5 py-1 rounded-lg font-bold uppercase tracking-wider font-mono backdrop-blur-md shadow-sm ${theme.badge}`}>
+                      {resource.category}
+                    </span>
 
-                    <div className="space-y-1.5 text-left">
-                      <h4 className="text-xs font-bold text-zinc-200 leading-snug group-hover:text-indigo-300 transition-colors duration-200 font-mono uppercase">
+                    {/* Badge de Formato de Recurso */}
+                    <span className="absolute bottom-3.5 right-3.5 p-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-white/90 text-xs shadow-sm">
+                      {getResourceIcon(resource.type)}
+                    </span>
+                  </div>
+
+                  {/* Cuerpo de la Tarjeta */}
+                  <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                    <div className="space-y-2 text-left">
+                      <h4 className="text-xs font-extrabold text-text-title leading-snug group-hover:text-indigo-500 transition-colors duration-200 uppercase font-mono tracking-tight line-clamp-2">
                         {resource.title}
                       </h4>
-                      <p className="text-[11px] text-zinc-500 line-clamp-2 leading-relaxed font-sans font-medium">
+                      <p className="text-[11px] text-text-muted line-clamp-2 leading-relaxed font-sans font-medium">
                         {resource.description}
                       </p>
                     </div>
-                  </div>
 
-                  <div className="flex flex-wrap gap-1 mt-4 pt-3 border-t border-zinc-800/40">
-                    {resource.tags && resource.tags.map((tag, idx) => (
-                      <span key={idx} className="text-[8px] text-zinc-400 bg-zinc-950/50 border border-zinc-850 px-2 py-0.5 rounded-md font-mono uppercase">
-                        {tag}
-                      </span>
-                    ))}
+                    {/* Stats de Edutin (Rating y Alumnos) */}
+                    <div className="space-y-3 pt-3 border-t border-border-main">
+                      <div className="flex items-center justify-between text-[10px] text-text-muted font-mono">
+                        <span className="flex items-center gap-1 font-bold text-amber-500">
+                          <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                          {stats.rating}
+                        </span>
+                        <span className="flex items-center gap-1 font-semibold">
+                          <Users className="w-3.5 h-3.5 text-indigo-400" />
+                          {stats.students} alumnos
+                        </span>
+                      </div>
+
+                      {/* Certificación Row */}
+                      <div className="flex items-center gap-1.5 text-[9px] text-text-muted font-mono uppercase tracking-wide bg-bg-input px-2.5 py-1.5 rounded-lg border border-border-main">
+                        <Award className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span className="truncate">{resource.category}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
 
-          {/* Controles de paginación para recursos */}
+          {/* Controles de Paginación */}
           {totalResourcesPages > 1 && (
-            <div className="px-6 py-4 bg-zinc-900/60 border border-zinc-800/80 rounded-2xl flex items-center justify-between text-xs backdrop-blur-md shadow-sm font-mono">
+            <div className="px-6 py-4 bg-bg-card border border-border-main rounded-3xl flex items-center justify-between text-xs shadow-sm font-mono">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setResourcesPage(prev => Math.max(1, prev - 1));
                 }}
                 disabled={currentResourcesPage === 1}
-                className="px-3 py-2 bg-zinc-950 hover:bg-zinc-800 text-zinc-450 hover:text-zinc-300 border border-zinc-805 disabled:opacity-40 disabled:pointer-events-none rounded-lg transition-all cursor-pointer uppercase text-[10px] font-bold"
+                className="px-3 py-2 bg-bg-input hover:bg-bg-card text-text-muted hover:text-text-main border border-border-main disabled:opacity-40 disabled:pointer-events-none rounded-xl transition-all cursor-pointer uppercase text-[10px] font-bold"
               >
                 Anterior
               </button>
-              <span className="text-zinc-500 uppercase text-[10px] tracking-wider font-bold">
-                Página <span className="text-indigo-400 font-bold">{currentResourcesPage}</span> de <span className="text-zinc-300 font-bold">{totalResourcesPages}</span>
+              <span className="text-text-muted uppercase text-[10px] tracking-wider font-bold">
+                Página <span className="text-indigo-400 font-bold">{currentResourcesPage}</span> de <span className="text-text-title font-bold">{totalResourcesPages}</span>
               </span>
               <button
                 onClick={(e) => {
@@ -183,7 +246,7 @@ export default function CourseDirectory({
                   setResourcesPage(prev => Math.min(totalResourcesPages, prev + 1));
                 }}
                 disabled={currentResourcesPage === totalResourcesPages}
-                className="px-3 py-2 bg-zinc-950 hover:bg-zinc-800 text-zinc-450 hover:text-zinc-300 border border-zinc-805 disabled:opacity-40 disabled:pointer-events-none rounded-lg transition-all cursor-pointer uppercase text-[10px] font-bold"
+                className="px-3 py-2 bg-bg-input hover:bg-bg-card text-text-muted hover:text-text-main border border-border-main disabled:opacity-40 disabled:pointer-events-none rounded-xl transition-all cursor-pointer uppercase text-[10px] font-bold"
               >
                 Siguiente
               </button>

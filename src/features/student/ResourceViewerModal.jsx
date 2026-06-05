@@ -1,7 +1,35 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
-  ArrowRight, CheckCircle2, ExternalLink 
+  ArrowLeft, CheckCircle2, ExternalLink, Play, FileText, Video, Presentation, Code, 
+  BookOpen, Star, Award, Share2, HelpCircle 
 } from 'lucide-react';
+
+const getCourseImage = (resource) => {
+  if (resource.image_url) return resource.image_url;
+  
+  switch (resource.category) {
+    case 'Trámites y Visados':
+      return '/preset_tramites.png';
+    case 'Impuestos y Autónomos':
+    case 'Autónomos y Hacienda':
+    case 'Impuestos e IRPF':
+      return '/preset_impuestos.png';
+    case 'Coworkings y Colivings':
+      return '/preset_coworking.png';
+    case 'Herramientas Digitales':
+      return '/preset_herramientas.png';
+    default:
+      return '/preset_tramites.png';
+  }
+};
+
+const getDeterministicDuration = (id) => {
+  if (!id) return '05:30';
+  const sum = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const minutes = (sum % 15) + 3;
+  const seconds = (sum % 60).toString().padStart(2, '0');
+  return `${minutes}:${seconds}`;
+};
 
 export default function ResourceViewerModal({
   selectedResource,
@@ -11,6 +39,28 @@ export default function ResourceViewerModal({
   handleToggleCompleted,
   getResourceIcon
 }) {
+  const [prevResourceId, setPrevResourceId] = useState(selectedResource?.id);
+  const [ratedValue, setRatedValue] = useState(0);
+  const [showRatingSuccess, setShowRatingSuccess] = useState(false);
+
+  // Group resources by category for sections
+  const groupedResources = useMemo(() => {
+    const groups = {};
+    resources.forEach(res => {
+      if (!groups[res.category]) {
+        groups[res.category] = [];
+      }
+      groups[res.category].push(res);
+    });
+    return groups;
+  }, [resources]);
+
+  if (selectedResource && selectedResource.id !== prevResourceId) {
+    setPrevResourceId(selectedResource.id);
+    setRatedValue(0);
+    setShowRatingSuccess(false);
+  }
+
   if (!selectedResource) return null;
 
   let embedUrl = selectedResource.url || '';
@@ -63,11 +113,9 @@ export default function ResourceViewerModal({
     }
   }
 
-  // Progression values
   const totalCount = resources.length;
   const completedCount = resources.filter(r => (user.completedResources || []).includes(r.id)).length;
   const progressPercent = Math.round((completedCount / totalCount) * 100) || 0;
-
   const isCurrentCompleted = (user.completedResources || []).includes(selectedResource.id);
   
   // Sequential Navigation
@@ -75,203 +123,293 @@ export default function ResourceViewerModal({
   const prevResource = currentIndex > 0 ? resources[currentIndex - 1] : null;
   const nextResource = currentIndex < resources.length - 1 ? resources[currentIndex + 1] : null;
 
+
+
+
+  // Rate course
+  const handleRate = (val) => {
+    setRatedValue(val);
+    setShowRatingSuccess(true);
+    setTimeout(() => setShowRatingSuccess(false), 3000);
+  };
+
   return (
-    <div className="flex-1 flex flex-col h-full bg-zinc-950 overflow-hidden">
-      {/* Navigation/Header for player */}
-      <div className="h-14 border-b border-zinc-800/80 bg-zinc-950/60 backdrop-blur-md px-6 flex items-center justify-between shrink-0">
-        <button
-          onClick={() => setSelectedResource(null)}
-          className="flex items-center gap-2 text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer font-mono uppercase tracking-wider"
-        >
-          <ArrowRight className="w-4 h-4 rotate-180 shrink-0" />
-          Volver
-        </button>
-        <div className="flex items-center gap-3">
-          <span className="text-[9px] bg-zinc-950 border border-zinc-850 text-zinc-550 px-2.5 py-1 rounded font-bold uppercase font-mono tracking-wider">
-            {selectedResource.category}
-          </span>
-          <span className="text-[9px] bg-indigo-950/40 border border-indigo-500/20 text-indigo-400 px-2.5 py-1 rounded font-bold uppercase font-mono tracking-wider">
-            {selectedResource.type === 'html_video' ? 'código/html' : selectedResource.type}
-          </span>
-        </div>
-      </div>
-
-      {/* Content Area */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+    <div className="flex-1 flex flex-col lg:flex-row h-full overflow-hidden bg-bg-main">
+      
+      {/* COLUMNA IZQUIERDA: Reproductor y Detalles */}
+      <div className="flex-1 flex flex-col h-full overflow-y-auto p-4 lg:p-6 space-y-6">
         
-        {/* Navigator Sidebar (Lista de Lecciones) */}
-        <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-r border-zinc-800/80 bg-zinc-950/40 backdrop-blur-md flex flex-col justify-between shrink-0 overflow-hidden order-2 lg:order-1">
+        {/* Header de navegación superior */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setSelectedResource(null)}
+            className="flex items-center gap-2 text-xs font-bold text-text-muted hover:text-text-main transition-colors cursor-pointer font-mono uppercase"
+          >
+            <ArrowLeft className="w-4 h-4 shrink-0" />
+            Volver al Directorio
+          </button>
           
-          {/* Progress stats */}
-          <div className="p-4 border-b border-zinc-800/80 space-y-3 bg-zinc-950/40 font-mono">
-            <div className="flex justify-between items-center text-[10px] uppercase font-bold tracking-wider">
-              <span className="text-zinc-400">Progreso General</span>
-              <span className="text-indigo-400">{completedCount} de {totalCount} ({progressPercent}%)</span>
-            </div>
-            <div className="w-full h-1.5 bg-zinc-900 border border-zinc-800/50 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-indigo-500 rounded-full transition-all duration-500 ease-out shadow-[0_0_8px_rgba(0,242,254,0.3)]" 
-                style={{ width: `${progressPercent}%` }}
-              ></div>
-            </div>
-          </div>
-
-          {/* List of lessons */}
-          <div className="flex-1 overflow-y-auto no-scrollbar p-3 space-y-2">
-            {resources.map(res => {
-              const isItemCompleted = (user.completedResources || []).includes(res.id);
-              const isItemActive = selectedResource.id === res.id;
-              return (
-                <div
-                  key={res.id}
-                  className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer font-mono ${
-                    isItemActive 
-                      ? 'bg-indigo-950/50 border-indigo-500/35 text-white shadow-[0_0_12px_rgba(0,242,254,0.06)]' 
-                      : 'bg-zinc-900/20 border-zinc-800/60 text-zinc-500 hover:bg-zinc-850/30 hover:border-zinc-700/60 hover:text-zinc-350'
-                  }`}
-                  onClick={() => setSelectedResource(res)}
-                >
-                  {/* Checkbox circle */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation(); // Evitar que el clic en el botón active el recurso
-                      handleToggleCompleted(res.id);
-                    }}
-                    className={`w-5 h-5 rounded-lg flex items-center justify-center border transition-all shrink-0 cursor-pointer ${
-                      isItemCompleted 
-                        ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-450 shadow-[0_0_8px_rgba(16,185,129,0.2)]' 
-                        : 'border-zinc-800 hover:border-indigo-500/50 hover:bg-zinc-950'
-                    }`}
-                    title={isItemCompleted ? "Marcar como pendiente" : "Marcar como completado"}
-                  >
-                    {isItemCompleted && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
-                  </button>
-                  
-                  {/* Icon & Title */}
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-xs font-bold truncate ${isItemActive ? 'text-indigo-400' : 'text-zinc-300'}`}>
-                      {res.title}
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <span className="p-0.5 rounded bg-zinc-950 border border-zinc-850 text-[9px] scale-90 origin-left text-zinc-500 flex items-center gap-1 uppercase font-bold">
-                        {getResourceIcon(res.type)}
-                        <span>{res.type === 'html_video' ? 'código/html' : res.type}</span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          
-          {/* Context Info Box */}
-          <div className="p-4 border-t border-zinc-800/80 bg-zinc-950/40 text-[9px] text-zinc-550 space-y-1 font-mono uppercase tracking-wider">
-            <p>Entrenamiento Autorizado por ExpatFiscal</p>
-            <p>Código de nómada: EF-{user.id.slice(-4)}</p>
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] bg-bg-card border border-border-main text-text-muted px-2.5 py-1 rounded-lg font-bold uppercase font-mono">
+              {selectedResource.category}
+            </span>
+            <span className="text-[9px] bg-indigo-950/40 border border-indigo-500/20 text-indigo-400 px-2.5 py-1 rounded-lg font-bold uppercase font-mono">
+              {selectedResource.type === 'html_video' ? 'código/html' : selectedResource.type}
+            </span>
           </div>
         </div>
 
-        {/* Central Area: Media viewer & details */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-zinc-950/80 p-4 lg:p-6 space-y-4 order-1 lg:order-2">
-          
-          {/* Multimedia Frame */}
-          <div className="flex-1 bg-black rounded-2xl border border-zinc-800/80 overflow-hidden relative shadow-[0_15px_40px_rgba(0,0,0,0.8),0_0_20px_rgba(0,242,254,0.05)] min-h-[300px]">
-            {isEmbeddable ? (
-              <iframe 
-                src={embedUrl}
-                title={selectedResource.title}
-                className="w-full h-full border-none bg-black"
-                allowFullScreen
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              ></iframe>
-            ) : isVideoTag ? (
-              <div className="w-full h-full flex items-center justify-center p-4">
-                <video 
-                  src={embedUrl} 
-                  controls 
-                  className="w-full max-h-full rounded-xl border border-zinc-800/80 shadow-2xl bg-black"
-                ></video>
-              </div>
-            ) : (
-              <div className="w-full h-full flex items-center justify-center p-6">
-                <div className="max-w-md w-full bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-8 text-center space-y-5 backdrop-blur-md">
-                  <div className="w-14 h-14 rounded-2xl bg-indigo-950/60 text-indigo-400 border border-indigo-500/30 flex items-center justify-center mx-auto shadow-[0_0_15px_rgba(0,242,254,0.15)]">
-                    <ExternalLink className="w-6 h-6" />
-                  </div>
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-bold text-zinc-200 uppercase font-mono tracking-wider">Enlace Externo Recomendado</h4>
-                    <p className="text-xs text-zinc-400 leading-relaxed font-sans">
-                      Este portal o herramienta externa ({selectedResource.category}) requiere acceso fuera de la academia por políticas de seguridad o restricciones del portal.
-                    </p>
-                  </div>
-                  <a 
-                    href={selectedResource.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2 py-2.5 px-6 bg-indigo-655 hover:bg-indigo-600 text-zinc-950 rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition-all cursor-pointer shadow-[0_0_12px_rgba(0,242,254,0.2)] hover:shadow-[0_0_18px_rgba(0,242,254,0.35)]"
-                  >
-                    Visitar Portal Oficial
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
+        {/* Reproductor Principal */}
+        <div className="aspect-video bg-black rounded-3xl border border-border-main overflow-hidden relative shadow-md">
+          {isEmbeddable ? (
+            <iframe 
+              src={embedUrl}
+              title={selectedResource.title}
+              className="w-full h-full border-none bg-black"
+              allowFullScreen
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            ></iframe>
+          ) : isVideoTag ? (
+            <video 
+              src={embedUrl} 
+              controls 
+              className="w-full h-full bg-black"
+            ></video>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center p-6">
+              <div className="max-w-md w-full bg-bg-card border border-border-main rounded-3xl p-8 text-center space-y-5">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-950/60 text-indigo-400 border border-indigo-500/20 flex items-center justify-center mx-auto">
+                  <ExternalLink className="w-6 h-6" />
                 </div>
+                <div className="space-y-2 font-mono">
+                  <h4 className="text-xs font-bold text-text-title uppercase tracking-wider">Enlace Externo Recomendado</h4>
+                  <p className="text-xs text-text-muted leading-relaxed font-sans font-medium">
+                    Esta formación o herramienta requiere acceso fuera del aula por políticas de seguridad o restricciones del portal oficial.
+                  </p>
+                </div>
+                <a 
+                  href={selectedResource.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 py-3 px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition-all cursor-pointer shadow-[0_0_12px_rgba(99,102,241,0.2)]"
+                >
+                  Visitar Enlace Externo
+                  <ExternalLink className="w-4 h-4" />
+                </a>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+        </div>
 
-          {/* Description & Action Footer */}
-          <div className="bg-zinc-900/60 border border-zinc-800/85 rounded-2xl p-5 flex flex-col md:flex-row justify-between gap-6 backdrop-blur-md shadow-sm">
-            <div className="flex-1 space-y-2 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[9px] bg-zinc-950 border border-zinc-850 text-zinc-550 px-2.5 py-1 rounded font-bold uppercase font-mono tracking-wider">
-                  {selectedResource.type === 'html_video' ? 'código/html' : selectedResource.type}
-                </span>
-                <span className="text-[9px] bg-indigo-950/40 border border-indigo-500/20 text-indigo-400 px-2.5 py-1 rounded font-bold uppercase font-mono tracking-wider">
-                  {selectedResource.category}
-                </span>
-              </div>
-              <h3 className="text-base font-bold text-white leading-snug">{selectedResource.title}</h3>
-              <p className="text-xs text-zinc-400 leading-relaxed">{selectedResource.description}</p>
+        {/* Detalles de la Lección & Panel de Acciones */}
+        <div className="bg-bg-card border border-border-main rounded-3xl p-6 space-y-5 shadow-sm">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border-main pb-5">
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-bold text-text-title uppercase font-mono tracking-tight leading-snug">
+                {selectedResource.title}
+              </h3>
+              <p className="text-xs text-text-muted">{selectedResource.description}</p>
             </div>
 
-            <div className="flex flex-col sm:flex-row md:flex-col justify-end gap-3 shrink-0 sm:w-auto md:w-56">
-              
-              {/* Complete Button */}
-              <button
-                onClick={() => handleToggleCompleted(selectedResource.id)}
-                className={`w-full py-3 px-4 rounded-xl text-xs font-bold font-mono uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer border ${
-                  isCurrentCompleted 
-                    ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-450 hover:bg-emerald-900/40 shadow-[0_0_12px_rgba(16,185,129,0.15)]' 
-                    : 'bg-indigo-600 hover:bg-indigo-500 text-zinc-950 border-indigo-500/30 shadow-[0_0_15px_rgba(0,242,254,0.25)] hover:shadow-[0_0_20px_rgba(0,242,254,0.4)]'
-                }`}
+            {/* Check de Completado */}
+            <button
+              onClick={() => handleToggleCompleted(selectedResource.id)}
+              className={`py-3 px-5 rounded-2xl text-xs font-bold font-mono uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer border shrink-0 ${
+                isCurrentCompleted 
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20' 
+                  : 'bg-indigo-650 hover:bg-indigo-600 text-white border-indigo-500/30'
+              }`}
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              {isCurrentCompleted ? '¡Lección Completada ✓!' : 'Marcar Completado'}
+            </button>
+          </div>
+
+          {/* Fila de Controles e Interacción (Estilo Edutin) */}
+          <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+            <div className="flex items-center gap-2.5">
+              {/* Valoración Estrellas */}
+              <div className="flex items-center gap-1">
+                <span className="text-xs font-bold font-mono text-text-muted mr-1.5 uppercase">Valorar curso:</span>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={() => handleRate(star)}
+                    className="p-1 hover:scale-110 transition-transform cursor-pointer"
+                  >
+                    <Star 
+                      className={`w-5 h-5 ${
+                        (ratedValue || 4) >= star 
+                          ? 'fill-amber-500 text-amber-500' 
+                          : 'text-text-muted/30'
+                      }`} 
+                    />
+                  </button>
+                ))}
+              </div>
+              {showRatingSuccess && (
+                <span className="text-[10px] text-emerald-500 font-bold font-mono uppercase animate-pulse">¡Gracias!</span>
+              )}
+            </div>
+
+            {/* Acciones del Curso */}
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => alert('[SIMULACIÓN] Enlace de invitación copiado al portapapeles.')}
+                className="p-2.5 bg-bg-input hover:bg-bg-card border border-border-main hover:border-border-hover rounded-xl text-text-muted hover:text-text-main transition-all flex items-center gap-1.5 text-[10px] font-bold font-mono uppercase cursor-pointer"
+                title="Compartir Curso"
               >
-                <CheckCircle2 className="w-4 h-4" />
-                {isCurrentCompleted ? '¡Completado ✓!' : 'Marcar como Completado'}
+                <Share2 className="w-3.5 h-3.5" />
+                Invitar
               </button>
-
-              {/* Nav buttons */}
-              <div className="flex gap-2 w-full">
-                <button
-                  disabled={!prevResource}
-                  onClick={() => prevResource && setSelectedResource(prevResource)}
-                  className="flex-1 py-2.5 px-3 rounded-lg bg-zinc-950/80 border border-zinc-805 hover:border-zinc-700 disabled:opacity-40 disabled:pointer-events-none text-zinc-550 hover:text-zinc-350 text-[10px] font-bold font-mono uppercase tracking-widest transition-all cursor-pointer"
-                >
-                  Anterior
-                </button>
-                <button
-                  disabled={!nextResource}
-                  onClick={() => nextResource && setSelectedResource(nextResource)}
-                  className="flex-1 py-2.5 px-3 rounded-lg bg-zinc-950/80 border border-zinc-805 hover:border-zinc-700 disabled:opacity-40 disabled:pointer-events-none text-zinc-550 hover:text-zinc-350 text-[10px] font-bold font-mono uppercase tracking-widest transition-all cursor-pointer"
-                >
-                  Siguiente
-                </button>
-              </div>
-
+              <button 
+                onClick={() => alert('Certificación ExpatFiscal autorizada al completar el 100% de los recursos.')}
+                className="p-2.5 bg-bg-input border border-border-main hover:border-border-hover rounded-xl text-text-muted hover:text-text-main transition-all flex items-center gap-1.5 text-[10px] font-bold font-mono uppercase cursor-pointer"
+              >
+                <Award className="w-3.5 h-3.5 text-indigo-400" />
+                Estudiar con Certificado
+              </button>
             </div>
           </div>
+        </div>
 
+        {/* Navegación Secuencial (Anterior / Siguiente) */}
+        <div className="flex justify-between items-center gap-4">
+          <button
+            disabled={!prevResource}
+            onClick={() => prevResource && setSelectedResource(prevResource)}
+            className="flex-1 py-3 px-4 rounded-2xl bg-bg-card border border-border-main hover:border-border-hover hover:bg-bg-input disabled:opacity-40 disabled:pointer-events-none text-text-muted hover:text-text-main text-[10px] font-bold font-mono uppercase tracking-widest transition-all cursor-pointer text-center"
+          >
+            ← Anterior Lección
+          </button>
+          <button
+            disabled={!nextResource}
+            onClick={() => nextResource && setSelectedResource(nextResource)}
+            className="flex-1 py-3 px-4 rounded-2xl bg-bg-card border border-border-main hover:border-border-hover hover:bg-bg-input disabled:opacity-40 disabled:pointer-events-none text-text-muted hover:text-text-main text-[10px] font-bold font-mono uppercase tracking-widest transition-all cursor-pointer text-center"
+          >
+            Siguiente Lección →
+          </button>
         </div>
 
       </div>
+
+      {/* COLUMNA DERECHA: Sidebar Classroom (Contenido) */}
+      <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-border-main bg-bg-sidebar flex flex-col h-96 lg:h-full shrink-0 overflow-hidden">
+        
+        {/* Cabecera del Sidebar */}
+        <div className="flex items-center border-b border-border-main bg-bg-input shrink-0 px-6 py-4.5">
+          <span className="text-[10px] font-bold text-text-title uppercase tracking-widest flex items-center gap-2 font-mono">
+            <BookOpen className="w-4 h-4 text-text-active" />
+            Contenido del Curso
+          </span>
+        </div>
+
+        {/* Cuerpo del Sidebar */}
+        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-col">
+          
+          {/* CONTENIDO (Lista organizada por Secciones/Categorías) */}
+            <div className="space-y-6 flex-1">
+              {/* Barra de progreso global */}
+              <div className="bg-bg-card border border-border-main p-3.5 rounded-2xl space-y-2.5 font-mono">
+                <div className="flex justify-between items-center text-[10px] uppercase font-bold tracking-wide">
+                  <span className="text-text-muted">Progreso Curso</span>
+                  <span className="text-indigo-400">{completedCount}/{totalCount} ({progressPercent}%)</span>
+                </div>
+                <div className="w-full h-1.5 bg-bg-input rounded-full overflow-hidden border border-border-main/50">
+                  <div 
+                    className="h-full bg-indigo-500 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(99,102,241,0.25)]" 
+                    style={{ width: `${progressPercent}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Lista agrupada */}
+              <div className="space-y-5">
+                {Object.keys(groupedResources).map((categoryName, groupIdx) => {
+                  const items = groupedResources[categoryName];
+                  return (
+                    <div key={categoryName} className="space-y-2">
+                      {/* Cabecera de la sección */}
+                      <h4 className="text-[10px] font-extrabold text-text-title font-mono uppercase tracking-wider border-b border-border-main pb-2 flex items-center justify-between">
+                        <span>Sección {groupIdx + 1}: {categoryName}</span>
+                        <span className="text-text-muted font-normal">({items.length})</span>
+                      </h4>
+
+                      {/* Lista de lecciones dentro de la sección */}
+                      <div className="space-y-1.5">
+                        {items.map(res => {
+                          const isItemCompleted = (user.completedResources || []).includes(res.id);
+                          const isItemActive = selectedResource.id === res.id;
+                          const thumb = getCourseImage(res);
+                          const duration = getDeterministicDuration(res.id);
+
+                          return (
+                            <div
+                              key={res.id}
+                              className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer font-mono ${
+                                isItemActive 
+                                  ? 'bg-bg-active border-border-active text-text-title' 
+                                  : 'bg-bg-card/40 border-border-main text-text-muted hover:bg-bg-input hover:text-text-main'
+                              }`}
+                              onClick={() => setSelectedResource(res)}
+                            >
+                              {/* Thumbnail con duración overlay */}
+                              <div className="w-16 h-10 rounded-lg overflow-hidden shrink-0 relative bg-bg-input border border-border-main">
+                                <img src={thumb} alt={res.title} className="w-full h-full object-cover" />
+                                <span className="absolute bottom-0.5 right-0.5 px-1 bg-black/75 text-[8px] text-white rounded font-mono">
+                                  {duration}
+                                </span>
+                              </div>
+
+                              {/* Detalles */}
+                              <div className="flex-1 min-w-0 text-left">
+                                <p className={`text-[10px] font-extrabold truncate ${isItemActive ? 'text-indigo-400' : 'text-text-main'}`}>
+                                  {res.title}
+                                </p>
+                                <span className="inline-flex items-center gap-1 mt-0.5 text-[8px] text-text-muted scale-95 origin-left font-bold uppercase">
+                                  {getResourceIcon(res.type)}
+                                  <span>{res.type === 'html_video' ? 'código/html' : res.type}</span>
+                                </span>
+                              </div>
+
+                              {/* Botón de completado circular */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleCompleted(res.id);
+                                }}
+                                className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all shrink-0 cursor-pointer ${
+                                  isItemCompleted 
+                                    ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-500' 
+                                    : 'border-border-main hover:border-indigo-500/40 hover:bg-bg-input'
+                                }`}
+                                title={isItemCompleted ? "Marcar pendiente" : "Marcar completado"}
+                              >
+                                {isItemCompleted && <CheckCircle2 className="w-3.5 h-3.5" />}
+                              </button>
+
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+
+
+        </div>
+        
+        {/* Footer del Sidebar */}
+        <div className="p-4.5 border-t border-border-main bg-bg-input text-[9px] text-text-muted space-y-1 font-mono uppercase tracking-wider text-left">
+          <p>Aula Virtual ExpatFiscal Academy</p>
+          <p>Código nómada: EF-{user.id.slice(-4)}</p>
+        </div>
+
+      </div>
+
     </div>
   );
 }
