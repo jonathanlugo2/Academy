@@ -1,6 +1,6 @@
 import React from 'react';
 import { 
-  Compass, Search, Star, Users, Award, ExternalLink, FileText, Video, Presentation, Code, HelpCircle 
+  Compass, Search, Award, ExternalLink, FileText, Video, Presentation, Code, HelpCircle 
 } from 'lucide-react';
 
 const getCategoryTheme = (category) => {
@@ -55,14 +55,7 @@ const getCourseImage = (resource) => {
   }
 };
 
-// Generar rating y número de alumnos de manera determinista basada en el ID
-const getDeterministicStats = (id) => {
-  if (!id) return { rating: '4.8', students: '12K' };
-  const sum = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const rating = (4.5 + (sum % 5) * 0.1).toFixed(1);
-  const students = ((sum % 80) + 15).toFixed(0) + 'K';
-  return { rating, students };
-};
+
 
 export default function CourseDirectory({
   user,
@@ -161,7 +154,6 @@ export default function CourseDirectory({
             {paginatedResources.map(resource => {
               const theme = getCategoryTheme(resource.category);
               const cardImage = getCourseImage(resource);
-              const stats = getDeterministicStats(resource.id);
               
               return (
                 <div 
@@ -201,17 +193,6 @@ export default function CourseDirectory({
 
                     {/* Stats de Edutin (Rating y Alumnos) */}
                     <div className="space-y-3 pt-3 border-t border-border-main">
-                      <div className="flex items-center justify-between text-[10px] text-text-muted font-mono">
-                        <span className="flex items-center gap-1 font-bold text-amber-500">
-                          <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                          {stats.rating}
-                        </span>
-                        <span className="flex items-center gap-1 font-semibold">
-                          <Users className="w-3.5 h-3.5 text-indigo-400" />
-                          {stats.students} alumnos
-                        </span>
-                      </div>
-
                       {/* Certificación Row */}
                       <div className="flex items-center gap-1.5 text-[9px] text-text-muted font-mono uppercase tracking-wide bg-bg-input px-2.5 py-1.5 rounded-lg border border-border-main">
                         <Award className="w-3.5 h-3.5 text-emerald-400 shrink-0" />

@@ -39,12 +39,12 @@ export default function StudentSidebar({
       </div>
       
       {/* Links de Navegación */}
-      <nav className="flex flex-row justify-around items-center p-2 w-full h-full overflow-hidden md:flex-col md:justify-start md:items-stretch md:p-4 md:space-y-1.5 md:overflow-y-auto no-scrollbar">
+      <nav className="flex flex-row justify-around items-center p-2 w-full h-full overflow-hidden md:flex-col md:justify-start md:items-stretch md:p-4 md:space-y-1.5 md:h-auto md:flex-1 md:overflow-y-auto no-scrollbar">
         
         {/* Botón: Formación */}
         <button
           onClick={() => setActiveTab('resources')}
-          className={`flex flex-col justify-center items-center py-1 px-2 h-full w-24 rounded-xl transition-all cursor-pointer font-mono md:w-full md:flex-row md:justify-start md:py-2.5 md:rounded-xl md:border ${
+          className={`flex flex-col justify-center items-center py-1 px-2 h-full w-24 rounded-xl transition-all cursor-pointer font-mono md:w-full md:flex-row md:justify-start md:items-center md:h-auto md:py-2.5 md:rounded-xl md:border ${
             isSidebarCollapsed ? 'md:justify-center md:px-0' : 'md:px-3'
           } ${
             activeTab === 'resources' 
@@ -54,9 +54,11 @@ export default function StudentSidebar({
           title={isSidebarCollapsed ? "Material Formativo" : undefined}
         >
           <BookOpen className={`${isSidebarCollapsed ? 'md:m-0' : 'md:mr-3'} h-5 w-5 shrink-0`} />
-          <span className="md:inline hidden whitespace-nowrap transition-opacity duration-300 text-xs font-semibold">
-            Material Formativo
-          </span>
+          {!isSidebarCollapsed && (
+            <span className="hidden md:inline whitespace-nowrap transition-opacity duration-300 text-xs font-semibold uppercase tracking-wider">
+              Material Formativo
+            </span>
+          )}
           <span className="inline md:hidden text-[9px] mt-0.5 tracking-tight font-medium font-sans">
             Formación
           </span>
@@ -65,7 +67,7 @@ export default function StudentSidebar({
         {/* Botón: Soporte */}
         <button
           onClick={() => setActiveTab('support')}
-          className={`flex flex-col justify-center items-center py-1 px-2 h-full w-24 rounded-xl transition-all cursor-pointer font-mono md:w-full md:flex-row md:justify-start md:py-2.5 md:rounded-xl md:border ${
+          className={`flex flex-col justify-center items-center py-1 px-2 h-full w-24 rounded-xl transition-all cursor-pointer font-mono md:w-full md:flex-row md:justify-start md:items-center md:h-auto md:py-2.5 md:rounded-xl md:border ${
             isSidebarCollapsed ? 'md:justify-center md:px-0' : 'md:px-3'
           } ${
             activeTab === 'support' 
@@ -75,9 +77,11 @@ export default function StudentSidebar({
           title={isSidebarCollapsed ? "Canal de Soporte" : undefined}
         >
           <MessageSquare className={`${isSidebarCollapsed ? 'md:m-0' : 'md:mr-3'} h-5 w-5 shrink-0`} />
-          <span className="md:inline hidden whitespace-nowrap transition-opacity duration-300 text-xs font-semibold">
-            Canal de Soporte
-          </span>
+          {!isSidebarCollapsed && (
+            <span className="hidden md:inline whitespace-nowrap transition-opacity duration-300 text-xs font-semibold uppercase tracking-wider">
+              Canal de Soporte
+            </span>
+          )}
           <span className="inline md:hidden text-[9px] mt-0.5 tracking-tight font-medium font-sans">
             Soporte
           </span>
