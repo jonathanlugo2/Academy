@@ -3,6 +3,7 @@ import {
   ArrowLeft, CheckCircle2, ExternalLink, Play, FileText, Video, Presentation, Code, 
   BookOpen, Star, Award, Share2, HelpCircle 
 } from 'lucide-react';
+import SecureDocumentViewer from '../../components/SecureDocumentViewer';
 
 const getCourseImage = (resource) => {
   if (resource.image_url) return resource.image_url;
@@ -42,6 +43,7 @@ export default function ResourceViewerModal({
   const [prevResourceId, setPrevResourceId] = useState(selectedResource?.id);
   const [ratedValue, setRatedValue] = useState(0);
   const [showRatingSuccess, setShowRatingSuccess] = useState(false);
+  const [mobileTab, setMobileTab] = useState('lessons'); // 'lessons' or 'details'
 
   // Group resources by category for sections
   const groupedResources = useMemo(() => {
@@ -66,6 +68,7 @@ export default function ResourceViewerModal({
   let embedUrl = selectedResource.url || '';
   let isEmbeddable = false;
   let isVideoTag = false;
+  const isPdf = selectedResource.type === 'document' || (typeof embedUrl === 'string' && (embedUrl.toLowerCase().endsWith('.pdf') || embedUrl.toLowerCase().includes('.pdf?')));
 
   // Detect YouTube
   if (embedUrl.includes('youtube.com/watch?v=')) {
@@ -123,9 +126,6 @@ export default function ResourceViewerModal({
   const prevResource = currentIndex > 0 ? resources[currentIndex - 1] : null;
   const nextResource = currentIndex < resources.length - 1 ? resources[currentIndex + 1] : null;
 
-
-
-
   // Rate course
   const handleRate = (val) => {
     setRatedValue(val);
@@ -133,14 +133,108 @@ export default function ResourceViewerModal({
     setTimeout(() => setShowRatingSuccess(false), 3000);
   };
 
+  // Reusable Lessons List Component
+  const renderLessonsList = () => {
+    return (
+      <div className="space-y-6 flex-1 text-left">
+        {/* Barra de progreso global */}
+        <div className="bg-bg-card border border-border-main p-3.5 rounded-2xl space-y-2.5 font-mono">
+          <div className="flex justify-between items-center text-[10px] uppercase font-bold tracking-wide">
+            <span className="text-text-muted">Progreso Curso</span>
+            <span className="text-indigo-400">{completedCount}/{totalCount} ({progressPercent}%)</span>
+          </div>
+          <div className="w-full h-1.5 bg-bg-input rounded-full overflow-hidden border border-border-main/50">
+            <div 
+              className="h-full bg-indigo-500 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(99,102,241,0.25)]" 
+              style={{ width: `${progressPercent}%` }}
+            ></div>
+          </div>
+        </div>
+
+        {/* Lista agrupada */}
+        <div className="space-y-5">
+          {Object.keys(groupedResources).map((categoryName, groupIdx) => {
+            const items = groupedResources[categoryName];
+            return (
+              <div key={categoryName} className="space-y-2">
+                {/* Cabecera de la sección */}
+                <h4 className="text-[10px] font-extrabold text-text-title font-mono uppercase tracking-wider border-b border-border-main pb-2 flex items-center justify-between">
+                  <span>Sección {groupIdx + 1}: {categoryName}</span>
+                  <span className="text-text-muted font-normal">({items.length})</span>
+                </h4>
+
+                {/* Lista de lecciones dentro de la sección */}
+                <div className="space-y-1.5">
+                  {items.map(res => {
+                    const isItemCompleted = (user.completedResources || []).includes(res.id);
+                    const isItemActive = selectedResource.id === res.id;
+                    const thumb = getCourseImage(res);
+                    const duration = getDeterministicDuration(res.id);
+
+                    return (
+                      <div
+                        key={res.id}
+                        className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer font-mono ${
+                          isItemActive 
+                            ? 'bg-bg-active border-border-active text-text-title' 
+                            : 'bg-bg-card/40 border-border-main text-text-muted hover:bg-bg-input hover:text-text-main'
+                        }`}
+                        onClick={() => setSelectedResource(res)}
+                      >
+                        {/* Thumbnail con duración overlay */}
+                        <div className="w-16 h-10 rounded-lg overflow-hidden shrink-0 relative bg-bg-input border border-border-main">
+                          <img src={thumb} alt={res.title} className="w-full h-full object-cover" />
+                          <span className="absolute bottom-0.5 right-0.5 px-1 bg-black/75 text-[8px] text-white rounded font-mono">
+                            {duration}
+                          </span>
+                        </div>
+
+                        {/* Detalles */}
+                        <div className="flex-1 min-w-0 text-left">
+                          <p className={`text-[10px] font-extrabold truncate ${isItemActive ? 'text-indigo-400' : 'text-text-main'}`}>
+                            {res.title}
+                          </p>
+                          <span className="inline-flex items-center gap-1 mt-0.5 text-[8px] text-text-muted scale-95 origin-left font-bold uppercase">
+                            {getResourceIcon(res.type)}
+                            <span>{res.type === 'html_video' ? 'código/html' : res.type}</span>
+                          </span>
+                        </div>
+
+                        {/* Botón de completado circular */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleCompleted(res.id);
+                          }}
+                          className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all shrink-0 cursor-pointer ${
+                            isItemCompleted 
+                              ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-500' 
+                              : 'border-border-main hover:border-indigo-500/40 hover:bg-bg-input'
+                          }`}
+                          title={isItemCompleted ? "Marcar pendiente" : "Marcar completado"}
+                        >
+                          {isItemCompleted && <CheckCircle2 className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="flex-1 flex flex-col lg:flex-row h-full overflow-hidden bg-bg-main">
+    <div className="flex-1 flex flex-col lg:flex-row h-full overflow-hidden bg-bg-main relative">
       
-      {/* COLUMNA IZQUIERDA: Reproductor y Detalles */}
+      {/* COLUMNA IZQUIERDA: Reproductor y Detalles / Pestañas móviles */}
       <div className="flex-1 flex flex-col h-full overflow-y-auto p-4 lg:p-6 space-y-6">
         
-        {/* Header de navegación superior */}
-        <div className="flex items-center justify-between">
+        {/* Header de navegación superior (Se desplaza en móvil) */}
+        <div className="flex items-center justify-between shrink-0">
           <button
             onClick={() => setSelectedResource(null)}
             className="flex items-center gap-2 text-xs font-bold text-text-muted hover:text-text-main transition-colors cursor-pointer font-mono uppercase"
@@ -159,9 +253,11 @@ export default function ResourceViewerModal({
           </div>
         </div>
 
-        {/* Reproductor Principal */}
-        <div className="aspect-video bg-black rounded-3xl border border-border-main overflow-hidden relative shadow-md">
-          {isEmbeddable ? (
+        {/* Reproductor Principal: Sticky en móvil, normal en desktop */}
+        <div className="sticky top-0 z-20 bg-bg-main -mx-4 px-4 py-2 lg:mx-0 lg:px-0 lg:py-0 lg:relative aspect-video bg-black rounded-none lg:rounded-3xl border-b lg:border border-border-main overflow-hidden shadow-md shrink-0">
+          {isPdf ? (
+            <SecureDocumentViewer fileUrl={selectedResource.url} userEmail={user?.email || ''} />
+          ) : isEmbeddable ? (
             <iframe 
               src={embedUrl}
               title={selectedResource.title}
@@ -201,100 +297,139 @@ export default function ResourceViewerModal({
           )}
         </div>
 
-        {/* Detalles de la Lección & Panel de Acciones */}
-        <div className="bg-bg-card border border-border-main rounded-3xl p-6 space-y-5 shadow-sm">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border-main pb-5">
-            <div className="space-y-1.5">
-              <h3 className="text-lg font-bold text-text-title uppercase font-mono tracking-tight leading-snug">
-                {selectedResource.title}
-              </h3>
-              <p className="text-xs text-text-muted">{selectedResource.description}</p>
-            </div>
-
-            {/* Check de Completado */}
-            <button
-              onClick={() => handleToggleCompleted(selectedResource.id)}
-              className={`py-3 px-5 rounded-2xl text-xs font-bold font-mono uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer border shrink-0 ${
-                isCurrentCompleted 
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20' 
-                  : 'bg-indigo-650 hover:bg-indigo-600 text-white border-indigo-500/30'
-              }`}
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              {isCurrentCompleted ? '¡Lección Completada ✓!' : 'Marcar Completado'}
-            </button>
-          </div>
-
-          {/* Fila de Controles e Interacción (Estilo Edutin) */}
-          <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
-            <div className="flex items-center gap-2.5">
-              {/* Valoración Estrellas */}
-              <div className="flex items-center gap-1">
-                <span className="text-xs font-bold font-mono text-text-muted mr-1.5 uppercase">Valorar curso:</span>
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    onClick={() => handleRate(star)}
-                    className="p-1 hover:scale-110 transition-transform cursor-pointer"
-                  >
-                    <Star 
-                      className={`w-5 h-5 ${
-                        (ratedValue || 4) >= star 
-                          ? 'fill-amber-500 text-amber-500' 
-                          : 'text-text-muted/30'
-                      }`} 
-                    />
-                  </button>
-                ))}
-              </div>
-              {showRatingSuccess && (
-                <span className="text-[10px] text-emerald-500 font-bold font-mono uppercase animate-pulse">¡Gracias!</span>
-              )}
-            </div>
-
-            {/* Acciones del Curso */}
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={() => alert('[SIMULACIÓN] Enlace de invitación copiado al portapapeles.')}
-                className="p-2.5 bg-bg-input hover:bg-bg-card border border-border-main hover:border-border-hover rounded-xl text-text-muted hover:text-text-main transition-all flex items-center gap-1.5 text-[10px] font-bold font-mono uppercase cursor-pointer"
-                title="Compartir Curso"
-              >
-                <Share2 className="w-3.5 h-3.5" />
-                Invitar
-              </button>
-              <button 
-                onClick={() => alert('Certificación ExpatFiscal autorizada al completar el 100% de los recursos.')}
-                className="p-2.5 bg-bg-input border border-border-main hover:border-border-hover rounded-xl text-text-muted hover:text-text-main transition-all flex items-center gap-1.5 text-[10px] font-bold font-mono uppercase cursor-pointer"
-              >
-                <Award className="w-3.5 h-3.5 text-indigo-400" />
-                Estudiar con Certificado
-              </button>
-            </div>
-          </div>
+        {/* Selector de Pestañas (Solo en Móviles) */}
+        <div className="flex bg-bg-input p-1.5 rounded-2xl border border-border-main lg:hidden shrink-0">
+          <button
+            onClick={() => setMobileTab('lessons')}
+            className={`flex-1 py-3 text-center text-[10px] font-bold font-mono uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+              mobileTab === 'lessons'
+                ? 'bg-bg-active text-text-active border border-border-active'
+                : 'text-text-muted hover:text-text-main'
+            }`}
+          >
+            Lecciones ({resources.length})
+          </button>
+          <button
+            onClick={() => setMobileTab('details')}
+            className={`flex-1 py-3 text-center text-[10px] font-bold font-mono uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+              mobileTab === 'details'
+                ? 'bg-bg-active text-text-active border border-border-active'
+                : 'text-text-muted hover:text-text-main'
+            }`}
+          >
+            Información
+          </button>
         </div>
 
-        {/* Navegación Secuencial (Anterior / Siguiente) */}
-        <div className="flex justify-between items-center gap-4">
-          <button
-            disabled={!prevResource}
-            onClick={() => prevResource && setSelectedResource(prevResource)}
-            className="flex-1 py-3 px-4 rounded-2xl bg-bg-card border border-border-main hover:border-border-hover hover:bg-bg-input disabled:opacity-40 disabled:pointer-events-none text-text-muted hover:text-text-main text-[10px] font-bold font-mono uppercase tracking-widest transition-all cursor-pointer text-center"
-          >
-            ← Anterior Lección
-          </button>
-          <button
-            disabled={!nextResource}
-            onClick={() => nextResource && setSelectedResource(nextResource)}
-            className="flex-1 py-3 px-4 rounded-2xl bg-bg-card border border-border-main hover:border-border-hover hover:bg-bg-input disabled:opacity-40 disabled:pointer-events-none text-text-muted hover:text-text-main text-[10px] font-bold font-mono uppercase tracking-widest transition-all cursor-pointer text-center"
-          >
-            Siguiente Lección →
-          </button>
+        {/* Contenido Responsivo: Muestra temario o detalles según pestaña activa en móvil */}
+        <div className="flex-1 flex flex-col space-y-6">
+          
+          {/* Fila de Detalles & Acciones (Siempre visible en desktop, condicional en móvil) */}
+          <div className={`${mobileTab === 'details' ? 'block' : 'hidden'} lg:block space-y-6`}>
+            
+            {/* Detalles de la Lección & Panel de Acciones */}
+            <div className="bg-bg-card border border-border-main rounded-3xl p-6 space-y-5 shadow-sm text-left">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border-main pb-5">
+                <div className="space-y-1.5">
+                  <h3 className="text-lg font-bold text-text-title uppercase font-mono tracking-tight leading-snug">
+                    {selectedResource.title}
+                  </h3>
+                  <p className="text-xs text-text-muted">{selectedResource.description}</p>
+                </div>
+
+                {/* Check de Completado */}
+                <button
+                  onClick={() => handleToggleCompleted(selectedResource.id)}
+                  className={`py-3 px-5 rounded-2xl text-xs font-bold font-mono uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer border shrink-0 ${
+                    isCurrentCompleted 
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20' 
+                      : 'bg-indigo-650 hover:bg-indigo-600 text-white border-indigo-500/30'
+                  }`}
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  {isCurrentCompleted ? '¡Lección Completada ✓!' : 'Marcar Completado'}
+                </button>
+              </div>
+
+              {/* Fila de Controles e Interacción (Estilo Edutin) */}
+              <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+                <div className="flex items-center gap-2.5">
+                  {/* Valoración Estrellas */}
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs font-bold font-mono text-text-muted mr-1.5 uppercase">Valorar curso:</span>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        onClick={() => handleRate(star)}
+                        className="p-1 hover:scale-110 transition-transform cursor-pointer"
+                      >
+                        <Star 
+                          className={`w-5 h-5 ${
+                            (ratedValue || 4) >= star 
+                              ? 'fill-amber-500 text-amber-500' 
+                              : 'text-text-muted/30'
+                          }`} 
+                        />
+                      </button>
+                    ))}
+                  </div>
+                  {showRatingSuccess && (
+                    <span className="text-[10px] text-emerald-500 font-bold font-mono uppercase animate-pulse">¡Gracias!</span>
+                  )}
+                </div>
+
+                {/* Acciones del Curso */}
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => alert('[SIMULACIÓN] Enlace de invitación copiado al portapapeles.')}
+                    className="p-2.5 bg-bg-input hover:bg-bg-card border border-border-main hover:border-border-hover rounded-xl text-text-muted hover:text-text-main transition-all flex items-center gap-1.5 text-[10px] font-bold font-mono uppercase cursor-pointer"
+                    title="Compartir Curso"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    Invitar
+                  </button>
+                  <button 
+                    onClick={() => alert('Certificación ExpatFiscal autorizada al completar el 100% de los recursos.')}
+                    className="p-2.5 bg-bg-input border border-border-main hover:border-border-hover rounded-xl text-text-muted hover:text-text-main transition-all flex items-center gap-1.5 text-[10px] font-bold font-mono uppercase cursor-pointer"
+                  >
+                    <Award className="w-3.5 h-3.5 text-indigo-400" />
+                    Estudiar con Certificado
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Navegación Secuencial (Anterior / Siguiente) */}
+            <div className="flex justify-between items-center gap-4">
+              <button
+                disabled={!prevResource}
+                onClick={() => prevResource && setSelectedResource(prevResource)}
+                className="flex-1 py-3 px-4 rounded-2xl bg-bg-card border border-border-main hover:border-border-hover hover:bg-bg-input disabled:opacity-40 disabled:pointer-events-none text-text-muted hover:text-text-main text-[10px] font-bold font-mono uppercase tracking-widest transition-all cursor-pointer text-center"
+              >
+                ← Anterior Lección
+              </button>
+              <button
+                disabled={!nextResource}
+                onClick={() => nextResource && setSelectedResource(nextResource)}
+                className="flex-1 py-3 px-4 rounded-2xl bg-bg-card border border-border-main hover:border-border-hover hover:bg-bg-input disabled:opacity-40 disabled:pointer-events-none text-text-muted hover:text-text-main text-[10px] font-bold font-mono uppercase tracking-widest transition-all cursor-pointer text-center"
+              >
+                Siguiente Lección →
+              </button>
+            </div>
+
+          </div>
+
+          {/* Temario en Móvil (Visible bajo la pestaña 'lessons' en móvil, oculto en desktop) */}
+          <div className={`${mobileTab === 'lessons' ? 'block' : 'hidden'} lg:hidden`}>
+            {renderLessonsList()}
+          </div>
+
         </div>
 
       </div>
 
-      {/* COLUMNA DERECHA: Sidebar Classroom (Contenido) */}
-      <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-border-main bg-bg-sidebar flex flex-col h-96 lg:h-full shrink-0 overflow-hidden">
+      {/* COLUMNA DERECHA: Sidebar Classroom (Contenido) - Solo visible en Desktop */}
+      <div className="hidden lg:flex w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-border-main bg-bg-sidebar flex-col h-full shrink-0 overflow-hidden">
         
         {/* Cabecera del Sidebar */}
         <div className="flex items-center border-b border-border-main bg-bg-input shrink-0 px-6 py-4.5">
@@ -306,100 +441,7 @@ export default function ResourceViewerModal({
 
         {/* Cuerpo del Sidebar */}
         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-col">
-          
-          {/* CONTENIDO (Lista organizada por Secciones/Categorías) */}
-            <div className="space-y-6 flex-1">
-              {/* Barra de progreso global */}
-              <div className="bg-bg-card border border-border-main p-3.5 rounded-2xl space-y-2.5 font-mono">
-                <div className="flex justify-between items-center text-[10px] uppercase font-bold tracking-wide">
-                  <span className="text-text-muted">Progreso Curso</span>
-                  <span className="text-indigo-400">{completedCount}/{totalCount} ({progressPercent}%)</span>
-                </div>
-                <div className="w-full h-1.5 bg-bg-input rounded-full overflow-hidden border border-border-main/50">
-                  <div 
-                    className="h-full bg-indigo-500 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(99,102,241,0.25)]" 
-                    style={{ width: `${progressPercent}%` }}
-                  ></div>
-                </div>
-              </div>
-
-              {/* Lista agrupada */}
-              <div className="space-y-5">
-                {Object.keys(groupedResources).map((categoryName, groupIdx) => {
-                  const items = groupedResources[categoryName];
-                  return (
-                    <div key={categoryName} className="space-y-2">
-                      {/* Cabecera de la sección */}
-                      <h4 className="text-[10px] font-extrabold text-text-title font-mono uppercase tracking-wider border-b border-border-main pb-2 flex items-center justify-between">
-                        <span>Sección {groupIdx + 1}: {categoryName}</span>
-                        <span className="text-text-muted font-normal">({items.length})</span>
-                      </h4>
-
-                      {/* Lista de lecciones dentro de la sección */}
-                      <div className="space-y-1.5">
-                        {items.map(res => {
-                          const isItemCompleted = (user.completedResources || []).includes(res.id);
-                          const isItemActive = selectedResource.id === res.id;
-                          const thumb = getCourseImage(res);
-                          const duration = getDeterministicDuration(res.id);
-
-                          return (
-                            <div
-                              key={res.id}
-                              className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer font-mono ${
-                                isItemActive 
-                                  ? 'bg-bg-active border-border-active text-text-title' 
-                                  : 'bg-bg-card/40 border-border-main text-text-muted hover:bg-bg-input hover:text-text-main'
-                              }`}
-                              onClick={() => setSelectedResource(res)}
-                            >
-                              {/* Thumbnail con duración overlay */}
-                              <div className="w-16 h-10 rounded-lg overflow-hidden shrink-0 relative bg-bg-input border border-border-main">
-                                <img src={thumb} alt={res.title} className="w-full h-full object-cover" />
-                                <span className="absolute bottom-0.5 right-0.5 px-1 bg-black/75 text-[8px] text-white rounded font-mono">
-                                  {duration}
-                                </span>
-                              </div>
-
-                              {/* Detalles */}
-                              <div className="flex-1 min-w-0 text-left">
-                                <p className={`text-[10px] font-extrabold truncate ${isItemActive ? 'text-indigo-400' : 'text-text-main'}`}>
-                                  {res.title}
-                                </p>
-                                <span className="inline-flex items-center gap-1 mt-0.5 text-[8px] text-text-muted scale-95 origin-left font-bold uppercase">
-                                  {getResourceIcon(res.type)}
-                                  <span>{res.type === 'html_video' ? 'código/html' : res.type}</span>
-                                </span>
-                              </div>
-
-                              {/* Botón de completado circular */}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleToggleCompleted(res.id);
-                                }}
-                                className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all shrink-0 cursor-pointer ${
-                                  isItemCompleted 
-                                    ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-500' 
-                                    : 'border-border-main hover:border-indigo-500/40 hover:bg-bg-input'
-                                }`}
-                                title={isItemCompleted ? "Marcar pendiente" : "Marcar completado"}
-                              >
-                                {isItemCompleted && <CheckCircle2 className="w-3.5 h-3.5" />}
-                              </button>
-
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-
-
+          {renderLessonsList()}
         </div>
         
         {/* Footer del Sidebar */}

@@ -54,8 +54,8 @@ export default function Login() {
         <div className="absolute -bottom-20 right-1/4 h-80 w-80 rounded-full bg-blue-500/10 blur-[130px]"></div>
       </div>
 
-      <div className="w-full max-w-5xl grid lg:grid-cols-2 gap-6 relative z-10">
-        <section className="cyber-panel rounded-3xl p-8 md:p-10 border border-border-main flex flex-col justify-between">
+      <div className="w-full max-w-md lg:max-w-5xl grid lg:grid-cols-2 gap-6 relative z-10">
+        <section className="hidden lg:flex cyber-panel rounded-3xl p-8 md:p-10 border border-border-main flex-col justify-between">
           <div>
             <div className="inline-flex items-center gap-3 text-text-main mb-8">
               <div className="w-11 h-11 rounded-2xl bg-bg-active border border-border-active flex items-center justify-center text-text-active">

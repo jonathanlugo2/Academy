@@ -3,7 +3,8 @@ import {
   CheckCircle2, Send, Clock, MessageSquare, 
   User, Search, Inbox, Mail, Hash, HelpCircle,
   Shield, ChevronRight, PenLine, AlertCircle, Lock,
-  Paperclip, Link, X, Image, FileText, ExternalLink
+  Paperclip, Link, X, Image, FileText, ExternalLink,
+  ArrowLeft
 } from 'lucide-react';
 
 export default function CommunicationPanel({
@@ -51,9 +52,10 @@ export default function CommunicationPanel({
 
   const openTicketsCount = tickets.filter(t => t.status === 'open').length;
 
-  // Seleccionar automáticamente el primer ticket si ninguno está seleccionado
+  // Seleccionar automáticamente el primer ticket si ninguno está seleccionado (solo en desktop)
   useEffect(() => {
-    if (filteredTickets.length > 0 && !selectedTicketId && !showComposeView) {
+    const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
+    if (isDesktop && filteredTickets.length > 0 && !selectedTicketId && !showComposeView) {
       setSelectedTicketId(filteredTickets[0].id);
     }
   }, [filteredTickets, selectedTicketId, showComposeView, setSelectedTicketId]);
@@ -292,7 +294,7 @@ export default function CommunicationPanel({
     <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-180px)] min-h-[600px] font-sans text-left">
       
       {/* PANEL IZQUIERDO: LISTA DE TICKETS */}
-      <div className="w-full lg:w-[380px] flex flex-col bg-bg-card border border-border-main rounded-3xl overflow-hidden shadow-sm">
+      <div className={`w-full lg:w-[380px] flex-col bg-bg-card border border-border-main rounded-3xl overflow-hidden shadow-sm ${selectedTicketId || showComposeView ? 'hidden lg:flex' : 'flex'}`}>
         
         {/* Header de Lista */}
         <div className="p-5 border-b border-border-main space-y-4">
@@ -398,7 +400,7 @@ export default function CommunicationPanel({
       </div>
 
       {/* PANEL DERECHO: VISTA DE CHAT O COMPOSE */}
-      <div className="flex-1 flex flex-col bg-bg-card border border-border-main rounded-3xl overflow-hidden relative shadow-sm">
+      <div className={`flex-1 flex-col bg-bg-card border border-border-main rounded-3xl overflow-hidden relative shadow-sm ${selectedTicketId || showComposeView ? 'flex' : 'hidden lg:flex'}`}>
         
         {showComposeView ? (
           /* ─── VISTA DE CREACIÓN DE TICKET ─── */
@@ -406,6 +408,14 @@ export default function CommunicationPanel({
             {/* Compose Header */}
             <div className="px-6 py-5 border-b border-border-main bg-bg-input/20 flex justify-between items-center">
               <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => setShowComposeView(false)}
+                  className="p-1.5 rounded-lg text-text-muted hover:text-text-main hover:bg-bg-input transition-colors lg:hidden shrink-0 cursor-pointer"
+                  title="Volver"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
                 <div className="w-12 h-12 rounded-2xl bg-bg-input border border-border-main flex items-center justify-center text-text-active shadow-inner">
                   <PenLine className="w-6 h-6" />
                 </div>
@@ -501,6 +511,14 @@ export default function CommunicationPanel({
             {/* Chat Header */}
             <div className="px-6 py-5 border-b border-border-main bg-bg-input/20 flex justify-between items-center">
               <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => handleSelectTicket(null)}
+                  className="p-1.5 rounded-lg text-text-muted hover:text-text-main hover:bg-bg-input transition-colors lg:hidden shrink-0 cursor-pointer"
+                  title="Volver"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
                 <div className="w-12 h-12 rounded-2xl bg-bg-input border border-border-main flex items-center justify-center text-text-active shadow-inner">
                   <MessageSquare className="w-6 h-6" />
                 </div>

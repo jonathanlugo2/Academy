@@ -112,7 +112,7 @@ export default function CourseDirectory({
           </div>
 
           {/* Selector de Tipo */}
-          <div className="flex items-center gap-1.5 bg-bg-input p-1.5 rounded-2xl border border-border-main overflow-x-auto w-full md:w-auto no-scrollbar">
+          <div className="hidden md:flex items-center gap-1.5 bg-bg-input p-1.5 rounded-2xl border border-border-main overflow-x-auto w-full md:w-auto no-scrollbar">
             {types.map(type => (
               <button
                 key={type.id}
@@ -131,7 +131,7 @@ export default function CourseDirectory({
         </div>
 
         {/* Categorías (Badges) */}
-        <div className="flex flex-wrap gap-2 border-t border-border-main pt-4">
+        <div className="hidden md:flex flex-wrap gap-2 border-t border-border-main pt-4">
           {categories.map(category => (
             <button
               key={category}

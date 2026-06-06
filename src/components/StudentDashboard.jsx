@@ -353,11 +353,10 @@ export default function StudentDashboard() {
         setIsSidebarCollapsed={setIsSidebarCollapsed}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        logout={logout}
       />
 
       {/* CONTENIDO PRINCIPAL */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden">
+      <main className="flex-1 flex flex-col h-full overflow-hidden pb-16 md:pb-0">
         <header className="h-16 border-b border-border-main bg-bg-card backdrop-blur-md flex items-center justify-between px-6 shrink-0 relative z-40">
           <h2 className="text-xs font-extrabold uppercase tracking-wider text-text-title font-mono">
             {activeTab === 'resources' && 'RECURSOS DEL SISTEMA // FORMACIONES'}
