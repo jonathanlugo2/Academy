@@ -2,7 +2,7 @@ import { ArrowUpRight, Calendar, Clock } from 'lucide-react';
 
 export default function AcademyCard({ title, category, status, date, tags, duration, isNew }) {
   const statusColors = {
-    'En Progreso': 'bg-indigo-500/10 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-450 border-indigo-500/20 shadow-[0_0_8px_rgba(99,102,241,0.06)]',
+    'En Progreso': 'bg-indigo-500/10 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-450 border-indigo-500/20 shadow-[0_0_8px_rgba(15,117,188,0.06)]',
     'Completado': 'bg-emerald-500/10 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.06)]',
     'Planificado': 'bg-bg-input text-text-muted border-border-main',
   };
@@ -10,7 +10,7 @@ export default function AcademyCard({ title, category, status, date, tags, durat
   return (
     <div className="academy-card group relative overflow-hidden">
       {isNew && (
-        <div className="absolute top-0 right-0 -mr-8 -mt-2 w-24 h-8 bg-indigo-500 rotate-45 transform flex items-end justify-center pb-1 text-[9px] font-bold text-white uppercase tracking-widest font-mono shadow-[0_0_8px_rgba(99,102,241,0.3)] z-10">
+        <div className="absolute top-0 right-0 -mr-8 -mt-2 w-24 h-8 bg-indigo-500 rotate-45 transform flex items-end justify-center pb-1 text-[9px] font-bold text-white uppercase tracking-widest font-mono shadow-[0_0_8px_rgba(15,117,188,0.3)] z-10">
           Nuevo
         </div>
       )}
@@ -22,7 +22,7 @@ export default function AcademyCard({ title, category, status, date, tags, durat
         </span>
       </div>
       
-      <h3 className="text-sm font-bold text-text-title mb-2 leading-tight group-hover:text-text-active group-hover:shadow-[0_0_8px_rgba(99,102,241,0.1)] transition-colors font-mono">
+      <h3 className="text-sm font-bold text-text-title mb-2 leading-tight group-hover:text-text-active group-hover:shadow-[0_0_8px_rgba(15,117,188,0.1)] transition-colors font-mono">
         {title}
       </h3>
       

@@ -17,7 +17,7 @@ export default function AdminSidebar({
     <aside className={`w-full ${isSidebarCollapsed ? 'md:w-20' : 'md:w-64'} bg-bg-sidebar backdrop-blur-md border-r border-border-main flex flex-col shrink-0 h-auto md:h-full transition-all duration-300 ease-in-out shadow-sm`}>
       <div className="h-16 flex items-center px-6 border-b border-border-main justify-between">
         <div className="flex items-center overflow-hidden">
-          <div className={`w-8 h-8 rounded-lg bg-bg-active border border-border-active flex items-center justify-center text-text-active shadow-[0_0_10px_rgba(99,102,241,0.15)] shrink-0 ${isSidebarCollapsed ? 'mr-0' : 'mr-3'}`}>
+          <div className={`w-8 h-8 rounded-lg bg-bg-active border border-border-active flex items-center justify-center text-text-active shadow-[0_0_10px_rgba(15,117,188,0.15)] shrink-0 ${isSidebarCollapsed ? 'mr-0' : 'mr-3'}`}>
             <GraduationCap className="w-4.5 h-4.5" />
           </div>
           {!isSidebarCollapsed && (
@@ -43,7 +43,7 @@ export default function AdminSidebar({
             isSidebarCollapsed ? 'justify-center px-0' : 'px-3'
           } ${
             activeTab === 'overview' 
-              ? 'bg-bg-active text-text-active border border-border-active shadow-[0_0_12px_rgba(99,102,241,0.08)]' 
+              ? 'bg-bg-active text-text-active border border-border-active shadow-[0_0_12px_rgba(15,117,188,0.08)]' 
               : 'text-text-muted border border-transparent hover:bg-bg-input hover:text-text-main'
           }`}
           title={isSidebarCollapsed ? "Resumen General" : undefined}
@@ -58,7 +58,7 @@ export default function AdminSidebar({
             isSidebarCollapsed ? 'justify-center px-0' : 'px-3'
           } ${
             activeTab === 'content' 
-              ? 'bg-bg-active text-text-active border border-border-active shadow-[0_0_12px_rgba(99,102,241,0.08)]' 
+              ? 'bg-bg-active text-text-active border border-border-active shadow-[0_0_12px_rgba(15,117,188,0.08)]' 
               : 'text-text-muted border border-transparent hover:bg-bg-input hover:text-text-main'
           }`}
           title={isSidebarCollapsed ? "Gestión Contenidos" : undefined}
@@ -73,7 +73,7 @@ export default function AdminSidebar({
             isSidebarCollapsed ? 'justify-center px-0' : 'px-3'
           } ${
             activeTab === 'users' 
-              ? 'bg-bg-active text-text-active border border-border-active shadow-[0_0_12px_rgba(99,102,241,0.08)]' 
+              ? 'bg-bg-active text-text-active border border-border-active shadow-[0_0_12px_rgba(15,117,188,0.08)]' 
               : 'text-text-muted border border-transparent hover:bg-bg-input hover:text-text-main'
           }`}
           title={isSidebarCollapsed ? "Gestión Usuarios" : undefined}
@@ -88,7 +88,7 @@ export default function AdminSidebar({
             isSidebarCollapsed ? 'justify-center px-0' : 'px-3'
           } ${
             activeTab === 'messages' 
-              ? 'bg-bg-active text-text-active border border-border-active shadow-[0_0_12px_rgba(99,102,241,0.08)]' 
+              ? 'bg-bg-active text-text-active border border-border-active shadow-[0_0_12px_rgba(15,117,188,0.08)]' 
               : 'text-text-muted border border-transparent hover:bg-bg-input hover:text-text-main'
           }`}
           title={isSidebarCollapsed ? "Bandeja Mensajes" : undefined}

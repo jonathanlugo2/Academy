@@ -612,7 +612,7 @@ export default function StudentDashboard() {
                               className={`h-full rounded-full transition-all duration-500 ${
                                 effectiveDays >= 183
                                   ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
-                                  : 'bg-indigo-650 shadow-[0_0_10px_rgba(99,102,241,0.1)]'
+                                  : 'bg-indigo-650 shadow-[0_0_10px_rgba(15,117,188,0.1)]'
                               }`}
                               style={{ width: `${progressPercent}%` }}
                             ></div>
@@ -661,7 +661,7 @@ export default function StudentDashboard() {
                                   setAbsencesInput(e.target.value);
                                   if (absencesSuccess) setAbsencesSuccess(false);
                               }}
-                              className="w-full bg-bg-input border border-border-main focus:border-border-hover focus:shadow-[0_0_12px_rgba(99,102,241,0.08)] rounded-xl px-4 py-3 text-xs text-text-main focus:outline-none transition-all duration-200"
+                              className="w-full bg-bg-input border border-border-main focus:border-border-hover focus:shadow-[0_0_12px_rgba(15,117,188,0.08)] rounded-xl px-4 py-3 text-xs text-text-main focus:outline-none transition-all duration-200"
                             />
                           </div>
 

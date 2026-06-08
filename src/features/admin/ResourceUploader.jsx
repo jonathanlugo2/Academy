@@ -240,7 +240,7 @@ export default function ResourceUploader({
                     onClick={() => setCurrentPage(i + 1)}
                     className={`w-8 h-8 rounded-lg text-[10px] font-bold font-mono transition-all cursor-pointer ${
                       currentPage === i + 1 
-                        ? 'bg-indigo-600 text-white border border-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.2)]' 
+                        ? 'bg-indigo-600 text-white border border-indigo-500 shadow-[0_0_8px_rgba(15,117,188,0.2)]' 
                         : 'bg-bg-input text-text-muted border border-border-main hover:text-text-main hover:bg-bg-card'
                     }`}
                   >
@@ -409,28 +409,28 @@ export default function ResourceUploader({
                         <button
                           type="button"
                           onClick={() => setNewImageUrl('/preset_tramites.png')}
-                          className={`px-3 py-2 rounded-xl text-[9px] font-bold font-mono uppercase border cursor-pointer text-center transition-colors ${newImageUrl === '/preset_tramites.png' ? 'bg-bg-active text-text-active border-border-active shadow-[0_0_10px_rgba(99,102,241,0.1)]' : 'bg-bg-input text-text-muted border-border-main hover:border-border-hover hover:text-text-main'}`}
+                          className={`px-3 py-2 rounded-xl text-[9px] font-bold font-mono uppercase border cursor-pointer text-center transition-colors ${newImageUrl === '/preset_tramites.png' ? 'bg-bg-active text-text-active border-border-active shadow-[0_0_10px_rgba(15,117,188,0.1)]' : 'bg-bg-input text-text-muted border-border-main hover:border-border-hover hover:text-text-main'}`}
                         >
                           Trámites
                         </button>
                         <button
                           type="button"
                           onClick={() => setNewImageUrl('/preset_impuestos.png')}
-                          className={`px-3 py-2 rounded-xl text-[9px] font-bold font-mono uppercase border cursor-pointer text-center transition-colors ${newImageUrl === '/preset_impuestos.png' ? 'bg-bg-active text-text-active border-border-active shadow-[0_0_10px_rgba(99,102,241,0.1)]' : 'bg-bg-input text-text-muted border-border-main hover:border-border-hover hover:text-text-main'}`}
+                          className={`px-3 py-2 rounded-xl text-[9px] font-bold font-mono uppercase border cursor-pointer text-center transition-colors ${newImageUrl === '/preset_impuestos.png' ? 'bg-bg-active text-text-active border-border-active shadow-[0_0_10px_rgba(15,117,188,0.1)]' : 'bg-bg-input text-text-muted border-border-main hover:border-border-hover hover:text-text-main'}`}
                         >
                           Impuestos
                         </button>
                         <button
                           type="button"
                           onClick={() => setNewImageUrl('/preset_coworking.png')}
-                          className={`px-3 py-2 rounded-xl text-[9px] font-bold font-mono uppercase border cursor-pointer text-center transition-colors ${newImageUrl === '/preset_coworking.png' ? 'bg-bg-active text-text-active border-border-active shadow-[0_0_10px_rgba(99,102,241,0.1)]' : 'bg-bg-input text-text-muted border-border-main hover:border-border-hover hover:text-text-main'}`}
+                          className={`px-3 py-2 rounded-xl text-[9px] font-bold font-mono uppercase border cursor-pointer text-center transition-colors ${newImageUrl === '/preset_coworking.png' ? 'bg-bg-active text-text-active border-border-active shadow-[0_0_10px_rgba(15,117,188,0.1)]' : 'bg-bg-input text-text-muted border-border-main hover:border-border-hover hover:text-text-main'}`}
                         >
                           Coworking
                         </button>
                         <button
                           type="button"
                           onClick={() => setNewImageUrl('/preset_herramientas.png')}
-                          className={`px-3 py-2 rounded-xl text-[9px] font-bold font-mono uppercase border cursor-pointer text-center transition-colors ${newImageUrl === '/preset_herramientas.png' ? 'bg-bg-active text-text-active border-border-active shadow-[0_0_10px_rgba(99,102,241,0.1)]' : 'bg-bg-input text-text-muted border-border-main hover:border-border-hover hover:text-text-main'}`}
+                          className={`px-3 py-2 rounded-xl text-[9px] font-bold font-mono uppercase border cursor-pointer text-center transition-colors ${newImageUrl === '/preset_herramientas.png' ? 'bg-bg-active text-text-active border-border-active shadow-[0_0_10px_rgba(15,117,188,0.1)]' : 'bg-bg-input text-text-muted border-border-main hover:border-border-hover hover:text-text-main'}`}
                         >
                           Herramientas
                         </button>

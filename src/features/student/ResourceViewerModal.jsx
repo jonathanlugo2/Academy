@@ -145,7 +145,7 @@ export default function ResourceViewerModal({
           </div>
           <div className="w-full h-1.5 bg-bg-input rounded-full overflow-hidden border border-border-main/50">
             <div 
-              className="h-full bg-indigo-500 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(99,102,241,0.25)]" 
+              className="h-full bg-indigo-500 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(15,117,188,0.25)]" 
               style={{ width: `${progressPercent}%` }}
             ></div>
           </div>
@@ -287,7 +287,7 @@ export default function ResourceViewerModal({
                   href={selectedResource.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-2 py-3 px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition-all cursor-pointer shadow-[0_0_12px_rgba(99,102,241,0.2)]"
+                  className="inline-flex items-center gap-2 py-3 px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition-all cursor-pointer shadow-[0_0_12px_rgba(15,117,188,0.2)]"
                 >
                   Visitar Enlace Externo
                   <ExternalLink className="w-4 h-4" />

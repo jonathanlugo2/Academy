@@ -641,7 +641,7 @@ export default function AdminDashboard() {
               </div>
             ) : (
               <div className="max-w-md w-full bg-bg-card border border-border-main rounded-2xl p-8 text-center space-y-5">
-                <div className="w-14 h-14 rounded-2xl bg-bg-active text-text-active border border-border-active flex items-center justify-center mx-auto shadow-[0_0_12px_rgba(99,102,241,0.1)]">
+                <div className="w-14 h-14 rounded-2xl bg-bg-active text-text-active border border-border-active flex items-center justify-center mx-auto shadow-[0_0_12px_rgba(15,117,188,0.1)]">
                   <ExternalLink className="w-6 h-6" />
                 </div>
                 <div className="space-y-2 font-mono">
@@ -654,7 +654,7 @@ export default function AdminDashboard() {
                   href={previewResource.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-2 py-2.5 px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition-all cursor-pointer shadow-[0_0_10px_rgba(99,102,241,0.15)]"
+                  className="inline-flex items-center gap-2 py-2.5 px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition-all cursor-pointer shadow-[0_0_10px_rgba(15,117,188,0.15)]"
                 >
                   Abrir enlace en pestaña nueva
                   <ExternalLink className="w-4 h-4" />
@@ -764,7 +764,7 @@ export default function AdminDashboard() {
             {activeTab === 'messages' && 'COMMUNICATION HUB // SUPPORT TICKET'}
           </h2>
           <div className="flex items-center gap-3">
-            <div className="text-[10px] text-text-active bg-bg-active border border-border-active px-3 py-1.5 rounded-xl font-bold font-mono uppercase tracking-wider hidden sm:inline-block shadow-[0_0_10px_rgba(99,102,241,0.05)]">
+            <div className="text-[10px] text-text-active bg-bg-active border border-border-active px-3 py-1.5 rounded-xl font-bold font-mono uppercase tracking-wider hidden sm:inline-block shadow-[0_0_10px_rgba(15,117,188,0.05)]">
               Modo Administrador
             </div>
             <div className="flex items-center gap-2.5 pl-3 border-l border-border-main">

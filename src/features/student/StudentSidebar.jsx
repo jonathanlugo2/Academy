@@ -20,7 +20,7 @@ export default function StudentSidebar({
       {/* Header del Sidebar (Solo Visible en Escritorio) */}
       <div className="hidden md:flex h-16 items-center px-6 border-b border-border-main justify-between shrink-0 w-full">
         <div className="flex items-center overflow-hidden">
-          <div className={`w-8 h-8 rounded-lg bg-bg-active border border-border-active flex items-center justify-center text-text-active shadow-[0_0_10px_rgba(99,102,241,0.15)] shrink-0 ${isSidebarCollapsed ? 'mr-0' : 'mr-3'}`}>
+          <div className={`w-8 h-8 rounded-lg bg-bg-active border border-border-active flex items-center justify-center text-text-active shadow-[0_0_10px_rgba(15,117,188,0.15)] shrink-0 ${isSidebarCollapsed ? 'mr-0' : 'mr-3'}`}>
             <GraduationCap className="w-4.5 h-4.5" />
           </div>
           {!isSidebarCollapsed && (
@@ -48,7 +48,7 @@ export default function StudentSidebar({
             isSidebarCollapsed ? 'md:justify-center md:px-0' : 'md:px-3'
           } ${
             activeTab === 'resources' 
-              ? 'bg-bg-active text-text-active border border-border-active shadow-[0_0_12px_rgba(99,102,241,0.08)]' 
+              ? 'bg-bg-active text-text-active border border-border-active shadow-[0_0_12px_rgba(15,117,188,0.08)]' 
               : 'text-text-muted border-transparent hover:bg-bg-input hover:text-text-main'
           }`}
           title={isSidebarCollapsed ? "Material Formativo" : undefined}
@@ -71,7 +71,7 @@ export default function StudentSidebar({
             isSidebarCollapsed ? 'md:justify-center md:px-0' : 'md:px-3'
           } ${
             activeTab === 'support' 
-              ? 'bg-bg-active text-text-active border border-border-active shadow-[0_0_12px_rgba(99,102,241,0.08)]' 
+              ? 'bg-bg-active text-text-active border border-border-active shadow-[0_0_12px_rgba(15,117,188,0.08)]' 
               : 'text-text-muted border-transparent hover:bg-bg-input hover:text-text-main'
           }`}
           title={isSidebarCollapsed ? "Canal de Soporte" : undefined}

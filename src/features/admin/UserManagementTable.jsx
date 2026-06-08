@@ -262,7 +262,7 @@ export default function UserManagementTable({
                     onClick={() => setCurrentPage(i + 1)}
                     className={`w-8 h-8 rounded-lg text-[10px] font-bold font-mono transition-all cursor-pointer ${
                       currentPage === i + 1 
-                        ? 'bg-indigo-600 text-white border border-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.2)]' 
+                        ? 'bg-indigo-600 text-white border border-indigo-500 shadow-[0_0_8px_rgba(15,117,188,0.2)]' 
                         : 'bg-bg-input text-text-muted border border-border-main hover:text-text-main hover:bg-bg-card'
                     }`}
                   >
@@ -454,7 +454,7 @@ export default function UserManagementTable({
                         </span>
                       </div>
                       <div className="w-full h-2.5 bg-bg-main rounded-full overflow-hidden border border-border-main/60 p-0.5">
-                        <div className={`h-full rounded-full transition-all duration-1000 ${calculateResidencyDays(selectedUser.arrivalDate, selectedUser.absences) >= 183 ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-indigo-650 shadow-[0_0_15px_rgba(99,102,241,0.3)]'}`} style={{ width: `${Math.min(100, (calculateResidencyDays(selectedUser.arrivalDate, selectedUser.absences) / 183) * 100)}%` }}></div>
+                        <div className={`h-full rounded-full transition-all duration-1000 ${calculateResidencyDays(selectedUser.arrivalDate, selectedUser.absences) >= 183 ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-indigo-650 shadow-[0_0_15px_rgba(15,117,188,0.3)]'}`} style={{ width: `${Math.min(100, (calculateResidencyDays(selectedUser.arrivalDate, selectedUser.absences) / 183) * 100)}%` }}></div>
                       </div>
                       <div className="flex justify-between text-[9px] text-text-muted font-mono uppercase font-bold tracking-widest">
                         <span>LLEGADA: {selectedUser.arrivalDate || 'N/A'}</span>

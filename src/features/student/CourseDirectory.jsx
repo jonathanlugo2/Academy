@@ -100,7 +100,7 @@ export default function CourseDirectory({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Buscar curso, trámites, autónomos..." 
-              className="w-full bg-bg-input border border-border-main focus:border-border-hover focus:shadow-[0_0_12px_rgba(99,102,241,0.1)] rounded-xl pl-11 pr-4 py-3 text-xs text-text-main placeholder-text-muted focus:outline-none transition-all duration-200"
+              className="w-full bg-bg-input border border-border-main focus:border-border-hover focus:shadow-[0_0_12px_rgba(15,117,188,0.1)] rounded-xl pl-11 pr-4 py-3 text-xs text-text-main placeholder-text-muted focus:outline-none transition-all duration-200"
             />
           </div>
 
@@ -112,7 +112,7 @@ export default function CourseDirectory({
                 onClick={() => setSelectedType(type.id)}
                 className={`px-3.5 py-2 rounded-xl text-[10px] font-bold font-mono uppercase tracking-wider cursor-pointer transition-all whitespace-nowrap border ${
                   selectedType === type.id
-                    ? 'bg-bg-active text-text-active border-border-active shadow-[0_0_10px_rgba(99,102,241,0.06)]'
+                    ? 'bg-bg-active text-text-active border-border-active shadow-[0_0_10px_rgba(15,117,188,0.06)]'
                     : 'text-text-muted border-transparent hover:text-text-main'
                 }`}
               >

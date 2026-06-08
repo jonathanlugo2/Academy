@@ -16,7 +16,7 @@ export default function MetricsOverview({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div 
           onClick={() => setActiveTab('users')}
-          className="bg-bg-card/60 border border-border-main hover:border-border-hover/25 hover:bg-bg-card/85 rounded-2xl p-5 relative overflow-hidden cursor-pointer transition-all duration-300 backdrop-blur-md shadow-sm hover:-translate-y-1 hover:shadow-[0_10px_25px_rgba(0,0,0,0.05),0_0_15px_rgba(99,102,241,0.05)] group"
+          className="bg-bg-card/60 border border-border-main hover:border-border-hover/25 hover:bg-bg-card/85 rounded-2xl p-5 relative overflow-hidden cursor-pointer transition-all duration-300 backdrop-blur-md shadow-sm hover:-translate-y-1 hover:shadow-[0_10px_25px_rgba(0,0,0,0.05),0_0_15px_rgba(15,117,188,0.05)] group"
         >
           <div className="absolute right-4 top-4 text-text-active/20 group-hover:scale-110 transition-transform"><Users className="w-10 h-10 text-text-active" /></div>
           <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest font-mono">Estudiantes Activos</span>
@@ -26,7 +26,7 @@ export default function MetricsOverview({
 
         <div 
           onClick={() => setActiveTab('content')}
-          className="bg-bg-card/60 border border-border-main hover:border-border-hover/25 hover:bg-bg-card/85 rounded-2xl p-5 relative overflow-hidden cursor-pointer transition-all duration-300 backdrop-blur-md shadow-sm hover:-translate-y-1 hover:shadow-[0_10px_25px_rgba(0,0,0,0.05),0_0_15px_rgba(99,102,241,0.05)] group"
+          className="bg-bg-card/60 border border-border-main hover:border-border-hover/25 hover:bg-bg-card/85 rounded-2xl p-5 relative overflow-hidden cursor-pointer transition-all duration-300 backdrop-blur-md shadow-sm hover:-translate-y-1 hover:shadow-[0_10px_25px_rgba(0,0,0,0.05),0_0_15px_rgba(15,117,188,0.05)] group"
         >
           <div className="absolute right-4 top-4 text-text-active/20 group-hover:scale-110 transition-transform"><BookOpen className="w-10 h-10 text-text-active" /></div>
           <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest font-mono">Formaciones creadas</span>
@@ -36,7 +36,7 @@ export default function MetricsOverview({
 
         <div 
           onClick={() => setActiveTab('messages')}
-          className="bg-bg-card/60 border border-border-main hover:border-border-hover/25 hover:bg-bg-card/85 rounded-2xl p-5 relative overflow-hidden cursor-pointer transition-all duration-300 backdrop-blur-md shadow-sm hover:-translate-y-1 hover:shadow-[0_10px_25px_rgba(0,0,0,0.05),0_0_15px_rgba(99,102,241,0.05)] group"
+          className="bg-bg-card/60 border border-border-main hover:border-border-hover/25 hover:bg-bg-card/85 rounded-2xl p-5 relative overflow-hidden cursor-pointer transition-all duration-300 backdrop-blur-md shadow-sm hover:-translate-y-1 hover:shadow-[0_10px_25px_rgba(0,0,0,0.05),0_0_15px_rgba(15,117,188,0.05)] group"
         >
           <div className="absolute right-4 top-4 text-amber-500/20 group-hover:scale-110 transition-transform"><AlertCircle className="w-10 h-10 text-amber-550 dark:text-amber-400" /></div>
           <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest font-mono">Consultas Pendientes</span>
@@ -91,7 +91,7 @@ export default function MetricsOverview({
                           <div className="w-full h-1.5 bg-bg-main rounded-full overflow-hidden border border-border-main/40">
                             <div 
                               className={`h-full rounded-full transition-all duration-355 ${
-                                isResident ? 'bg-emerald-500' : 'bg-indigo-650 shadow-[0_0_8px_rgba(99,102,241,0.2)]'
+                                isResident ? 'bg-emerald-500' : 'bg-indigo-650 shadow-[0_0_8px_rgba(15,117,188,0.2)]'
                               }`}
                               style={{ width: `${Math.min(100, (days / 183) * 100)}%` }}
                             ></div>
@@ -135,7 +135,7 @@ export default function MetricsOverview({
                     </div>
                     <button 
                       onClick={() => setActiveTab('messages')}
-                      className="px-2.5 py-1.5 text-[9px] bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shrink-0 transition-colors uppercase tracking-widest cursor-pointer shadow-[0_0_8px_rgba(99,102,241,0.12)] border border-indigo-500/10"
+                      className="px-2.5 py-1.5 text-[9px] bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shrink-0 transition-colors uppercase tracking-widest cursor-pointer shadow-[0_0_8px_rgba(15,117,188,0.12)] border border-indigo-500/10"
                     >
                       Responder
                     </button>
