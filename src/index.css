@@ -1,22 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  /* Dark mode variables (Default) - Refreshed with deep-navy EdTech theme inspired by Edutin */
-  --bg-main: #0a0d14;
-  --bg-card: #111522;
-  --bg-sidebar: #0e111b;
-  --bg-input: #06080d;
-  --border-main: rgba(255, 255, 255, 0.07);
-  --border-hover: rgba(15, 117, 188, 0.35);
-  --text-main: #e2e8f0;
-  --text-muted: #94a3b8;
-  --text-title: #ffffff;
-  --bg-active: rgba(15, 117, 188, 0.15);
-  --text-active: #60a5fa;
-  --border-active: rgba(15, 117, 188, 0.3);
-  --scrollbar-track: #06080d;
-  --scrollbar-thumb: #1e293b;
-  --scrollbar-thumb-hover: #334155;
+  /* Light mode variables (Default) - Refreshed with Edutin Academy inspired clean palette */
+  --bg-main: #f0f4f8; /* Soft blue-gray background */
+  --bg-card: #ffffff; /* Crisp white cards */
+  --bg-sidebar: #ffffff; /* Clean white sidebar */
+  --bg-input: #f8fafc; /* Sleek light input field background */
+  --border-main: #e2e8f0; /* Soft borders */
+  --border-hover: rgba(15, 117, 188, 0.4); /* Edutin Blue hover border */
+  --text-main: #334155; /* Slate main text */
+  --text-muted: #64748b; /* Soft gray-blue muted text */
+  --text-title: #0f172a; /* Dark navy headings */
+  --bg-active: rgba(15, 117, 188, 0.08); /* Soft active blue background */
+  --text-active: #0f75bc; /* Edutin active blue text */
+  --border-active: rgba(15, 117, 188, 0.2); /* Soft active blue border */
+  --scrollbar-track: #f1f5f9;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
 }
 
 html.light {
@@ -36,6 +36,25 @@ html.light {
   --scrollbar-track: #f1f5f9;
   --scrollbar-thumb: #cbd5e1;
   --scrollbar-thumb-hover: #94a3b8;
+}
+
+html.dark {
+  /* Dark mode variables - Refreshed with deep-navy EdTech theme inspired by Edutin */
+  --bg-main: #0a0d14;
+  --bg-card: #111522;
+  --bg-sidebar: #0e111b;
+  --bg-input: #06080d;
+  --border-main: rgba(255, 255, 255, 0.07);
+  --border-hover: rgba(15, 117, 188, 0.35);
+  --text-main: #e2e8f0;
+  --text-muted: #94a3b8;
+  --text-title: #ffffff;
+  --bg-active: rgba(15, 117, 188, 0.15);
+  --text-active: #60a5fa;
+  --border-active: rgba(15, 117, 188, 0.3);
+  --scrollbar-track: #06080d;
+  --scrollbar-thumb: #1e293b;
+  --scrollbar-thumb-hover: #334155;
 }
 
 @theme {

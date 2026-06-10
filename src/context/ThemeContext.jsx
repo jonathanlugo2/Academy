@@ -2,16 +2,16 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 
 const ThemeContext = createContext({
-  theme: 'dark',
+  theme: 'light',
   toggleTheme: () => {}
 });
 
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => {
-    // default to dark, check localstorage first
+    // default to light, check localstorage first
     const saved = localStorage.getItem('expatfiscal-theme');
     if (saved) return saved;
-    return 'dark'; // Default to dark cyberpunk theme
+    return 'light'; // Default to light theme
   });
 
   useEffect(() => {

@@ -2,12 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../utils/supabaseClient';
-import { Mail, Lock, ArrowRight, ShieldAlert, GraduationCap, Building2, CheckCircle2, Sun, Moon } from 'lucide-react';
-import { useTheme } from '../context/ThemeContext';
+import { Mail, Lock, ArrowRight, ShieldAlert, GraduationCap, Building2, CheckCircle2 } from 'lucide-react';
 
 export default function Login() {
   const { user, login } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -51,17 +49,6 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-bg-main flex items-center justify-center p-4 md:p-8 relative overflow-hidden transition-colors duration-200">
-      {/* Selector de Tema */}
-      <div className="absolute top-6 right-6 z-50">
-        <button
-          onClick={toggleTheme}
-          className="p-3 bg-bg-card hover:bg-bg-input border border-border-main rounded-2xl text-text-main hover:text-text-active transition-all cursor-pointer shadow-md hover:scale-105 active:scale-95 duration-200"
-          title="Cambiar tema"
-        >
-          {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-        </button>
-      </div>
-
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-20 left-1/3 h-72 w-72 rounded-full bg-indigo-500/10 blur-[120px]"></div>
         <div className="absolute -bottom-20 right-1/4 h-80 w-80 rounded-full bg-blue-500/10 blur-[130px]"></div>
