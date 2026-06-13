@@ -90,6 +90,7 @@ export default function StudentDashboard() {
     { id: 'video', label: 'Videos', icon: Video },
     { id: 'presentation', label: 'Presentaciones', icon: Presentation },
     { id: 'html_video', label: 'Código / HTML', icon: Code },
+    { id: 'test', label: 'Tests Interactivos', icon: Code },
     { id: 'link', label: 'Enlaces', icon: ExternalLink }
   ];
 
@@ -321,6 +322,7 @@ export default function StudentDashboard() {
       case 'presentation': return <Presentation className="w-5 h-5 text-amber-400" />;
       case 'document': return <FileText className="w-5 h-5 text-sky-400" />;
       case 'html_video': return <Code className="w-5 h-5 text-emerald-450" />;
+      case 'test': return <Code className="w-5 h-5 text-indigo-400" />;
       case 'link': return <ExternalLink className="w-5 h-5 text-indigo-400" />;
       default: return <FileText className="w-5 h-5 text-zinc-400" />;
     }
@@ -332,6 +334,7 @@ export default function StudentDashboard() {
       case 'presentation': return 'Ver Diapositivas';
       case 'document': return 'Abrir Documento PDF';
       case 'html_video': return 'Reproducir Contenido';
+      case 'test': return 'Realizar Test Interactivo';
       case 'link': return 'Ver Enlace Externo';
       default: return 'Abrir Recurso';
     }

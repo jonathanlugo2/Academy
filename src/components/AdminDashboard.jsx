@@ -623,7 +623,65 @@ export default function AdminDashboard() {
           </div>
 
           <div className="flex-1 bg-black overflow-hidden relative flex items-center justify-center">
-            {isEmbeddable ? (
+            {previewResource.type === 'test' ? (
+              <iframe 
+                srcDoc={previewResource.url ? previewResource.url.replace('</style>', `
+                  #lb-diagnostico {
+                    margin: 0 auto !important;
+                    max-width: 100% !important;
+                  }
+                  #lb-diagnostico .lb-shell {
+                    border: none !important;
+                    box-shadow: none !important;
+                    border-radius: 0 !important;
+                  }
+                  #lb-diagnostico .lb-hero {
+                    padding: 16px 12px 12px !important;
+                  }
+                  #lb-diagnostico .lb-hero h2 {
+                    font-size: clamp(20px, 3vw, 26px) !important;
+                  }
+                  #lb-diagnostico .lb-hero p {
+                    font-size: 13px !important;
+                  }
+                  #lb-diagnostico .lb-body {
+                    padding: 12px !important;
+                  }
+                  #lb-diagnostico .lb-step {
+                    padding: 16px !important;
+                  }
+                  #lb-diagnostico .lb-card-button {
+                    min-height: 100px !important;
+                    padding: 12px !important;
+                  }
+                  #lb-diagnostico .lb-icon {
+                    width: 30px !important;
+                    height: 30px !important;
+                    font-size: 16px !important;
+                    margin-bottom: 6px !important;
+                  }
+                  #lb-diagnostico .lb-card-title {
+                    font-size: 14px !important;
+                  }
+                  #lb-diagnostico .lb-card-copy {
+                    font-size: 11px !important;
+                  }
+                  #lb-diagnostico .lb-options {
+                    gap: 8px !important;
+                  }
+                  #lb-diagnostico .lb-disclaimer {
+                    margin-top: 8px !important;
+                    padding: 8px 12px !important;
+                    font-size: 11px !important;
+                  }
+                </style>
+              `) : ''}
+                title={previewResource.title}
+                className="w-full h-full border-none bg-white"
+                sandbox="allow-scripts allow-same-origin"
+                allowFullScreen
+              ></iframe>
+            ) : isEmbeddable ? (
               <iframe 
                 src={embedUrl}
                 title={previewResource.title}
@@ -735,6 +793,7 @@ export default function AdminDashboard() {
       case 'presentation': return <Presentation className="w-4 h-4 text-amber-400" />;
       case 'document': return <FileText className="w-4 h-4 text-sky-400" />;
       case 'html_video': return <Code className="w-4 h-4 text-emerald-450" />;
+      case 'test': return <Code className="w-4 h-4 text-indigo-400" />;
       case 'link': return <ExternalLink className="w-4 h-4 text-indigo-400" />;
       default: return <FileText className="w-4 h-4 text-text-muted" />;
     }

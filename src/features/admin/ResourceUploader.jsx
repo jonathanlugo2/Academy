@@ -121,6 +121,7 @@ export default function ResourceUploader({
             <option value="document">PDFs</option>
             <option value="presentation">DIAPOSITIVAS</option>
             <option value="html_video">CÓDIGO HTML</option>
+            <option value="test">TESTS INTERACTIVOS</option>
             <option value="link">ENLACES</option>
           </select>
         </div>
@@ -169,7 +170,7 @@ export default function ResourceUploader({
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-[9px] font-bold text-text-muted bg-bg-input border border-border-main px-2.5 py-1 rounded-lg uppercase font-mono tracking-wider">
-                        {resource.type === 'html_video' ? 'CÓDIGO' : resource.type}
+                        {resource.type === 'html_video' ? 'CÓDIGO' : resource.type === 'test' ? 'TEST' : resource.type}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -326,6 +327,7 @@ export default function ResourceUploader({
                         <option value="presentation">GOOGLE SLIDES</option>
                         <option value="document">DOCUMENTO PDF</option>
                         <option value="html_video">CÓDIGO / MP4 DIRECTO</option>
+                        <option value="test">TEST INTERACTIVO (HTML)</option>
                         <option value="link">ENLACE WEB</option>
                       </select>
                     </div>
@@ -359,6 +361,17 @@ export default function ResourceUploader({
                             {newUrl && newUrl.startsWith('data:application/pdf') ? 'Archivo PDF Seleccionado' : 'Arrastra o selecciona el archivo'}
                           </p>
                         </label>
+                      </div>
+                    ) : newType === 'test' ? (
+                      <div>
+                        <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 font-mono ml-1">Código HTML del Test *</label>
+                        <textarea 
+                          rows="8"
+                          value={newUrl}
+                          onChange={(e) => setNewUrl(e.target.value)}
+                          placeholder="Pega aquí el código HTML/CSS/JS de tu test..."
+                          className="w-full bg-bg-input border border-border-main rounded-2xl px-5 py-3.5 text-xs text-text-main placeholder-text-muted focus:border-border-hover outline-none transition-all font-mono resize-y shadow-inner h-40"
+                        />
                       </div>
                     ) : (
                       <div>

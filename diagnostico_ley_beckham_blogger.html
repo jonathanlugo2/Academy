@@ -1,0 +1,918 @@
+<div id="lb-diagnostico" class="lb-widget" data-version="2.0">
+  <style>
+    #lb-diagnostico,
+    #lb-diagnostico * {
+      box-sizing: border-box;
+    }
+
+    #lb-diagnostico {
+      --lb-azul-900: #102a43;
+      --lb-azul-800: #164e83;
+      --lb-azul-700: #1d6fb8;
+      --lb-azul-100: #e8f3ff;
+      --lb-azul-050: #f5fbff;
+      --lb-tinta: #1f2937;
+      --lb-muted: #64748b;
+      --lb-linea: #d9e2ec;
+      --lb-fondo: #f6f8fb;
+      --lb-card: #ffffff;
+      --lb-verde: #138a55;
+      --lb-verde-bg: #eaf8f0;
+      --lb-ambar: #a16207;
+      --lb-ambar-bg: #fff7dd;
+      --lb-rojo: #b42318;
+      --lb-rojo-bg: #fff0ee;
+      --lb-sombra: 0 18px 50px rgba(16, 42, 67, 0.13);
+      --lb-radius-xl: 24px;
+      --lb-radius-lg: 18px;
+      --lb-radius-md: 12px;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--lb-tinta);
+      width: 100%;
+      max-width: 980px;
+      margin: 24px auto;
+      line-height: 1.5;
+    }
+
+    #lb-diagnostico .lb-shell {
+      overflow: hidden;
+      border: 1px solid var(--lb-linea);
+      border-radius: var(--lb-radius-xl);
+      background: var(--lb-fondo);
+      box-shadow: var(--lb-sombra);
+    }
+
+    #lb-diagnostico .lb-hero {
+      padding: 34px 22px 28px;
+      color: #fff;
+      text-align: center;
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,0.24), transparent 30%),
+        linear-gradient(135deg, var(--lb-azul-900), var(--lb-azul-700));
+    }
+
+    #lb-diagnostico .lb-kicker {
+      display: inline-block;
+      margin-bottom: 12px;
+      padding: 6px 12px;
+      border: 1px solid rgba(255,255,255,0.35);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.12);
+      color: #eaf6ff;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .02em;
+      text-transform: uppercase;
+    }
+
+    #lb-diagnostico h2,
+    #lb-diagnostico h3,
+    #lb-diagnostico p {
+      margin-top: 0;
+    }
+
+    #lb-diagnostico .lb-hero h2 {
+      margin-bottom: 10px;
+      color: #fff;
+      font-size: clamp(28px, 5vw, 44px);
+      line-height: 1.05;
+      font-weight: 800;
+    }
+
+    #lb-diagnostico .lb-hero p {
+      max-width: 720px;
+      margin: 0 auto;
+      color: #d8ecff;
+      font-size: 17px;
+    }
+
+    #lb-diagnostico .lb-body {
+      padding: 22px;
+    }
+
+    #lb-diagnostico .lb-panel {
+      border: 1px solid var(--lb-linea);
+      border-radius: var(--lb-radius-lg);
+      background: var(--lb-card);
+      box-shadow: 0 10px 30px rgba(16, 42, 67, 0.07);
+    }
+
+    #lb-diagnostico .lb-progress {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    #lb-diagnostico .lb-progress-item {
+      padding: 10px 8px;
+      border: 1px solid var(--lb-linea);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--lb-muted);
+      font-size: 13px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    #lb-diagnostico .lb-progress-item.is-active {
+      border-color: var(--lb-azul-700);
+      background: var(--lb-azul-100);
+      color: var(--lb-azul-800);
+    }
+
+    #lb-diagnostico .lb-step {
+      display: none;
+      padding: 26px;
+    }
+
+    #lb-diagnostico .lb-step.is-visible {
+      display: block;
+    }
+
+    #lb-diagnostico .lb-step-header {
+      max-width: 760px;
+      margin: 0 auto 22px;
+      text-align: center;
+    }
+
+    #lb-diagnostico .lb-step-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 10px;
+      color: var(--lb-azul-700);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    #lb-diagnostico .lb-step h3 {
+      margin-bottom: 10px;
+      color: var(--lb-azul-900);
+      font-size: clamp(24px, 4vw, 34px);
+      line-height: 1.12;
+    }
+
+    #lb-diagnostico .lb-step-header p {
+      margin-bottom: 0;
+      color: var(--lb-muted);
+      font-size: 16px;
+    }
+
+    #lb-diagnostico .lb-options {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    #lb-diagnostico .lb-options.lb-options-two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      max-width: 760px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    #lb-diagnostico .lb-card-button {
+      width: 100%;
+      min-height: 145px;
+      padding: 18px;
+      border: 1px solid var(--lb-linea);
+      border-radius: var(--lb-radius-lg);
+      background: #fff;
+      color: var(--lb-tinta);
+      cursor: pointer;
+      text-align: left;
+      box-shadow: 0 8px 20px rgba(16, 42, 67, 0.05);
+      transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease;
+      appearance: none;
+    }
+
+    #lb-diagnostico .lb-card-button:hover,
+    #lb-diagnostico .lb-card-button:focus {
+      transform: translateY(-2px);
+      border-color: var(--lb-azul-700);
+      background: var(--lb-azul-050);
+      box-shadow: 0 14px 30px rgba(29, 111, 184, 0.16);
+      outline: none;
+    }
+
+    #lb-diagnostico .lb-icon {
+      display: inline-grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      margin-bottom: 12px;
+      border-radius: 14px;
+      background: var(--lb-azul-100);
+      font-size: 22px;
+    }
+
+    #lb-diagnostico .lb-card-title {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--lb-azul-900);
+      font-size: 17px;
+      font-weight: 800;
+      line-height: 1.22;
+    }
+
+    #lb-diagnostico .lb-card-copy {
+      display: block;
+      color: var(--lb-muted);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    #lb-diagnostico .lb-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 24px;
+    }
+
+    #lb-diagnostico .lb-link-button,
+    #lb-diagnostico .lb-primary-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 10px 16px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-weight: 800;
+      text-decoration: none;
+      transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+      appearance: none;
+    }
+
+    #lb-diagnostico .lb-link-button {
+      border: 1px solid var(--lb-linea);
+      background: #fff;
+      color: var(--lb-azul-800);
+    }
+
+    #lb-diagnostico .lb-primary-button {
+      border: 1px solid var(--lb-azul-700);
+      background: var(--lb-azul-700);
+      color: #fff;
+      box-shadow: 0 10px 24px rgba(29, 111, 184, .22);
+    }
+
+    #lb-diagnostico .lb-link-button:hover,
+    #lb-diagnostico .lb-primary-button:hover,
+    #lb-diagnostico .lb-link-button:focus,
+    #lb-diagnostico .lb-primary-button:focus {
+      transform: translateY(-1px);
+      outline: none;
+    }
+
+    #lb-diagnostico .lb-result-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    #lb-diagnostico .lb-result-card,
+    #lb-diagnostico .lb-next-card,
+    #lb-diagnostico .lb-visual-card {
+      border: 1px solid var(--lb-linea);
+      border-radius: var(--lb-radius-lg);
+      background: #fff;
+    }
+
+    #lb-diagnostico .lb-result-card {
+      overflow: hidden;
+    }
+
+    #lb-diagnostico .lb-result-top {
+      padding: 22px;
+      border-bottom: 1px solid var(--lb-linea);
+      background: linear-gradient(180deg, var(--lb-azul-050), #fff);
+    }
+
+    #lb-diagnostico .lb-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 10px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--lb-verde-bg);
+      color: var(--lb-verde);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    #lb-diagnostico .lb-result-top h3 {
+      margin-bottom: 8px;
+      color: var(--lb-azul-900);
+      font-size: 26px;
+      line-height: 1.15;
+    }
+
+    #lb-diagnostico .lb-result-top p,
+    #lb-diagnostico .lb-result-body p,
+    #lb-diagnostico .lb-next-card p {
+      color: var(--lb-muted);
+    }
+
+    #lb-diagnostico .lb-result-body {
+      padding: 22px;
+    }
+
+    #lb-diagnostico .lb-callout {
+      margin: 16px 0 0;
+      padding: 14px 16px;
+      border-left: 5px solid var(--lb-ambar);
+      border-radius: 12px;
+      background: var(--lb-ambar-bg);
+      color: #5f3b00;
+      font-weight: 700;
+    }
+
+    #lb-diagnostico .lb-danger-callout {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-left: 5px solid var(--lb-rojo);
+      border-radius: 12px;
+      background: var(--lb-rojo-bg);
+      color: #7a2018;
+      font-weight: 700;
+    }
+
+    #lb-diagnostico .lb-checklist {
+      display: grid;
+      gap: 10px;
+      margin: 18px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    #lb-diagnostico .lb-checklist li {
+      position: relative;
+      padding-left: 28px;
+      color: var(--lb-tinta);
+    }
+
+    #lb-diagnostico .lb-checklist li:before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--lb-verde-bg);
+      color: var(--lb-verde);
+      font-size: 13px;
+      font-weight: 900;
+      line-height: 20px;
+      text-align: center;
+    }
+
+    #lb-diagnostico .lb-side-stack {
+      display: grid;
+      gap: 14px;
+    }
+
+    #lb-diagnostico .lb-next-card,
+    #lb-diagnostico .lb-visual-card {
+      padding: 18px;
+    }
+
+    #lb-diagnostico .lb-next-card h4,
+    #lb-diagnostico .lb-visual-card h4 {
+      margin: 0 0 10px;
+      color: var(--lb-azul-900);
+      font-size: 18px;
+    }
+
+    #lb-diagnostico .lb-pill-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    #lb-diagnostico .lb-pill {
+      display: inline-flex;
+      padding: 6px 9px;
+      border: 1px solid var(--lb-linea);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--lb-muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    #lb-diagnostico .lb-bar {
+      margin-top: 14px;
+    }
+
+    #lb-diagnostico .lb-bar-track {
+      position: relative;
+      height: 28px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e9eef5;
+    }
+
+    #lb-diagnostico .lb-bar-fill {
+      width: 0%;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--lb-azul-700), #55a6e8);
+      transition: width .35s ease;
+    }
+
+    #lb-diagnostico .lb-bar-value {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 8px;
+      color: var(--lb-muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    #lb-diagnostico .lb-donut-wrap {
+      display: grid;
+      place-items: center;
+      margin: 14px 0;
+    }
+
+    #lb-diagnostico .lb-donut {
+      display: grid;
+      place-items: center;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      background: conic-gradient(var(--lb-azul-700) 0 40.1%, #dbe5ef 40.1% 100%);
+    }
+
+    #lb-diagnostico .lb-donut-center {
+      display: grid;
+      place-items: center;
+      width: 118px;
+      height: 118px;
+      border-radius: 50%;
+      background: #fff;
+      color: var(--lb-azul-900);
+      text-align: center;
+      box-shadow: inset 0 0 0 1px var(--lb-linea);
+    }
+
+    #lb-diagnostico .lb-donut-number {
+      display: block;
+      font-size: 30px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    #lb-diagnostico .lb-donut-text {
+      display: block;
+      max-width: 82px;
+      color: var(--lb-muted);
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.15;
+    }
+
+    #lb-diagnostico .lb-disclaimer {
+      margin: 16px 0 0;
+      padding: 14px 16px;
+      border-radius: var(--lb-radius-md);
+      background: #edf2f7;
+      color: #526173;
+      font-size: 13px;
+    }
+
+    #lb-diagnostico .lb-small-note {
+      margin-top: 10px;
+      color: var(--lb-muted);
+      font-size: 13px;
+    }
+
+    #lb-diagnostico .lb-hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 800px) {
+      #lb-diagnostico .lb-options,
+      #lb-diagnostico .lb-options.lb-options-two,
+      #lb-diagnostico .lb-result-grid {
+        grid-template-columns: 1fr;
+      }
+
+      #lb-diagnostico .lb-progress {
+        grid-template-columns: 1fr;
+      }
+
+      #lb-diagnostico .lb-step {
+        padding: 20px 16px;
+      }
+
+      #lb-diagnostico .lb-body {
+        padding: 16px;
+      }
+    }
+  </style>
+
+  <div class="lb-shell">
+    <section class="lb-hero" aria-labelledby="lb-title">
+      <span class="lb-kicker">Herramienta orientativa</span>
+      <h2 id="lb-title">Diagnostico Ley Beckham</h2>
+      <p>Identifica en tres pasos que via podria justificar tu traslado a Espana bajo el regimen especial para impatriados.</p>
+    </section>
+
+    <div class="lb-body">
+      <div class="lb-progress" aria-label="Progreso del diagnostico">
+        <div class="lb-progress-item is-active" data-progress="1">1. Perfil</div>
+        <div class="lb-progress-item" data-progress="2">2. Situacion</div>
+        <div class="lb-progress-item" data-progress="3">3. Resultado</div>
+      </div>
+
+      <section class="lb-panel lb-step is-visible" data-step="1">
+        <div class="lb-step-header">
+          <span class="lb-step-label">Paso 1 de 3</span>
+          <h3>¿Por que te trasladas a Espana?</h3>
+          <p>Elige el perfil que mejor describe la actividad que vas a realizar. Despues veras solo las vias relevantes para tu caso.</p>
+        </div>
+
+        <div class="lb-options" role="list">
+          <button type="button" class="lb-card-button" data-profile="empleado">
+            <span class="lb-icon" aria-hidden="true">💼</span>
+            <span class="lb-card-title">Empleado</span>
+            <span class="lb-card-copy">Contrato en Espana, traslado intraempresa o teletrabajo internacional.</span>
+          </button>
+
+          <button type="button" class="lb-card-button" data-profile="director">
+            <span class="lb-icon" aria-hidden="true">👔</span>
+            <span class="lb-card-title">Director o administrador</span>
+            <span class="lb-card-copy">Nombramiento formal en el organo de administracion de una entidad espanola.</span>
+          </button>
+
+          <button type="button" class="lb-card-button" data-profile="autonomo">
+            <span class="lb-icon" aria-hidden="true">🚀</span>
+            <span class="lb-card-title">Profesional por cuenta propia</span>
+            <span class="lb-card-copy">Emprendimiento innovador, servicios a startups o actividad de I+D+i.</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="lb-panel lb-step" data-step="2">
+        <div class="lb-step-header">
+          <span class="lb-step-label">Paso 2 de 3</span>
+          <h3 id="lb-step-2-title">Selecciona tu situacion</h3>
+          <p id="lb-step-2-copy">El diagnostico se adaptara al perfil elegido.</p>
+        </div>
+
+        <div id="lb-dynamic-options" class="lb-options" role="list"></div>
+
+        <div class="lb-actions">
+          <button type="button" class="lb-link-button" data-go-step="1">← Cambiar perfil</button>
+        </div>
+      </section>
+
+      <section class="lb-panel lb-step" data-step="3" aria-live="polite">
+        <div class="lb-step-header">
+          <span class="lb-step-label">Paso 3 de 3</span>
+          <h3>Resultado orientativo</h3>
+          <p>Esta via podria encajar con tu caso. Revisa los puntos criticos antes de preparar la documentacion.</p>
+        </div>
+
+        <div id="lb-result"></div>
+
+        <div class="lb-actions">
+          <button type="button" class="lb-primary-button" data-go-step="1">Iniciar nuevo diagnostico</button>
+          <button type="button" class="lb-link-button" data-go-step="2">← Volver a la situacion</button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var root = document.getElementById('lb-diagnostico');
+      if (!root) return;
+
+      var selectedProfile = null;
+
+      var data = {
+        empleado: {
+          title: 'Como empleado, ¿cual es tu situacion?',
+          copy: 'Selecciona la via que mejor describe tu relacion laboral al llegar a Espana.',
+          layout: 'three',
+          options: [
+            {
+              key: 'empleado_nuevo_contrato',
+              icon: '📝',
+              title: 'Nuevo contrato en Espana',
+              copy: 'Empiezas una relacion laboral con una empresa o empleador en Espana.'
+            },
+            {
+              key: 'empleado_traslado',
+              icon: '🌍',
+              title: 'Traslado por empleador extranjero',
+              copy: 'Te desplazan a Espana manteniendo el contrato con tu empleador extranjero.'
+            },
+            {
+              key: 'empleado_nomada',
+              icon: '💻',
+              title: 'Teletrabajador internacional',
+              copy: 'Trabajas en remoto desde Espana para una empresa situada fuera de Espana.'
+            }
+          ]
+        },
+        director: {
+          title: 'Como director o administrador, ¿que tipo de entidad es?',
+          copy: 'La regla de participacion cambia si la entidad desarrolla actividad economica real o si es patrimonial.',
+          layout: 'two',
+          options: [
+            {
+              key: 'director_economica',
+              icon: '🏢',
+              title: 'Entidad con actividad economica',
+              copy: 'La sociedad cuenta con medios, actividad y operativa verificable.'
+            },
+            {
+              key: 'director_patrimonial',
+              icon: '🏦',
+              title: 'Entidad patrimonial',
+              copy: 'La sociedad se dedica principalmente a tenencia de activos o patrimonio.'
+            }
+          ]
+        },
+        autonomo: {
+          title: 'Como profesional por cuenta propia, ¿que actividad realizaras?',
+          copy: 'La normativa no cubre cualquier actividad autonoma: debe encajar en una de estas vias concretas.',
+          layout: 'three',
+          options: [
+            {
+              key: 'autonomo_emprendedor',
+              icon: '💡',
+              title: 'Actividad emprendedora innovadora',
+              copy: 'Proyecto innovador o de especial interes economico, normalmente con informe favorable.'
+            },
+            {
+              key: 'autonomo_startups',
+              icon: '🧠',
+              title: 'Profesional cualificado para startups',
+              copy: 'Servicios cualificados para empresas emergentes acreditadas.'
+            },
+            {
+              key: 'autonomo_idi',
+              icon: '🔬',
+              title: 'Formacion, investigacion o I+D+i',
+              copy: 'Actividad cientifica, tecnica, docente o de investigacion con umbral de ingresos.'
+            }
+          ]
+        }
+      };
+
+      var results = {
+        empleado_nuevo_contrato: {
+          badge: 'Via laboral',
+          title: 'Via 1: nuevo contrato en Espana',
+          summary: 'Podria aplicar cuando el traslado a Espana se produce para iniciar una nueva relacion laboral con un empleador situado o registrado en Espana.',
+          critical: 'Punto critico: el traslado debe estar conectado directamente con el inicio de la relacion laboral. Los deportistas profesionales quedan fuera de esta via.',
+          checklist: [
+            'Contrato o carta de oferta con fecha coherente con el traslado.',
+            'Empleador identificado y registrado fiscalmente cuando corresponda.',
+            'Evidencia de que la mudanza a Espana no fue independiente del trabajo.'
+          ],
+          sideTitle: 'Documentos habituales',
+          sideCopy: 'Contrato, alta laboral, comunicaciones de incorporacion, certificado de empresa y prueba de fecha de entrada o traslado.',
+          pills: ['Contrato', 'Alta laboral', 'Vinculo causal']
+        },
+        empleado_traslado: {
+          badge: 'Via laboral',
+          title: 'Via 2: traslado por empleador extranjero',
+          summary: 'Podria aplicar cuando tu empleador extranjero te desplaza a Espana para trabajar para una entidad, sucursal, filial o proyecto vinculado, manteniendo la relacion original.',
+          critical: 'Punto critico: conviene documentar la orden de desplazamiento antes o al mismo tiempo que el traslado.',
+          checklist: [
+            'Carta formal de desplazamiento emitida por el empleador extranjero.',
+            'Condiciones del traslado: destino, funciones, duracion y entidad receptora.',
+            'Coherencia entre fechas de contrato, mudanza y actividad en Espana.'
+          ],
+          sideTitle: 'Documentos habituales',
+          sideCopy: 'Carta de traslado, contrato extranjero, anexo de movilidad, certificado de empresa y datos fiscales de la entidad en Espana.',
+          pills: ['Carta de traslado', 'Contrato extranjero', 'Entidad receptora']
+        },
+        empleado_nomada: {
+          badge: 'Via teletrabajo',
+          title: 'Via 3: teletrabajador internacional o nomada digital',
+          summary: 'Podria aplicar si conservas un empleo fuera de Espana y realizas la actividad laboral remotamente desde Espana mediante medios informaticos, telematicos o de telecomunicacion.',
+          critical: 'Punto critico: el visado o autorizacion de teletrabajo internacional puede reforzar el encaje, pero debe alinearse con la residencia fiscal y el resto de requisitos.',
+          checklist: [
+            'Contrato vigente con empresa extranjera.',
+            'Autorizacion expresa para teletrabajar desde Espana.',
+            'Medios remotos suficientes y prueba de que el empleador no es espanol.'
+          ],
+          sideTitle: 'Enfoque recomendado',
+          sideCopy: 'Presentar el caso como una continuidad laboral extranjera con ejecucion remota desde Espana, evitando mezclarlo con servicios a clientes espanoles si no procede.',
+          pills: ['Teletrabajo', 'Empresa extranjera', 'Medios remotos']
+        },
+        director_economica: {
+          badge: 'Via societaria',
+          title: 'Via 4: director en entidad con actividad economica',
+          summary: 'Podria aplicar si te trasladas a Espana para asumir formalmente el cargo de administrador, consejero o miembro del organo de administracion de una entidad espanola con actividad economica real.',
+          critical: 'Punto critico: en entidades con actividad economica verificable, la participacion no opera igual que en una entidad patrimonial. Aun asi, el nombramiento y el vinculo causal deben quedar muy bien documentados.',
+          checklist: [
+            'Nombramiento formal y aceptacion del cargo.',
+            'Acreditacion de actividad economica real: medios, personal, operaciones o clientes.',
+            'Fechas coherentes entre traslado, nombramiento y comienzo de funciones.'
+          ],
+          sideTitle: 'Participacion del director',
+          sideCopy: 'Para entidad con actividad economica verificable, el diagnostico no marca un limite porcentual practico en esta visualizacion.',
+          pills: ['Nombramiento', 'Actividad real', 'Sin limite visualizado'],
+          visual: { type: 'bar', percent: 100, label: 'Sin limite visualizado', note: 'Actividad economica verificable' }
+        },
+        director_patrimonial: {
+          badge: 'Via societaria',
+          title: 'Via 4: director en entidad patrimonial',
+          summary: 'Podria aplicar si asumes un cargo de administracion, pero en entidades patrimoniales existe una cautela relevante sobre la participacion en la sociedad.',
+          critical: 'Punto critico: si la entidad es patrimonial, la participacion debe mantenerse por debajo del 25%. Superar ese umbral puede comprometer la via.',
+          checklist: [
+            'Nombramiento formal y aceptacion del cargo.',
+            'Analisis previo de si la entidad es patrimonial o desarrolla actividad economica.',
+            'Control del porcentaje de participacion directa e indirecta.'
+          ],
+          sideTitle: 'Participacion maxima',
+          sideCopy: 'En entidad patrimonial, usa como referencia operativa una participacion inferior al 25%.',
+          pills: ['Entidad patrimonial', '< 25%', 'Riesgo de participacion'],
+          visual: { type: 'bar', percent: 24.9, label: 'Inferior al 25%', note: 'Referencia para entidad patrimonial' }
+        },
+        autonomo_emprendedor: {
+          badge: 'Via por cuenta propia',
+          title: 'Via 5: actividad emprendedora innovadora',
+          summary: 'Podria aplicar si el traslado se produce para desarrollar una actividad emprendedora considerada innovadora o de especial interes economico para Espana.',
+          critical: 'Punto critico: no basta con ser autonomo. El proyecto debe tener componente innovador, impacto economico o validacion administrativa suficiente.',
+          checklist: [
+            'Memoria del proyecto, modelo de negocio y plan de ejecucion en Espana.',
+            'Acreditacion de innovacion, escalabilidad o interes economico.',
+            'Informe favorable o autorizacion de residencia para emprendedores cuando corresponda.'
+          ],
+          sideTitle: 'Enfoque recomendado',
+          sideCopy: 'Presenta el proyecto como una actividad empresarial diferenciada, no como una simple prestacion ordinaria de servicios.',
+          pills: ['Innovacion', 'Proyecto', 'Interes economico']
+        },
+        autonomo_startups: {
+          badge: 'Via por cuenta propia',
+          title: 'Via 6: profesional altamente cualificado para startups',
+          summary: 'Podria aplicar si prestas servicios a una empresa emergente espanola y puedes acreditar alta cualificacion profesional.',
+          critical: 'Punto critico: deben encajar simultaneamente la cualificacion del profesional y la condicion de startup acreditada de la entidad destinataria.',
+          checklist: [
+            'Titulo, experiencia o trayectoria que justifique la alta cualificacion.',
+            'Contrato o acuerdo de servicios con la startup espanola.',
+            'Acreditacion oficial de la empresa emergente cuando sea exigible.'
+          ],
+          sideTitle: 'Doble prueba',
+          sideCopy: 'No basta con prestar servicios: hay que probar tanto tu perfil cualificado como el encaje de la empresa receptora.',
+          pills: ['Alta cualificacion', 'Startup', 'Servicios']
+        },
+        autonomo_idi: {
+          badge: 'Via I+D+i',
+          title: 'Via 7: formacion, investigacion, desarrollo e innovacion',
+          summary: 'Podria aplicar si realizas actividades cientificas, tecnicas, docentes o de I+D+i para entidades cualificadas en Espana.',
+          critical: 'Punto critico: una parte relevante de tus ingresos debe proceder de actividades de formacion, investigacion, desarrollo o innovacion.',
+          checklist: [
+            'Contrato o acuerdo con universidad, centro de investigacion o entidad cualificada.',
+            'Descripcion tecnica de funciones y proyectos.',
+            'Evidencia del peso economico de la actividad de I+D+i sobre tus ingresos.'
+          ],
+          sideTitle: 'Umbral de ingresos',
+          sideCopy: 'La referencia practica es que mas del 40% de los ingresos proceda de la actividad cualificada.',
+          pills: ['I+D+i', '> 40%', 'Ingresos cualificados'],
+          visual: { type: 'donut', percent: 40.1, label: '> 40%', note: 'Ingresos de I+D+i' }
+        }
+      };
+
+      function setStep(step) {
+        var panels = root.querySelectorAll('[data-step]');
+        var progress = root.querySelectorAll('[data-progress]');
+
+        panels.forEach(function (panel) {
+          panel.classList.toggle('is-visible', panel.getAttribute('data-step') === String(step));
+        });
+
+        progress.forEach(function (item) {
+          item.classList.toggle('is-active', item.getAttribute('data-progress') === String(step));
+        });
+
+        root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      function selectProfile(profile) {
+        selectedProfile = profile;
+        var config = data[profile];
+        var title = root.querySelector('#lb-step-2-title');
+        var copy = root.querySelector('#lb-step-2-copy');
+        var options = root.querySelector('#lb-dynamic-options');
+
+        title.textContent = config.title;
+        copy.textContent = config.copy;
+        options.className = 'lb-options' + (config.layout === 'two' ? ' lb-options-two' : '');
+        options.innerHTML = config.options.map(function (item) {
+          return '' +
+            '<button type="button" class="lb-card-button" data-result="' + item.key + '">' +
+              '<span class="lb-icon" aria-hidden="true">' + item.icon + '</span>' +
+              '<span class="lb-card-title">' + item.title + '</span>' +
+              '<span class="lb-card-copy">' + item.copy + '</span>' +
+            '</button>';
+        }).join('');
+
+        setStep(2);
+      }
+
+      function renderVisual(visual) {
+        if (!visual) return '';
+
+        if (visual.type === 'bar') {
+          var fill = Math.max(0, Math.min(100, visual.percent));
+          return '' +
+            '<div class="lb-visual-card">' +
+              '<h4>' + visual.note + '</h4>' +
+              '<div class="lb-bar" aria-label="Participacion: ' + visual.label + '">' +
+                '<div class="lb-bar-track"><div class="lb-bar-fill" style="width:' + fill + '%"></div></div>' +
+                '<div class="lb-bar-value"><span>0%</span><strong>' + visual.label + '</strong><span>100%</span></div>' +
+              '</div>' +
+            '</div>';
+        }
+
+        if (visual.type === 'donut') {
+          return '' +
+            '<div class="lb-visual-card">' +
+              '<h4>' + visual.note + '</h4>' +
+              '<div class="lb-donut-wrap">' +
+                '<div class="lb-donut" role="img" aria-label="Mas del 40 por ciento de ingresos cualificados">' +
+                  '<div class="lb-donut-center"><span><span class="lb-donut-number">' + visual.label + '</span><span class="lb-donut-text">ingresos cualificados</span></span></div>' +
+                '</div>' +
+              '</div>' +
+              '<p class="lb-small-note">La parte azul representa el minimo orientativo de ingresos procedentes de la actividad cualificada.</p>' +
+            '</div>';
+        }
+
+        return '';
+      }
+
+      function showResult(key) {
+        var item = results[key];
+        if (!item) return;
+
+        var html = '' +
+          '<div class="lb-result-grid">' +
+            '<article class="lb-result-card">' +
+              '<div class="lb-result-top">' +
+                '<span class="lb-badge">✓ ' + item.badge + '</span>' +
+                '<h3>' + item.title + '</h3>' +
+                '<p>' + item.summary + '</p>' +
+              '</div>' +
+              '<div class="lb-result-body">' +
+                '<div class="lb-callout">' + item.critical + '</div>' +
+                '<ul class="lb-checklist">' + item.checklist.map(function (point) { return '<li>' + point + '</li>'; }).join('') + '</ul>' +
+                '<div class="lb-danger-callout">Recuerda: el requisito mas delicado suele ser demostrar que el traslado a Espana fue consecuencia directa de esta actividad, no una decision personal previa o independiente.</div>' +
+              '</div>' +
+            '</article>' +
+            '<aside class="lb-side-stack">' +
+              '<div class="lb-next-card">' +
+                '<h4>' + item.sideTitle + '</h4>' +
+                '<p>' + item.sideCopy + '</p>' +
+                '<div class="lb-pill-list">' + item.pills.map(function (pill) { return '<span class="lb-pill">' + pill + '</span>'; }).join('') + '</div>' +
+              '</div>' +
+              renderVisual(item.visual) +
+            '</aside>' +
+          '</div>';
+
+        root.querySelector('#lb-result').innerHTML = html;
+        setStep(3);
+      }
+
+      root.addEventListener('click', function (event) {
+        var profileButton = event.target.closest('[data-profile]');
+        var resultButton = event.target.closest('[data-result]');
+        var stepButton = event.target.closest('[data-go-step]');
+
+        if (profileButton && root.contains(profileButton)) {
+          selectProfile(profileButton.getAttribute('data-profile'));
+          return;
+        }
+
+        if (resultButton && root.contains(resultButton)) {
+          showResult(resultButton.getAttribute('data-result'));
+          return;
+        }
+
+        if (stepButton && root.contains(stepButton)) {
+          var targetStep = stepButton.getAttribute('data-go-step');
+          if (targetStep === '2' && !selectedProfile) targetStep = '1';
+          setStep(targetStep);
+        }
+      });
+    })();
+  </script>
+</div>

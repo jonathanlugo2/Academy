@@ -3,8 +3,10 @@ CREATE OR REPLACE FUNCTION public.handle_resource_deletion()
 RETURNS TRIGGER AS $$
 BEGIN
   UPDATE public.profiles
-  SET allowed_resources = array_remove(allowed_resources, OLD.id),
-      completed_resources = array_remove(completed_resources, OLD.id);
+  SET allowed_resources = array_remove(allowed_resources, OLD.id::text),
+      completed_resources = array_remove(completed_resources, OLD.id)
+  WHERE OLD.id::text = ANY(allowed_resources) 
+     OR OLD.id = ANY(completed_resources);
   RETURN OLD;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

@@ -196,7 +196,7 @@ export default function ResourceViewerModal({
                           </p>
                           <span className="inline-flex items-center gap-1 mt-0.5 text-[8px] text-text-muted scale-95 origin-left font-bold uppercase">
                             {getResourceIcon(res.type)}
-                            <span>{res.type === 'html_video' ? 'código/html' : res.type}</span>
+                            <span>{res.type === 'html_video' ? 'código/html' : res.type === 'test' ? 'test' : res.type}</span>
                           </span>
                         </div>
 
@@ -248,14 +248,75 @@ export default function ResourceViewerModal({
               {selectedResource.category}
             </span>
             <span className="text-[9px] bg-indigo-950/40 border border-indigo-500/20 text-indigo-400 px-2.5 py-1 rounded-lg font-bold uppercase font-mono">
-              {selectedResource.type === 'html_video' ? 'código/html' : selectedResource.type}
+              {selectedResource.type === 'html_video' ? 'código/html' : selectedResource.type === 'test' ? 'test interactivo' : selectedResource.type}
             </span>
           </div>
         </div>
 
         {/* Reproductor Principal: Sticky en móvil, normal en desktop */}
-        <div className="sticky top-0 z-20 bg-bg-main -mx-4 px-4 py-2 lg:mx-0 lg:px-0 lg:py-0 lg:relative aspect-video bg-black rounded-none lg:rounded-3xl border-b lg:border border-border-main overflow-hidden shadow-md shrink-0">
-          {isPdf ? (
+        <div className={`sticky top-0 z-20 bg-bg-main -mx-4 px-4 py-2 lg:mx-0 lg:px-0 lg:py-0 lg:relative bg-black rounded-none lg:rounded-3xl border-b lg:border border-border-main overflow-hidden shadow-md shrink-0 ${
+          selectedResource.type === 'test' ? 'h-[500px] sm:h-[550px] lg:h-[620px] aspect-auto' : 'aspect-video'
+        }`}>
+          {selectedResource.type === 'test' ? (
+            <iframe 
+              srcDoc={selectedResource.url ? selectedResource.url.replace('</style>', `
+                #lb-diagnostico {
+                  margin: 0 auto !important;
+                  max-width: 100% !important;
+                }
+                #lb-diagnostico .lb-shell {
+                  border: none !important;
+                  box-shadow: none !important;
+                  border-radius: 0 !important;
+                }
+                #lb-diagnostico .lb-hero {
+                  padding: 16px 12px 12px !important;
+                }
+                #lb-diagnostico .lb-hero h2 {
+                  font-size: clamp(20px, 3vw, 26px) !important;
+                }
+                #lb-diagnostico .lb-hero p {
+                  font-size: 13px !important;
+                }
+                #lb-diagnostico .lb-body {
+                  padding: 12px !important;
+                }
+                #lb-diagnostico .lb-step {
+                  padding: 16px !important;
+                }
+                #lb-diagnostico .lb-card-button {
+                  min-height: 100px !important;
+                  padding: 12px !important;
+                }
+                #lb-diagnostico .lb-icon {
+                  width: 30px !important;
+                  height: 30px !important;
+                  font-size: 16px !important;
+                  margin-bottom: 6px !important;
+                }
+                #lb-diagnostico .lb-card-title {
+                  font-size: 14px !important;
+                  margin-bottom: 3px !important;
+                }
+                #lb-diagnostico .lb-card-copy {
+                  font-size: 11px !important;
+                }
+                #lb-diagnostico .lb-options {
+                  gap: 8px !important;
+                }
+                #lb-diagnostico .lb-disclaimer {
+                  margin-top: 8px !important;
+                  padding: 8px 12px !important;
+                  font-size: 11px !important;
+                }
+              </style>
+            `) : ''}
+              title={selectedResource.title}
+              className="w-full h-full border-none bg-white"
+              sandbox="allow-scripts allow-same-origin"
+              allowFullScreen
+            ></iframe>
+          ) : isPdf ? (
             <SecureDocumentViewer fileUrl={selectedResource.url} userEmail={user?.email || ''} />
           ) : isEmbeddable ? (
             <iframe 
