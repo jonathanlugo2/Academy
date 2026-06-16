@@ -66,7 +66,7 @@ export default function StudentDashboard() {
   // Search and Filter states
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedType, setSelectedType] = useState('all');
+  const selectedType = 'all';
 
   // Support message form states
   const [newMessage, setNewMessage] = useState('');
@@ -83,16 +83,7 @@ export default function StudentDashboard() {
   const [uploadSuccess, setUploadSuccess] = useState(false);
 
   // Categorías y tipos para filtros
-  const categories = ['all', 'Trámites y Visados', 'Impuestos y Autónomos', 'Coworkings y Colivings', 'Herramientas Digitales'];
-  const types = [
-    { id: 'all', label: 'Todos' },
-    { id: 'document', label: 'Documentos PDF', icon: FileText },
-    { id: 'video', label: 'Videos', icon: Video },
-    { id: 'presentation', label: 'Presentaciones', icon: Presentation },
-    { id: 'html_video', label: 'Código / HTML', icon: Code },
-    { id: 'test', label: 'Tests Interactivos', icon: Code },
-    { id: 'link', label: 'Enlaces', icon: ExternalLink }
-  ];
+  const categories = ['all', 'Trámites y Visados', 'Impuestos y Autónomos', 'Herramientas Digitales'];
 
   // Filter Logic
   const filteredResources = useMemo(() => {
@@ -474,9 +465,6 @@ export default function StudentDashboard() {
                   setSearchQuery={setSearchQuery}
                   selectedCategory={selectedCategory}
                   setSelectedCategory={setSelectedCategory}
-                  selectedType={selectedType}
-                  setSelectedType={setSelectedType}
-                  types={types}
                   categories={categories}
                   filteredResources={filteredResources}
                   paginatedResources={paginatedResources}

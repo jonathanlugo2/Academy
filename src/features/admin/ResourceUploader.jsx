@@ -134,7 +134,6 @@ export default function ResourceUploader({
             <option value="all">TODAS LAS CATEGORÍAS</option>
             <option value="Trámites y Visados">TRÁMITES Y VISADOS</option>
             <option value="Impuestos y Autónomos">IMPUESTOS Y FISCALIDAD</option>
-            <option value="Coworkings y Colivings">COWORKING / COLIVING</option>
             <option value="Herramientas Digitales">HERRAMIENTAS</option>
           </select>
         </div>
@@ -342,7 +341,6 @@ export default function ResourceUploader({
                     >
                       <option value="Trámites y Visados">TRÁMITES Y VISADOS</option>
                       <option value="Impuestos y Autónomos">IMPUESTOS Y FISCALIDAD</option>
-                      <option value="Coworkings y Colivings">COWORKING / COLIVING</option>
                       <option value="Herramientas Digitales">HERRAMIENTAS</option>
                     </select>
                   </div>

@@ -140,7 +140,7 @@ export default function ResourceViewerModal({
         {/* Barra de progreso global */}
         <div className="bg-bg-card border border-border-main p-3.5 rounded-2xl space-y-2.5 font-mono">
           <div className="flex justify-between items-center text-[10px] uppercase font-bold tracking-wide">
-            <span className="text-text-muted">Progreso Curso</span>
+            <span className="text-text-muted">Progreso</span>
             <span className="text-indigo-400">{completedCount}/{totalCount} ({progressPercent}%)</span>
           </div>
           <div className="w-full h-1.5 bg-bg-input rounded-full overflow-hidden border border-border-main/50">
@@ -496,7 +496,7 @@ export default function ResourceViewerModal({
         <div className="flex items-center border-b border-border-main bg-bg-input shrink-0 px-6 py-4.5">
           <span className="text-[10px] font-bold text-text-title uppercase tracking-widest flex items-center gap-2 font-mono">
             <BookOpen className="w-4 h-4 text-text-active" />
-            Contenido del Curso
+            Formaciones propuestas
           </span>
         </div>
 

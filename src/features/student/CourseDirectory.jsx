@@ -63,9 +63,6 @@ export default function CourseDirectory({
   setSearchQuery,
   selectedCategory,
   setSelectedCategory,
-  selectedType,
-  setSelectedType,
-  types,
   categories,
   filteredResources,
   paginatedResources,
@@ -84,60 +81,43 @@ export default function CourseDirectory({
         </div>
         <h3 className="text-xl font-bold text-text-title mb-2 font-mono uppercase tracking-tight">Centro de Formación // {user.name}</h3>
         <p className="text-text-muted text-xs max-w-2xl leading-relaxed">
-          Accede a tu material formativo asignado. Explora tutoriales paso a paso, guías de aterrizaje y visados, y computación fiscal simplificada para tu estancia en España.
+          Accede a tu material formativo asignado. Explora tutoriales paso a paso, guías de aterrizaje para tu estancia en España.
         </p>
       </div>
 
       {/* Buscador y Filtros */}
-      <div className="bg-bg-card border border-border-main rounded-3xl p-5 space-y-4 shadow-sm">
-        <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+      <div className="bg-bg-card border border-border-main rounded-3xl p-4 shadow-sm">
+        <div className="flex flex-col md:flex-row gap-4 justify-between items-stretch md:items-center">
           
           {/* Campo de Búsqueda */}
-          <div className="relative w-full md:max-w-md">
+          <div className="relative w-full md:max-w-md shrink-0">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
             <input 
               type="text" 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Buscar curso, trámites, autónomos..." 
-              className="w-full bg-bg-input border border-border-main focus:border-border-hover focus:shadow-[0_0_12px_rgba(15,117,188,0.1)] rounded-xl pl-11 pr-4 py-3 text-xs text-text-main placeholder-text-muted focus:outline-none transition-all duration-200"
+              className="w-full bg-bg-input border border-border-main focus:border-border-hover focus:shadow-[0_0_12px_rgba(15,117,188,0.1)] rounded-xl pl-11 pr-4 py-2.5 text-xs text-text-main placeholder-text-muted focus:outline-none transition-all duration-200"
             />
           </div>
 
-          {/* Selector de Tipo */}
-          <div className="hidden md:flex items-center gap-1.5 bg-bg-input p-1.5 rounded-2xl border border-border-main overflow-x-auto w-full md:w-auto no-scrollbar">
-            {types.map(type => (
+          {/* Categorías (Badges) / Filtros por Etiquetas en una sola línea */}
+          <div className="flex items-center gap-2 overflow-x-auto w-full no-scrollbar py-0.5 justify-start md:justify-end">
+            {categories.map(category => (
               <button
-                key={type.id}
-                onClick={() => setSelectedType(type.id)}
-                className={`px-3.5 py-2 rounded-xl text-[10px] font-bold font-mono uppercase tracking-wider cursor-pointer transition-all whitespace-nowrap border ${
-                  selectedType === type.id
-                    ? 'bg-bg-active text-text-active border-border-active shadow-[0_0_10px_rgba(15,117,188,0.06)]'
-                    : 'text-text-muted border-transparent hover:text-text-main'
+                key={category}
+                onClick={() => setSelectedCategory(category)}
+                className={`px-3.5 py-2 rounded-xl text-[10px] font-bold border font-mono uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+                  selectedCategory === category
+                    ? 'bg-bg-active text-text-active border-border-active'
+                    : 'bg-bg-input text-text-muted border-border-main hover:border-border-hover hover:text-text-main'
                 }`}
               >
-                {type.label}
+                {category === 'all' ? 'Ver Todos' : category}
               </button>
             ))}
           </div>
 
-        </div>
-
-        {/* Categorías (Badges) */}
-        <div className="hidden md:flex flex-wrap gap-2 border-t border-border-main pt-4">
-          {categories.map(category => (
-            <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              className={`px-4 py-2 rounded-xl text-[10px] font-bold border font-mono uppercase tracking-wider transition-all cursor-pointer ${
-                selectedCategory === category
-                  ? 'bg-bg-active text-text-active border-border-active'
-                  : 'bg-bg-input text-text-muted border-border-main hover:border-border-hover hover:text-text-main'
-              }`}
-            >
-              {category === 'all' ? 'Ver Todos' : category}
-            </button>
-          ))}
         </div>
       </div>
 
