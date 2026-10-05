@@ -331,7 +331,7 @@ export default function StudentDashboard() {
             </div>
           </div>
         ) : (
-          <div className={`flex-1 ${selectedResource && activeTab === 'resources' ? 'p-0 h-full overflow-hidden bg-bg-main' : `p-6 max-w-7xl w-full mx-auto space-y-6 overflow-y-auto no-scrollbar ${activeTab === 'resources' ? 'lg:flex lg:flex-col' : ''}`}`}>
+          <div className={`flex-1 ${selectedResource && activeTab === 'resources' ? 'p-0 h-full overflow-hidden bg-bg-main' : `p-6 max-w-7xl w-full mx-auto space-y-6 overflow-y-auto no-scrollbar`}`}>
 
             <ErrorBanner message={loadError} />
 

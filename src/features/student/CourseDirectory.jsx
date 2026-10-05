@@ -48,8 +48,9 @@ export default function CourseDirectory({
   setSelectedResource
 }) {
   return (
-    // En escritorio ocupa el alto disponible: 2 filas de 4 tarjetas sin scroll
-    <div className="flex flex-col gap-4 lg:flex-1 lg:min-h-0">
+    // En escritorio cada fila mide como máximo 300px y se reduce en pantallas
+    // bajas para que las 2 filas y la paginación quepan sin scroll
+    <div className="flex flex-col gap-4">
       {/* Bienvenida, buscador y filtros */}
       <div className="bg-bg-card border border-border-main rounded-3xl p-4 shadow-sm shrink-0 relative overflow-hidden">
         <div className="absolute top-1/2 right-6 -translate-y-1/2 text-indigo-550/5 hidden xl:block pointer-events-none">
@@ -95,14 +96,15 @@ export default function CourseDirectory({
 
       {/* Resultados de la Búsqueda */}
       {filteredResources.length === 0 ? (
-        <div className="py-16 lg:flex-1 flex flex-col items-center justify-center text-text-muted bg-bg-card border border-border-main rounded-3xl">
+        <div className="py-16 flex flex-col items-center justify-center text-text-muted bg-bg-card border border-border-main rounded-3xl">
           <Search className="w-12 h-12 text-text-muted/40 mb-3" />
           <p className="text-xs font-mono uppercase tracking-wider">No se encontraron formaciones asignadas.</p>
         </div>
       ) : (
         <>
-          {/* Cuadrícula: 4 columnas x 2 filas en escritorio; la imagen absorbe el alto disponible */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 lg:grid-rows-2 gap-4 lg:flex-1 lg:min-h-[400px]">
+          {/* Cuadrícula: 4 columnas x 2 filas en escritorio. 330px = cabecera de la
+              app, márgenes, filtros, paginación y huecos */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:auto-rows-[min(300px,calc((100dvh_-_330px)/2))]">
             {paginatedResources.map(resource => {
               const theme = getCategoryTheme(resource.category);
               const cardImage = getCourseImage(resource);
@@ -112,10 +114,10 @@ export default function CourseDirectory({
                   type="button"
                   key={resource.id}
                   onClick={() => setSelectedResource(resource)}
-                  className={`bg-bg-card border border-border-main hover:border-border-hover rounded-3xl overflow-hidden flex flex-col min-h-0 group transition-all duration-300 hover:-translate-y-1 shadow-sm hover:shadow-md cursor-pointer select-none text-left`}
+                  className={`bg-bg-card border border-border-main hover:border-border-hover rounded-2xl overflow-hidden flex flex-col group transition-all duration-300 hover:-translate-y-1 shadow-sm hover:shadow-md cursor-pointer select-none text-left`}
                 >
                   {/* Imagen del Curso */}
-                  <div className="h-36 lg:h-auto lg:flex-1 lg:min-h-[72px] w-full relative overflow-hidden bg-bg-input">
+                  <div className="h-28 lg:h-auto lg:flex-1 lg:min-h-0 w-full relative overflow-hidden bg-bg-input">
                     <img
                       src={cardImage}
                       alt=""
@@ -123,22 +125,22 @@ export default function CourseDirectory({
                     />
 
                     {/* Badge de Categoría */}
-                    <span className={`absolute top-3 left-3 text-[8px] px-2.5 py-1 rounded-lg font-bold uppercase tracking-wider font-mono backdrop-blur-md shadow-sm ${theme.badge}`}>
+                    <span className={`absolute top-2.5 left-2.5 text-[8px] px-2 py-0.5 rounded-lg font-bold uppercase tracking-wider font-mono backdrop-blur-md shadow-sm ${theme.badge}`}>
                       {resource.category}
                     </span>
 
                     {/* Badge de Formato de Recurso */}
-                    <span className="absolute bottom-3 right-3 p-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-white/90 text-xs shadow-sm">
+                    <span className="absolute bottom-2.5 right-2.5 p-1.5 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white/90 text-xs shadow-sm">
                       <ResourceIcon type={resource.type} />
                     </span>
                   </div>
 
                   {/* Cuerpo de la Tarjeta */}
-                  <div className="p-4 space-y-1.5 shrink-0">
+                  <div className="p-3.5 space-y-1 shrink-0">
                     <h4 className="text-xs font-extrabold text-text-title leading-snug group-hover:text-indigo-500 transition-colors duration-200 uppercase font-mono tracking-tight line-clamp-2 min-h-[2.75em]">
                       {resource.title}
                     </h4>
-                    <p className="text-[11px] text-text-muted line-clamp-2 leading-relaxed font-sans font-medium min-h-[3.25em]">
+                    <p className="text-[11px] text-text-muted line-clamp-1 leading-relaxed font-sans font-medium">
                       {resource.description}
                     </p>
                   </div>
@@ -147,42 +149,40 @@ export default function CourseDirectory({
             })}
           </div>
 
-          {/* Controles de Paginación */}
-          {totalResourcesPages > 1 && (
-            <div className="px-4 py-2.5 bg-bg-card border border-border-main rounded-2xl flex items-center justify-between text-xs shadow-sm font-mono shrink-0">
-              <button
-                onClick={() => setResourcesPage(prev => Math.max(1, prev - 1))}
-                disabled={currentResourcesPage === 1}
-                className="px-3 py-1.5 bg-bg-input hover:bg-bg-card text-text-muted hover:text-text-main border border-border-main disabled:opacity-40 disabled:pointer-events-none rounded-xl transition-all cursor-pointer uppercase text-[10px] font-bold flex items-center gap-1"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" /> Anterior
-              </button>
-              <div className="flex items-center gap-1.5">
-                {Array.from({ length: totalResourcesPages }, (_, i) => i + 1).map(page => (
-                  <button
-                    key={page}
-                    onClick={() => setResourcesPage(page)}
-                    aria-label={`Página ${page}`}
-                    aria-current={page === currentResourcesPage ? 'page' : undefined}
-                    className={`w-7 h-7 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                      page === currentResourcesPage
-                        ? 'bg-indigo-600 text-white border border-indigo-500'
-                        : 'bg-bg-input text-text-muted border border-border-main hover:text-text-main'
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={() => setResourcesPage(prev => Math.min(totalResourcesPages, prev + 1))}
-                disabled={currentResourcesPage === totalResourcesPages}
-                className="px-3 py-1.5 bg-bg-input hover:bg-bg-card text-text-muted hover:text-text-main border border-border-main disabled:opacity-40 disabled:pointer-events-none rounded-xl transition-all cursor-pointer uppercase text-[10px] font-bold flex items-center gap-1"
-              >
-                Siguiente <ChevronRight className="w-3.5 h-3.5" />
-              </button>
+          {/* Controles de Paginación (siempre visibles) */}
+          <div className="px-4 py-2.5 bg-bg-card border border-border-main rounded-2xl flex items-center justify-between text-xs shadow-sm font-mono shrink-0">
+            <button
+              onClick={() => setResourcesPage(prev => Math.max(1, prev - 1))}
+              disabled={currentResourcesPage === 1}
+              className="px-3 py-1.5 bg-bg-input hover:bg-bg-card text-text-muted hover:text-text-main border border-border-main disabled:opacity-40 disabled:pointer-events-none rounded-xl transition-all cursor-pointer uppercase text-[10px] font-bold flex items-center gap-1"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" /> Anterior
+            </button>
+            <div className="flex items-center gap-1.5">
+              {Array.from({ length: totalResourcesPages }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  onClick={() => setResourcesPage(page)}
+                  aria-label={`Página ${page}`}
+                  aria-current={page === currentResourcesPage ? 'page' : undefined}
+                  className={`w-7 h-7 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                    page === currentResourcesPage
+                      ? 'bg-indigo-600 text-white border border-indigo-500'
+                      : 'bg-bg-input text-text-muted border border-border-main hover:text-text-main'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
             </div>
-          )}
+            <button
+              onClick={() => setResourcesPage(prev => Math.min(totalResourcesPages, prev + 1))}
+              disabled={currentResourcesPage === totalResourcesPages}
+              className="px-3 py-1.5 bg-bg-input hover:bg-bg-card text-text-muted hover:text-text-main border border-border-main disabled:opacity-40 disabled:pointer-events-none rounded-xl transition-all cursor-pointer uppercase text-[10px] font-bold flex items-center gap-1"
+            >
+              Siguiente <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </>
       )}
     </div>
