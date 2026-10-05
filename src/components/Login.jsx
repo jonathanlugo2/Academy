@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../utils/supabaseClient';
+import { homePathFor } from '../lib/roles';
 import { Mail, Lock, ArrowRight, ShieldAlert, GraduationCap, Building2, CheckCircle2 } from 'lucide-react';
 
 export default function Login() {
@@ -16,11 +17,7 @@ export default function Login() {
   // Redirigir si ya está autenticado
   useEffect(() => {
     if (user) {
-      if (user.role === 'admin') {
-        navigate('/admin', { replace: true });
-      } else {
-        navigate('/dashboard', { replace: true });
-      }
+      navigate(homePathFor(user.role), { replace: true });
     }
   }, [user, navigate]);
 
@@ -35,11 +32,7 @@ export default function Login() {
       await supabase.auth.signOut({ scope: 'local' });
       
       const loggedUser = await login(email, password);
-      if (loggedUser.role === 'admin') {
-        navigate('/admin');
-      } else {
-        navigate('/dashboard');
-      }
+      navigate(homePathFor(loggedUser.role));
     } catch (err) {
       setError(err.message);
     } finally {

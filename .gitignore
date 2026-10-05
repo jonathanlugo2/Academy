@@ -24,3 +24,10 @@ dist-ssr
 *.sw?
 .env
 .env.local
+
+# Backups y volcados de Supabase (contienen datos personales: nunca al repo)
+Supabase Academy/
+*.backup
+*.backup.gz
+*.storage.zip
+*.dump

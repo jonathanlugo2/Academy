@@ -4,7 +4,9 @@ import {
   FileText, Search, Filter, X, Eye, ChevronRight, ChevronLeft, Users, 
   Shield, CreditCard, Calendar, Activity, Settings2
 } from 'lucide-react';
-import { mockDb } from '../../utils/mockDb';
+import { api } from '../../services/api';
+import { formatDate } from '../../lib/dates';
+import { RESIDENCY_THRESHOLD_DAYS, residencyProgress } from '../../lib/residency';
 
 export default function UserManagementTable({
   editingUserId,
@@ -28,7 +30,7 @@ export default function UserManagementTable({
   setSelectedUser,
   handleStartEditUser,
   calculateResidencyDays,
-  triggerDocDownload,
+  openResidencyDoc,
   resources,
   setUsers,
   users, // Recibimos el listado completo para filtrar aquí
@@ -38,6 +40,22 @@ export default function UserManagementTable({
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [resourceSearchQuery, setResourceSearchQuery] = useState('');
+  const [assignError, setAssignError] = useState('');
+
+  const selectedResidencyDays = selectedUser ? calculateResidencyDays(selectedUser.arrivalDate, selectedUser.absences) : 0;
+  const selectedIsResident = selectedResidencyDays >= RESIDENCY_THRESHOLD_DAYS;
+
+  // Activa/desactiva un recurso para el alumno seleccionado (RPC atómica)
+  const toggleResourceAccess = async (resourceId, enable) => {
+    setAssignError('');
+    try {
+      const allowedResources = await api.users.setResourceAssignment(selectedUser.id, resourceId, enable);
+      setUsers(prev => prev.map(u => (u.id === selectedUser.id ? { ...u, allowedResources } : u)));
+      setSelectedUser(prev => ({ ...prev, allowedResources }));
+    } catch (err) {
+      setAssignError('No se pudo actualizar el acceso: ' + err.message);
+    }
+  };
   const [filterRole, setFilterRole] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
@@ -78,12 +96,10 @@ export default function UserManagementTable({
     setShowDetailsModal(true);
   };
 
+  // Tras guardar con éxito se muestra el aviso un momento y se cierra el modal
   const onSubmit = async (e) => {
-    await handleCreateUser(e);
-    if (!userError) {
-      setTimeout(() => {
-        if (userSuccess) setShowModal(false);
-      }, 1500);
+    if (await handleCreateUser(e)) {
+      setTimeout(() => setShowModal(false), 1500);
     }
   };
 
@@ -149,7 +165,7 @@ export default function UserManagementTable({
               {paginatedData.length > 0 ? (
                 paginatedData.map((user) => {
                   const residencyDays = calculateResidencyDays(user.arrivalDate, user.absences);
-                  const isResident = residencyDays >= 183;
+                  const isResident = residencyDays >= RESIDENCY_THRESHOLD_DAYS;
                   
                   return (
                     <tr key={user.id} className="group hover:bg-bg-input/10 transition-colors">
@@ -180,7 +196,7 @@ export default function UserManagementTable({
                         {user.role === 'student' ? (
                           <div className="space-y-1.5">
                             <div className="flex items-center justify-between gap-4">
-                              <span className="text-[10px] font-mono text-text-muted">{residencyDays} / 183 DÍAS</span>
+                              <span className="text-[10px] font-mono text-text-muted">{residencyDays} / {RESIDENCY_THRESHOLD_DAYS} DÍAS</span>
                               <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${isResident ? 'bg-emerald-500/10 text-emerald-650 dark:text-emerald-400' : 'bg-bg-input text-text-muted border border-border-main'}`}>
                                 {isResident ? 'Residente' : 'Pendiente'}
                               </span>
@@ -188,7 +204,7 @@ export default function UserManagementTable({
                             <div className="w-24 h-1 bg-bg-input rounded-full overflow-hidden border border-border-main/30">
                               <div 
                                 className={`h-full rounded-full ${isResident ? 'bg-emerald-500' : 'bg-indigo-650'}`}
-                                style={{ width: `${Math.min(100, (residencyDays / 183) * 100)}%` }}
+                                style={{ width: `${residencyProgress(residencyDays)}%` }}
                               ></div>
                             </div>
                           </div>
@@ -330,7 +346,7 @@ export default function UserManagementTable({
                   {!editingUserId && (
                     <div>
                       <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 font-mono ml-1">Contraseña Temporal *</label>
-                      <input type="password" value={uPassword} onChange={(e) => setUPassword(e.target.value)} required className="w-full bg-bg-input border border-border-main rounded-2xl px-5 py-3.5 text-xs text-text-main outline-none focus:border-border-hover transition-all font-mono" placeholder="••••••••" />
+                      <input type="password" value={uPassword} onChange={(e) => setUPassword(e.target.value)} required minLength={10} autoComplete="new-password" className="w-full bg-bg-input border border-border-main rounded-2xl px-5 py-3.5 text-xs text-text-main outline-none focus:border-border-hover transition-all font-mono" placeholder="Mínimo 10 caracteres" />
                     </div>
                   )}
 
@@ -431,7 +447,7 @@ export default function UserManagementTable({
                 </div>
                 <div className="bg-bg-input/40 p-4 rounded-2xl border border-border-main/60">
                   <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest mb-1 font-mono">Entrada a España</p>
-                  <p className="text-sm font-bold text-text-main font-mono">{selectedUser.arrivalDate ? new Date(selectedUser.arrivalDate).toLocaleDateString('es-ES') : 'NO REGISTRADA'}</p>
+                  <p className="text-sm font-bold text-text-main font-mono">{formatDate(selectedUser.arrivalDate, 'NO REGISTRADA')}</p>
                 </div>
               </div>
 
@@ -446,18 +462,18 @@ export default function UserManagementTable({
                     <div className="bg-bg-input/40 p-6 rounded-3xl border border-border-main/85 space-y-6">
                       <div className="flex justify-between items-end">
                         <div className="text-3xl font-black text-text-main font-mono">
-                          {calculateResidencyDays(selectedUser.arrivalDate, selectedUser.absences)} 
-                          <span className="text-sm text-text-muted font-bold ml-1">/ 183</span>
+                          {selectedResidencyDays}
+                          <span className="text-sm text-text-muted font-bold ml-1">/ {RESIDENCY_THRESHOLD_DAYS}</span>
                         </div>
-                        <span className={`text-[10px] font-bold px-3 py-1 rounded-xl uppercase tracking-widest font-mono ${calculateResidencyDays(selectedUser.arrivalDate, selectedUser.absences) >= 183 ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' : 'bg-bg-input text-text-muted border border-border-main'}`}>
-                          {calculateResidencyDays(selectedUser.arrivalDate, selectedUser.absences) >= 183 ? 'RESIDENTE' : 'PENDIENTE'}
+                        <span className={`text-[10px] font-bold px-3 py-1 rounded-xl uppercase tracking-widest font-mono ${selectedIsResident ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' : 'bg-bg-input text-text-muted border border-border-main'}`}>
+                          {selectedIsResident ? 'RESIDENTE' : 'PENDIENTE'}
                         </span>
                       </div>
                       <div className="w-full h-2.5 bg-bg-main rounded-full overflow-hidden border border-border-main/60 p-0.5">
-                        <div className={`h-full rounded-full transition-all duration-1000 ${calculateResidencyDays(selectedUser.arrivalDate, selectedUser.absences) >= 183 ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-indigo-650 shadow-[0_0_15px_rgba(15,117,188,0.3)]'}`} style={{ width: `${Math.min(100, (calculateResidencyDays(selectedUser.arrivalDate, selectedUser.absences) / 183) * 100)}%` }}></div>
+                        <div className={`h-full rounded-full transition-all duration-1000 ${selectedIsResident ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-indigo-650 shadow-[0_0_15px_rgba(15,117,188,0.3)]'}`} style={{ width: `${residencyProgress(selectedResidencyDays)}%` }}></div>
                       </div>
                       <div className="flex justify-between text-[9px] text-text-muted font-mono uppercase font-bold tracking-widest">
-                        <span>LLEGADA: {selectedUser.arrivalDate || 'N/A'}</span>
+                        <span>LLEGADA: {formatDate(selectedUser.arrivalDate, 'N/A')}</span>
                         <span>DÍAS FUERA: {selectedUser.absences || 0}</span>
                       </div>
                     </div>
@@ -483,6 +499,9 @@ export default function UserManagementTable({
                       />
                     </div>
 
+                    {assignError && (
+                      <p className="text-[10px] text-red-500 font-mono flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{assignError}</p>
+                    )}
                     <div className="bg-bg-input/40 p-4 rounded-3xl border border-border-main/80 max-h-[220px] overflow-y-auto custom-scrollbar space-y-2">
                       {(() => {
                         const filtered = resources.filter(res => 
@@ -507,14 +526,7 @@ export default function UserManagementTable({
                                 <p className="text-[8px] text-text-muted uppercase font-mono">{res.category}</p>
                               </div>
                               <button
-                                onClick={async () => {
-                                  const currentAllowed = selectedUser.allowedResources || [];
-                                  const newAllowed = isAllowed ? currentAllowed.filter(id => id !== res.id) : [...currentAllowed, res.id];
-                                  await mockDb.users.update(selectedUser.id, { allowedResources: newAllowed });
-                                  const updatedUsers = await mockDb.users.getAll();
-                                  setUsers(updatedUsers);
-                                  setSelectedUser(prev => ({ ...prev, allowedResources: newAllowed }));
-                                }}
+                                onClick={() => toggleResourceAccess(res.id, !isAllowed)}
                                 className={`text-[8px] font-bold px-2 py-1 rounded-lg border transition-all font-mono uppercase tracking-widest cursor-pointer ${isAllowed ? 'bg-bg-active text-text-active border-border-active' : 'bg-bg-input text-text-muted border-border-main'}`}
                               >
                                 {isAllowed ? 'Habilitado' : 'Bloqueado'}
@@ -538,10 +550,10 @@ export default function UserManagementTable({
                           <div className="w-10 h-10 rounded-xl bg-bg-input border border-border-main flex items-center justify-center text-text-muted group-hover:text-text-active transition-colors"><FileText className="w-5 h-5" /></div>
                           <div>
                             <p className="text-xs font-bold text-text-main uppercase font-mono">{selectedUser.residencyDoc.name}</p>
-                            <p className="text-[9px] text-text-muted font-mono uppercase mt-0.5">{selectedUser.residencyDoc.size} • SUBIDO: {new Date(selectedUser.residencyDoc.uploadedAt).toLocaleDateString('es-ES')}</p>
+                            <p className="text-[9px] text-text-muted font-mono uppercase mt-0.5">{selectedUser.residencyDoc.size} • SUBIDO: {formatDate(selectedUser.residencyDoc.uploadedAt)}</p>
                           </div>
                         </div>
-                        <button onClick={() => triggerDocDownload(selectedUser.residencyDoc.name)} className="px-4 py-2 bg-bg-active text-text-active hover:bg-indigo-600 hover:text-white border border-border-active rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all font-mono flex items-center gap-2 cursor-pointer">
+                        <button onClick={() => openResidencyDoc(selectedUser.residencyDoc)} className="px-4 py-2 bg-bg-active text-text-active hover:bg-indigo-600 hover:text-white border border-border-active rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all font-mono flex items-center gap-2 cursor-pointer">
                           <Download className="w-3.5 h-3.5" /> Descargar
                         </button>
                       </div>

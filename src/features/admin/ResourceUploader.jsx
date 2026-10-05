@@ -28,7 +28,8 @@ export default function ResourceUploader({
   resourceIcon,
   newImageUrl, setNewImageUrl,
   uploadingImage,
-  handleImageUpload
+  handleImageUpload,
+  uploadingPdf
 }) {
   const [showModal, setShowModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -67,14 +68,10 @@ export default function ResourceUploader({
     setShowModal(true);
   };
 
+  // Tras guardar con éxito se muestra el aviso un momento y se cierra el modal
   const onSubmit = async (e) => {
-    await handleAddResource(e);
-    // Si handleAddResource devuelve algo que indique éxito, cerramos el modal
-    // Como es async y maneja estados internos, asumimos que si no hay error se puede cerrar
-    if (!formError) {
-      setTimeout(() => {
-        if (formSuccess) setShowModal(false);
-      }, 1500);
+    if (await handleAddResource(e)) {
+      setTimeout(() => setShowModal(false), 1500);
     }
   };
 
@@ -198,7 +195,7 @@ export default function ResourceUploader({
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDeleteResource(resource.id)}
+                          onClick={() => handleDeleteResource(resource)}
                           className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-all cursor-pointer"
                           title="Eliminar"
                         >
@@ -349,14 +346,18 @@ export default function ResourceUploader({
                     {newType === 'document' ? (
                       <div>
                         <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 font-mono ml-1">Cargar Documento PDF *</label>
-                        <input type="file" accept=".pdf" id="pdf-upload-erp" onChange={handlePdfFileChange} className="hidden" />
+                        <input type="file" accept="application/pdf" id="pdf-upload-erp" onChange={handlePdfFileChange} disabled={uploadingPdf} className="hidden" />
                         <label 
                           htmlFor="pdf-upload-erp"
                           className="w-full flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border-main hover:border-border-hover/45 bg-bg-input/40 hover:bg-bg-input/80 rounded-2xl py-8 transition-all cursor-pointer group"
                         >
                           <Upload className="w-6 h-6 text-text-muted group-hover:text-text-active group-hover:scale-110 transition-all" />
                           <p className="text-[10px] font-bold text-text-muted font-mono uppercase tracking-widest group-hover:text-text-main">
-                            {newUrl && newUrl.startsWith('data:application/pdf') ? 'Archivo PDF Seleccionado' : 'Arrastra o selecciona el archivo'}
+                            {uploadingPdf
+                              ? 'Subiendo PDF...'
+                              : newUrl && (newUrl.startsWith('storage:') || newUrl.startsWith('data:application/pdf'))
+                                ? 'Archivo PDF cargado (pulsa para sustituirlo)'
+                                : 'Selecciona el archivo PDF (máx. 20 MB)'}
                           </p>
                         </label>
                       </div>
@@ -464,7 +465,7 @@ export default function ResourceUploader({
                         <span className="text-[9px] text-text-muted font-mono uppercase tracking-tight block mb-2 ml-1">Cargar Archivo de Portada</span>
                         <input 
                           type="file" 
-                          accept="image/*" 
+                          accept="image/png,image/jpeg,image/webp,image/gif" 
                           id="image-upload-uploader" 
                           onChange={handleImageUpload} 
                           className="hidden" 

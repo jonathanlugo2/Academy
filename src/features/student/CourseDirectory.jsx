@@ -1,7 +1,5 @@
-import React from 'react';
-import { 
-  Compass, Search, Award, ExternalLink, FileText, Video, Presentation, Code, HelpCircle 
-} from 'lucide-react';
+import { Compass, Search, Award } from 'lucide-react';
+import { ResourceIcon, getCourseImage } from '../resources/resourceMeta';
 
 const getCategoryTheme = (category) => {
   switch (category) {
@@ -35,28 +33,6 @@ const getCategoryTheme = (category) => {
   }
 };
 
-const getCourseImage = (resource) => {
-  if (resource.image_url) return resource.image_url;
-  
-  // Preset images in public folder
-  switch (resource.category) {
-    case 'Trámites y Visados':
-      return '/preset_tramites.png';
-    case 'Impuestos y Autónomos':
-    case 'Autónomos y Hacienda':
-    case 'Impuestos e IRPF':
-      return '/preset_impuestos.png';
-    case 'Coworkings y Colivings':
-      return '/preset_coworking.png';
-    case 'Herramientas Digitales':
-      return '/preset_herramientas.png';
-    default:
-      return '/preset_tramites.png';
-  }
-};
-
-
-
 export default function CourseDirectory({
   user,
   searchQuery,
@@ -69,8 +45,7 @@ export default function CourseDirectory({
   setResourcesPage,
   totalResourcesPages,
   currentResourcesPage,
-  setSelectedResource,
-  getResourceIcon
+  setSelectedResource
 }) {
   return (
     <>
@@ -156,7 +131,7 @@ export default function CourseDirectory({
 
                     {/* Badge de Formato de Recurso */}
                     <span className="absolute bottom-3.5 right-3.5 p-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-white/90 text-xs shadow-sm">
-                      {getResourceIcon(resource.type)}
+                      <ResourceIcon type={resource.type} />
                     </span>
                   </div>
 

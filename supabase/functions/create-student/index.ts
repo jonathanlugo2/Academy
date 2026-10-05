@@ -1,123 +1,146 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { createClient } from '@supabase/supabase-js';
+import { HttpError, parseNewUser } from './validation.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Orígenes permitidos (separados por comas), p. ej.:
+//   supabase secrets set ALLOWED_ORIGINS=https://academy.example.com,http://localhost:5173
+const allowedOrigins = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+if (allowedOrigins.length === 0) {
+  console.warn('ALLOWED_ORIGINS no está configurado: se acepta cualquier origen.');
+}
+
+function corsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin') ?? '';
+  const allowOrigin = allowedOrigins.length === 0
+    ? '*'
+    : (allowedOrigins.includes(origin) ? origin : allowedOrigins[0]);
+  return {
+    'Access-Control-Allow-Origin': allowOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Vary': 'Origin',
+  };
+}
+
+function jsonResponse(req: Request, body: unknown, status: number): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+  });
+}
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders(req) });
   }
 
   try {
+    if (req.method !== 'POST') throw new HttpError(405, 'Método no permitido');
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
     if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
-      throw new Error('Missing environment variables');
+      console.error('Faltan variables de entorno de Supabase');
+      throw new HttpError(500, 'Error de configuración del servidor');
     }
 
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('No authorization header provided');
+    if (!authHeader?.startsWith('Bearer ')) throw new HttpError(401, 'No autorizado');
+
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(
+      authHeader.slice('Bearer '.length),
+    );
+    if (userError || !user) {
+      console.error('Auth error:', userError?.message);
+      throw new HttpError(401, 'No autorizado');
     }
 
-    // Initialize client to verify the user making the request
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } }
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    // Extract token and get user explicitly
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
-    
-    if (userError || !user) {
-      console.error('Auth error:', userError);
-      throw new Error(`Unauthorized: ${userError?.message || 'Invalid user'}`);
-    }
-
-    // Initialize admin client (service role) to check permissions and create user
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
-    
-    // Check if the requester is an admin in the profiles table
-    const { data: profile, error: profileCheckError } = await supabaseAdmin
+    const { data: requester, error: requesterError } = await supabaseAdmin
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single();
-
-    if (profileCheckError || !profile || profile.role !== 'admin') {
-      console.error('Permission check failed:', profileCheckError, profile);
-      throw new Error('Forbidden: Only administrators can create students');
+    if (requesterError || requester?.role !== 'admin') {
+      throw new HttpError(403, 'Solo administración puede crear usuarios');
     }
 
-    // Get student data from request body
-    const userData = await req.json();
-    const { 
-      email, password, name, passport, nie, address, 
-      postalCode, arrivalDate, aeatDate, ssDate, 
-      absences, allowedResources 
-    } = userData;
-
-    if (!email || !password || !name) {
-      throw new Error('Missing required fields: email, password, and name are mandatory');
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      throw new HttpError(400, 'Cuerpo de la petición no válido');
     }
+    const input = parseNewUser(body);
 
-    // 1. Create new user in Supabase Auth
-    const { data: newAuthUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email: email.toLowerCase().trim(),
-      password: password,
+    // El rol va en app_metadata (solo editable con service role); el trigger
+    // handle_new_user lo copia al perfil.
+    const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email: input.email,
+      password: input.password,
       email_confirm: true,
-      user_metadata: { name: name }
+      user_metadata: { name: input.name },
+      app_metadata: { role: input.role },
     });
-
-    if (createError) {
-      console.error('User creation error:', createError);
-      throw createError;
+    if (createError || !created.user) {
+      console.error('User creation error:', createError?.message);
+      if (createError?.message?.toLowerCase().includes('already')) {
+        throw new HttpError(409, 'Ya existe un usuario con ese correo electrónico');
+      }
+      throw new HttpError(400, 'No se pudo crear el usuario');
     }
+    const newUserId = created.user.id;
 
-    // 2. Update the profile (which should have been created by a DB trigger)
-    // We use the admin client to bypass RLS and ensure the profile is fully populated
-    const profileUpdates = {
-      name: name,
-      passport: passport || null,
-      nie: nie || null,
-      address: address || null,
-      postal_code: postalCode || null,
-      arrival_date: arrivalDate || null,
-      aeat_date: aeatDate || null,
-      ss_date: ssDate || null,
-      absences: absences || 0,
-      allowed_resources: allowedResources || []
-    };
-
-    const { data: updatedProfile, error: profileError } = await supabaseAdmin
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .update(profileUpdates)
-      .eq('id', newAuthUser.user.id)
+      .update({
+        name: input.name,
+        passport: input.passport,
+        nie: input.nie,
+        address: input.address,
+        postal_code: input.postalCode,
+        arrival_date: input.arrivalDate,
+        aeat_date: input.aeatDate,
+        ss_date: input.ssDate,
+        absences: input.absences,
+        allowed_resources: input.allowedResources,
+      })
+      .eq('id', newUserId)
       .select()
       .single();
 
     if (profileError) {
-      console.error('Profile update error:', profileError);
-      // We don't throw here to avoid leaving an orphaned Auth user without reporting success, 
-      // but in a real app you might want to handle this more robustly.
-      throw profileError;
+      // Compensación: no dejar una cuenta de Auth a medio crear
+      console.error('Profile update error:', profileError.message);
+      const { error: rollbackError } = await supabaseAdmin.auth.admin.deleteUser(newUserId);
+      if (rollbackError) console.error('Rollback error:', rollbackError.message);
+      throw new HttpError(500, 'No se pudo completar el perfil del usuario');
     }
 
-    return new Response(JSON.stringify({ user: newAuthUser.user, profile: updatedProfile }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
+    const { error: auditError } = await supabaseAdmin.from('audit_logs').insert({
+      admin_id: user.id,
+      action: 'user_created',
+      target_user_id: newUserId,
+      details: { email: input.email, role: input.role },
     });
+    if (auditError) console.error('Audit log error:', auditError.message);
 
+    return jsonResponse(req, { profile }, 200);
   } catch (error) {
-    console.error('Function error:', error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: error.message.includes('Unauthorized') ? 401 : (error.message.includes('Forbidden') ? 403 : 400),
-    });
+    if (error instanceof HttpError) {
+      return jsonResponse(req, { error: error.message }, error.status);
+    }
+    console.error('Unexpected error:', error);
+    return jsonResponse(req, { error: 'Error interno del servidor' }, 500);
   }
 });

@@ -1,70 +1,69 @@
-/* eslint-disable react-hooks/set-state-in-effect */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { mockDb } from '../utils/mockDb';
-import { supabase } from '../utils/supabaseClient';
-import { 
-  ExternalLink, Video, Presentation, FileText, Code
-} from 'lucide-react';
-
-// Import refactored components
+import { api } from '../services/api';
+import { calculateResidencyDays } from '../lib/residency';
 import AdminSidebar from '../features/admin/AdminSidebar';
 import MetricsOverview from '../features/admin/MetricsOverview';
 import ResourceUploader from '../features/admin/ResourceUploader';
 import UserManagementTable from '../features/admin/UserManagementTable';
 import MessagesPanel from '../features/admin/MessagesPanel';
+import ResourcePlayer from '../features/resources/ResourcePlayer';
+import { ResourceIcon } from '../features/resources/resourceMeta';
+import ErrorBanner from './ErrorBanner';
+
+const DEFAULT_CATEGORY = 'Trámites y Visados';
+const MIN_PASSWORD_LENGTH = 10;
+
+// Los PDF subidos a Storage guardan este marcador en `url` (columna NOT NULL);
+// el archivo real se sirve con una URL firmada a partir de `storage_path`.
+const storageMarker = (path) => `storage:academy-resources/${path}`;
+
+const resourceIcon = (type) => <ResourceIcon type={type} size="w-4 h-4" />;
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
-  
-  // Sidebar state
+
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'content', 'messages', 'users'
 
-  // Pagination states
-  const [usersPage, setUsersPage] = useState(1);
-  const [resourcesPage, setResourcesPage] = useState(1);
-  const USERS_PER_PAGE = 5;
-  const RESOURCES_PER_PAGE = 5;
-  
-  // State for database lists
+  // Datos
   const [resources, setResources] = useState([]);
   const [tickets, setTickets] = useState([]);
-  const [selectedTicketId, setSelectedTicketId] = useState(null);
-  const [ticketMessages, setTicketMessages] = useState([]);
-  const [loadingMessages, setLoadingMessages] = useState(false);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [actionError, setActionError] = useState('');
 
-  // Form states for creating new content
+  // Mensajes del ticket seleccionado (guardados junto a su id para saber si están cargados)
+  const [selectedTicketId, setSelectedTicketId] = useState(null);
+  const [messagesState, setMessagesState] = useState({ ticketId: null, messages: [] });
+  const ticketMessages = selectedTicketId && messagesState.ticketId === selectedTicketId ? messagesState.messages : [];
+  const loadingMessages = Boolean(selectedTicketId) && messagesState.ticketId !== selectedTicketId;
+
+  // Formulario de recursos
   const [newTitle, setNewTitle] = useState('');
   const [newType, setNewType] = useState('document');
   const [newUrl, setNewUrl] = useState('');
+  const [newStoragePath, setNewStoragePath] = useState(null);
   const [newDesc, setNewDesc] = useState('');
-  const [newCategory, setNewCategory] = useState('Trámites y Visados');
+  const [newCategory, setNewCategory] = useState(DEFAULT_CATEGORY);
   const [newTags, setNewTags] = useState('');
+  const [newImageUrl, setNewImageUrl] = useState('');
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
   const [editingResourceId, setEditingResourceId] = useState(null);
   const [previewResource, setPreviewResource] = useState(null);
-  const [newImageUrl, setNewImageUrl] = useState('');
-  const [uploadingImage, setUploadingImage] = useState(false);
-
-  // States for replies
-  const [replyText, setReplyText] = useState({});
-  const [submittingReply, setSubmittingReply] = useState({});
-
-  // States for User Assignment in Content Creation Form
   const [selectedAssignUserIds, setSelectedAssignUserIds] = useState([]);
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
 
-  // States for User Management
+  // Respuestas a tickets
+  const [replyText, setReplyText] = useState({});
+  const [submittingReply, setSubmittingReply] = useState({});
+
+  // Gestión de usuarios
   const [selectedUser, setSelectedUser] = useState(null);
-  const [_showCreateUserForm, setShowCreateUserForm] = useState(true);
-  
-  // Form states for creating user
   const [uEmail, setUEmail] = useState('');
   const [uPassword, setUPassword] = useState('');
   const [uName, setUName] = useState('');
@@ -76,68 +75,63 @@ export default function AdminDashboard() {
   const [uArrivalDate, setUArrivalDate] = useState('');
   const [uAeatDate, setUAeatDate] = useState('');
   const [uSsDate, setUSsDate] = useState('');
-  
   const [userError, setUserError] = useState('');
   const [userSuccess, setUserSuccess] = useState('');
   const [editingUserId, setEditingUserId] = useState(null);
   const [creatingUser, setCreatingUser] = useState(false);
 
-  // Cargar datos
-  const loadData = useCallback(async () => {
-    try {
-      const resList = await mockDb.resources.getAll();
-      const ticketsList = await mockDb.tickets.getAll();
-      const usersList = await mockDb.users.getAll();
-      setResources(resList);
-      setTickets(ticketsList);
-      setUsers(usersList);
-    } catch (e) {
-      console.error("Error al cargar datos:", e);
-    } finally {
-      setLoading(false);
-    }
+  // Carga inicial en paralelo
+  useEffect(() => {
+    let active = true;
+    Promise.all([api.resources.getAll(), api.tickets.getAll(), api.users.getAll()])
+      .then(([resList, ticketsList, usersList]) => {
+        if (!active) return;
+        setResources(resList);
+        setTickets(ticketsList);
+        setUsers(usersList);
+      })
+      .catch(e => {
+        console.error('Error al cargar datos:', e);
+        if (active) setActionError('No se pudieron cargar los datos del panel: ' + e.message);
+      })
+      .finally(() => active && setLoading(false));
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  // Cargar mensajes del ticket seleccionado
-  useEffect(() => {
-    const fetchTicketMessages = async () => {
-      if (!selectedTicketId) {
-        setTicketMessages([]);
-        return;
-      }
-      setLoadingMessages(true);
-      try {
-        const msgs = await mockDb.tickets.getMessages(selectedTicketId);
-        setTicketMessages(msgs);
-      } catch (err) {
-        console.error("Error al cargar mensajes del ticket:", err);
-      } finally {
-        setLoadingMessages(false);
-      }
-    };
-    fetchTicketMessages();
+    if (!selectedTicketId) return undefined;
+    let active = true;
+    api.tickets.getMessages(selectedTicketId)
+      .then(messages => active && setMessagesState({ ticketId: selectedTicketId, messages }))
+      .catch(err => {
+        console.error('Error al cargar mensajes del ticket:', err);
+        if (active) {
+          setMessagesState({ ticketId: selectedTicketId, messages: [] });
+          setActionError('No se pudieron cargar los mensajes del ticket.');
+        }
+      });
+    return () => { active = false; };
   }, [selectedTicketId]);
 
-  // Adjust pagination pages when lists change
-  useEffect(() => {
-    const totalPages = Math.ceil(users.length / USERS_PER_PAGE) || 1;
-    if (usersPage > totalPages) {
-      setUsersPage(totalPages);
-    }
-  }, [users, usersPage]);
+  const flashFormSuccess = (message) => {
+    setFormSuccess(message);
+    setTimeout(() => setFormSuccess(''), 3000);
+  };
 
-  useEffect(() => {
-    const totalPages = Math.ceil(resources.length / RESOURCES_PER_PAGE) || 1;
-    if (resourcesPage > totalPages) {
-      setResourcesPage(totalPages);
-    }
-  }, [resources, resourcesPage]);
+  const resetResourceForm = () => {
+    setEditingResourceId(null);
+    setNewTitle('');
+    setNewUrl('');
+    setNewStoragePath(null);
+    setNewDesc('');
+    setNewTags('');
+    setNewType('document');
+    setNewCategory(DEFAULT_CATEGORY);
+    setSelectedAssignUserIds([]);
+    setStudentSearchQuery('');
+    setNewImageUrl('');
+  };
 
-  // Handler for adding/updating resource
   const handleAddResource = async (e) => {
     e.preventDefault();
     setFormError('');
@@ -145,235 +139,158 @@ export default function AdminDashboard() {
 
     if (!newTitle.trim() || !newUrl.trim() || !newDesc.trim()) {
       setFormError('Por favor completa los campos requeridos (Título, URL y Descripción).');
-      return;
+      return false;
     }
+
+    const previous = editingResourceId ? resources.find(r => r.id === editingResourceId) : null;
+    const keepsPreviousUrl = Boolean(previous) && newUrl === previous.url;
+    const isUploadedPdf = newUrl.startsWith('storage:');
+
+    // El archivo almacenado depende del tipo (bucket) y solo admite PDF subidos
+    if (isUploadedPdf && newType !== 'document') {
+      setFormError('El PDF subido solo puede usarse con el tipo Documento.');
+      return false;
+    }
+    if (keepsPreviousUrl && previous.storage_path && newType !== previous.type) {
+      setFormError('Este recurso tiene un archivo almacenado: para cambiar su tipo, sustituye antes el archivo o el enlace.');
+      return false;
+    }
+
+    // Se conserva el archivo salvo que se haya subido otro o cambiado el enlace
+    const storagePath = keepsPreviousUrl
+      ? (previous.storage_path || null)
+      : (isUploadedPdf && newUrl === storageMarker(newStoragePath) ? newStoragePath : null);
+    const resourceData = {
+      title: newTitle.trim(),
+      type: newType,
+      url: newUrl,
+      description: newDesc.trim(),
+      category: newCategory,
+      tags: newTags,
+      imageUrl: newImageUrl,
+      storagePath
+    };
 
     setIsSubmitting(true);
     try {
-      let savedResource;
-      if (editingResourceId) {
-        // Modo Edición
-        savedResource = await mockDb.resources.update(editingResourceId, {
-          title: newTitle,
-          type: newType,
-          url: newUrl,
-          description: newDesc,
-          category: newCategory,
-          tags: newTags ? newTags.split(',').map(t => t.trim()) : [],
-          imageUrl: newImageUrl
-        });
-        setFormSuccess('¡Recurso formativo actualizado con éxito!');
-        setEditingResourceId(null);
-      } else {
-        // Modo Creación
-        savedResource = await mockDb.resources.create({
-          title: newTitle,
-          type: newType,
-          url: newUrl,
-          description: newDesc,
-          category: newCategory,
-          tags: newTags ? newTags.split(',').map(t => t.trim()) : [],
-          imageUrl: newImageUrl
-        });
-        setFormSuccess('¡Recurso formativo creado con éxito!');
+      const savedResource = editingResourceId
+        ? await api.resources.update(editingResourceId, resourceData)
+        : await api.resources.create(resourceData);
+
+      // Asignación atómica en servidor: solo los alumnos seleccionados
+      await api.resources.setAssignments(savedResource.id, selectedAssignUserIds);
+
+      // Si se sustituyó el archivo o el enlace, el archivo anterior ya no se usa
+      if (previous?.storage_path && previous.storage_path !== savedResource.storage_path) {
+        await api.resources.removeFile(previous);
       }
 
-      const resourceId = savedResource.id;
+      setFormSuccess(editingResourceId ? '¡Recurso formativo actualizado con éxito!' : '¡Recurso formativo creado con éxito!');
+      resetResourceForm();
 
-      // Sincronizar asignación de entrenamientos autorizados en los perfiles de los estudiantes
-      const allStudents = users.filter(u => u.role === 'student');
-      const updatePromises = allStudents.map(async (student) => {
-        const isSelected = selectedAssignUserIds.includes(student.id);
-        const hasAccess = (student.allowedResources || []).includes(resourceId);
-        
-        if (isSelected && !hasAccess) {
-          const newAllowed = [...(student.allowedResources || []), resourceId];
-          return mockDb.users.update(student.id, { allowedResources: newAllowed });
-        } else if (!isSelected && hasAccess) {
-          const newAllowed = (student.allowedResources || []).filter(id => id !== resourceId);
-          return mockDb.users.update(student.id, { allowedResources: newAllowed });
-        }
-      });
-      await Promise.all(updatePromises);
-
-      // Limpiar estados
-      setNewTitle('');
-      setNewUrl('');
-      setNewDesc('');
-      setNewTags('');
-      setNewType('document');
-      setNewCategory('Trámites y Visados');
-      setSelectedAssignUserIds([]);
-      setStudentSearchQuery('');
-      setNewImageUrl('');
-      
-      const updated = await mockDb.resources.getAll();
-      setResources(updated);
-      
-      // Recargar lista de usuarios para mantener sincronizada la vista lateral de detalles
-      const updatedUsers = await mockDb.users.getAll();
+      const [updatedResources, updatedUsers] = await Promise.all([api.resources.getAll(), api.users.getAll()]);
+      setResources(updatedResources);
       setUsers(updatedUsers);
+      return true;
     } catch (err) {
       setFormError('Error al procesar el recurso: ' + err.message);
+      return false;
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Handler for loading PDF files locally and converting to Base64 dataURL
-  const handlePdfFileChange = (e) => {
+  // Sube el PDF a Storage (bucket privado) en lugar de guardarlo en base64
+  const handlePdfFileChange = async (e) => {
     const file = e.target.files[0];
+    e.target.value = '';
     if (!file) return;
-
-    if (file.type !== 'application/pdf') {
-      setFormError('Por favor selecciona únicamente archivos de tipo PDF.');
-      return;
-    }
-
-    // Limit size to avoid local storage overflow (typically 5MB limit, let's allow up to 2.5MB)
-    if (file.size > 2.5 * 1024 * 1024) {
-      setFormError('El archivo PDF supera el límite recomendado de 2.5 MB para almacenamiento local.');
-      return;
-    }
 
     setFormError('');
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setNewUrl(event.target.result); // Base64 Data URL
-      setFormSuccess('¡Archivo PDF cargado en el formulario!');
-      setTimeout(() => setFormSuccess(''), 3000);
-    };
-    reader.onerror = () => {
-      setFormError('Error al leer el archivo PDF.');
-    };
-    reader.readAsDataURL(file);
+    setUploadingPdf(true);
+    try {
+      const path = await api.resources.uploadDocument(file);
+      setNewStoragePath(path);
+      setNewUrl(storageMarker(path));
+      flashFormSuccess('¡Archivo PDF subido!');
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setUploadingPdf(false);
+    }
   };
 
-  // Handler for uploading Course Cover image with dynamic fallback
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
+    e.target.value = '';
     if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      setFormError('Por favor selecciona únicamente archivos de imagen.');
-      return;
-    }
 
     setUploadingImage(true);
     setFormError('');
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `course-covers/${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-      
-      const { error } = await supabase.storage
-        .from('academy-resources')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (error) throw error;
-
-      const { data: urlData } = supabase.storage
-        .from('academy-resources')
-        .getPublicUrl(fileName);
-
-      setNewImageUrl(urlData.publicUrl);
-      setFormSuccess('¡Imagen subida y asignada con éxito!');
-      setTimeout(() => setFormSuccess(''), 3000);
+      setNewImageUrl(await api.resources.uploadCover(file));
+      flashFormSuccess('¡Imagen subida y asignada con éxito!');
     } catch (err) {
-      console.warn("Storage upload failed, falling back to local FileReader dataURL:", err);
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setNewImageUrl(event.target.result); // Base64 Data URL
-        setFormSuccess('¡Imagen cargada localmente con éxito!');
-        setTimeout(() => setFormSuccess(''), 3000);
-      };
-      reader.onerror = () => {
-        setFormError('Error al leer el archivo de imagen.');
-      };
-      reader.readAsDataURL(file);
+      setFormError(err.message);
     } finally {
       setUploadingImage(false);
     }
   };
 
-  // Handler to start editing a resource
   const handleStartEditResource = (resource) => {
     setEditingResourceId(resource.id);
     setNewTitle(resource.title);
     setNewType(resource.type || 'document');
     setNewUrl(resource.url);
+    setNewStoragePath(resource.storage_path || null);
     setNewDesc(resource.description);
-    setNewCategory(resource.category || 'Trámites y Visados');
+    setNewCategory(resource.category || DEFAULT_CATEGORY);
     setNewTags(resource.tags ? resource.tags.join(', ') : '');
     setNewImageUrl(resource.image_url || '');
-    
-    // Cargar estudiantes que ya tienen este entrenamiento asignado
-    const studentsWithAccess = users
-      .filter(u => u.role === 'student' && (u.allowedResources || []).includes(resource.id))
-      .map(u => u.id);
-    setSelectedAssignUserIds(studentsWithAccess);
-    setStudentSearchQuery('');
 
+    // Alumnos que ya tienen este recurso asignado
+    setSelectedAssignUserIds(
+      users
+        .filter(u => u.role === 'student' && (u.allowedResources || []).includes(resource.id))
+        .map(u => u.id)
+    );
+    setStudentSearchQuery('');
     setFormError('');
     setFormSuccess('');
-    
-    // Desplazar suavemente el foco al formulario en el panel
-    const formElement = document.getElementById('resource-form');
-    if (formElement) {
-      formElement.scrollIntoView({ behavior: 'smooth' });
-    }
+
+    document.getElementById('resource-form')?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Handler to cancel editing
   const handleCancelEdit = () => {
-    setEditingResourceId(null);
-    setNewTitle('');
-    setNewUrl('');
-    setNewDesc('');
-    setNewTags('');
-    setNewType('document');
-    setNewCategory('Trámites y Visados');
-    setSelectedAssignUserIds([]);
-    setStudentSearchQuery('');
-    setNewImageUrl('');
+    resetResourceForm();
     setFormError('');
     setFormSuccess('');
   };
 
-  // Handler for deleting resource
-  const handleDeleteResource = async (id) => {
+  const handleDeleteResource = async (resource) => {
     if (!confirm('¿Estás seguro de que deseas eliminar este recurso formativo?')) return;
     try {
-      await mockDb.resources.delete(id);
-      const updated = await mockDb.resources.getAll();
-      setResources(updated);
-      
-      // Sincronizar usuarios tras eliminar el recurso
-      const updatedUsers = await mockDb.users.getAll();
+      await api.resources.delete(resource);
+      const [updatedResources, updatedUsers] = await Promise.all([api.resources.getAll(), api.users.getAll()]);
+      setResources(updatedResources);
       setUsers(updatedUsers);
-      
-      // Si se tenía seleccionado un usuario en detalles, actualizarlo
       if (selectedUser) {
-        const freshUser = updatedUsers.find(u => u.id === selectedUser.id);
-        if (freshUser) setSelectedUser(freshUser);
+        setSelectedUser(updatedUsers.find(u => u.id === selectedUser.id) || null);
       }
     } catch (e) {
-      alert('Error al borrar el recurso: ' + e.message);
+      setActionError('Error al borrar el recurso: ' + e.message);
     }
   };
 
-  // Handler for replying to ticket message
   const handleSendReply = async (ticketId, attachment = null) => {
     const text = replyText[ticketId];
     if (!text || !text.trim()) return;
 
     setSubmittingReply(prev => ({ ...prev, [ticketId]: true }));
     try {
-      const newMsg = await mockDb.tickets.createMessage({
+      const newMsg = await api.tickets.createMessage({
         ticket_id: ticketId,
-        sender_id: user.id, // Admin profile ID
+        sender_id: user.id,
         content: text.trim(),
         attachment_url: attachment?.url || null,
         attachment_name: attachment?.name || null,
@@ -381,29 +298,24 @@ export default function AdminDashboard() {
       });
 
       setReplyText(prev => ({ ...prev, [ticketId]: '' }));
-      setTicketMessages(prev => [...prev, newMsg]);
-
-      // Refresh tickets to update updated_at timestamp
-      const updatedTickets = await mockDb.tickets.getAll();
-      setTickets(updatedTickets);
+      setMessagesState(prev => (
+        prev.ticketId === ticketId ? { ...prev, messages: [...prev.messages, newMsg] } : prev
+      ));
+      setTickets(await api.tickets.getAll());
     } catch (e) {
-      alert('Error al enviar la respuesta: ' + e.message);
+      setActionError('Error al enviar la respuesta: ' + e.message);
     } finally {
       setSubmittingReply(prev => ({ ...prev, [ticketId]: false }));
     }
   };
 
-  // Handler for closing a ticket
   const handleCloseTicket = async (ticketId) => {
     if (!confirm('¿Estás seguro de que deseas cerrar este ticket y marcarlo como completado?')) return;
     try {
-      await mockDb.tickets.close(ticketId);
-      
-      // Refresh tickets list
-      const updatedTickets = await mockDb.tickets.getAll();
-      setTickets(updatedTickets);
+      await api.tickets.close(ticketId);
+      setTickets(await api.tickets.getAll());
     } catch (e) {
-      alert('Error al cerrar el ticket: ' + e.message);
+      setActionError('Error al cerrar el ticket: ' + e.message);
     }
   };
 
@@ -411,105 +323,70 @@ export default function AdminDashboard() {
     setReplyText(prev => ({ ...prev, [id]: value }));
   };
 
-  // Handler for creating a new user
+  const handleUploadAttachment = (file) => api.tickets.uploadAttachment(file, user.id);
+
+  const resetUserForm = () => {
+    setEditingUserId(null);
+    setUEmail('');
+    setUPassword('');
+    setUName('');
+    setURole('student');
+    setUPassport('');
+    setUNie('');
+    setUAddress('');
+    setUPostalCode('');
+    setUArrivalDate('');
+    setUAeatDate('');
+    setUSsDate('');
+  };
+
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setUserError('');
     setUserSuccess('');
 
-    if (editingUserId) {
-      if (!uEmail.trim() || !uName.trim()) {
-        setUserError('Nombre y Correo son campos obligatorios.');
-        return;
-      }
-    } else {
-      if (!uEmail.trim() || !uPassword.trim() || !uName.trim()) {
-        setUserError('Nombre, Correo y Contraseña son campos obligatorios.');
-        return;
-      }
-
-      if (uPassword.length < 6) {
-        setUserError('La contraseña debe tener al menos 6 caracteres.');
-        return;
-      }
+    if (!uEmail.trim() || !uName.trim()) {
+      setUserError('Nombre y Correo son campos obligatorios.');
+      return false;
     }
+    if (!editingUserId && uPassword.length < MIN_PASSWORD_LENGTH) {
+      setUserError(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
+      return false;
+    }
+
+    const profileData = {
+      name: uName.trim(),
+      role: uRole,
+      passport: uPassport.trim() || null,
+      nie: uNie.trim() || null,
+      address: uAddress.trim() || null,
+      postalCode: uPostalCode.trim() || null,
+      arrivalDate: uArrivalDate || null,
+      aeatDate: uAeatDate || null,
+      ssDate: uSsDate || null
+    };
 
     setCreatingUser(true);
     try {
       if (editingUserId) {
-        // Modo Edición
-        const updated = await mockDb.users.update(editingUserId, {
-          name: uName,
-          role: uRole,
-          passport: uPassport.trim() || null,
-          nie: uNie.trim() || null,
-          address: uAddress.trim() || null,
-          postalCode: uPostalCode.trim() || null,
-          arrivalDate: uArrivalDate || null,
-          aeatDate: uAeatDate || null,
-          ssDate: uSsDate || null
-        });
-
-        // Limpiar formulario y cerrar edición
-        setUEmail('');
-        setUPassword('');
-        setUName('');
-        setURole('student');
-        setUPassport('');
-        setUNie('');
-        setUAddress('');
-        setUPostalCode('');
-        setUArrivalDate('');
-        setUAeatDate('');
-        setUSsDate('');
-
+        const updated = await api.users.update(editingUserId, profileData);
         setUserSuccess('¡Usuario actualizado correctamente!');
-        setEditingUserId(null);
-        setSelectedUser(updated); // Actualizar panel de detalles
-        setShowCreateUserForm(false);
+        setSelectedUser(updated);
       } else {
-        // Modo Creación
-        await mockDb.users.create({
-          email: uEmail,
-          password: uPassword,
-          name: uName,
-          role: uRole,
-          passport: uPassport.trim() || null,
-          nie: uNie.trim() || null,
-          address: uAddress.trim() || null,
-          postalCode: uPostalCode.trim() || null,
-          arrivalDate: uArrivalDate || null,
-          aeatDate: uAeatDate || null,
-          ssDate: uSsDate || null
-        });
-
-        // Limpiar formulario
-        setUEmail('');
-        setUPassword('');
-        setUName('');
-        setURole('student');
-        setUPassport('');
-        setUNie('');
-        setUAddress('');
-        setUPostalCode('');
-        setUArrivalDate('');
-        setUAeatDate('');
-        setUSsDate('');
-
+        await api.users.create({ ...profileData, email: uEmail.trim(), password: uPassword });
         setUserSuccess('¡Usuario registrado correctamente!');
       }
-      
-      // Recargar lista de usuarios
-      const updatedList = await mockDb.users.getAll();
-      setUsers(updatedList);
+      resetUserForm();
+      setUsers(await api.users.getAll());
+      return true;
     } catch (err) {
       setUserError(err.message);
+      return false;
     } finally {
       setCreatingUser(false);
     }
   };
 
-  // Handler para iniciar edición de usuario
   const handleStartEditUser = (userToEdit) => {
     setEditingUserId(userToEdit.id);
     setUName(userToEdit.name || '');
@@ -523,87 +400,43 @@ export default function AdminDashboard() {
     setUArrivalDate(userToEdit.arrivalDate || '');
     setUAeatDate(userToEdit.aeatDate || '');
     setUSsDate(userToEdit.ssDate || '');
-    
     setUserError('');
     setUserSuccess('');
-    setShowCreateUserForm(true);
   };
 
-  // Handler para cancelar edición de usuario
   const handleCancelEditUser = () => {
-    setEditingUserId(null);
-    setUName('');
-    setUEmail('');
-    setUPassword('');
-    setURole('student');
-    setUPassport('');
-    setUNie('');
-    setUAddress('');
-    setUPostalCode('');
-    setUArrivalDate('');
-    setUAeatDate('');
-    setUSsDate('');
+    resetUserForm();
     setUserError('');
     setUserSuccess('');
-    
-    if (selectedUser) {
-      setShowCreateUserForm(false);
+  };
+
+  const handleDeleteUser = async (id, name) => {
+    if (id === user.id) {
+      setActionError('No puedes eliminar tu propio usuario administrador en sesión.');
+      return;
+    }
+    if (!confirm(`¿Estás seguro de que deseas eliminar el usuario "${name}"? Se borrarán su cuenta, su perfil y sus tickets. Esta acción es irreversible.`)) return;
+
+    try {
+      await api.users.delete(id);
+      if (selectedUser?.id === id) setSelectedUser(null);
+      setUsers(await api.users.getAll());
+    } catch (e) {
+      setActionError('Error al eliminar el usuario: ' + e.message);
+    }
+  };
+
+  const openResidencyDoc = async (doc) => {
+    try {
+      const url = await api.residencyDocs.getUrl(doc);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (e) {
+      setActionError(e.message);
     }
   };
 
   const renderPreviewPlayer = () => {
     if (!previewResource) return null;
-
-    let embedUrl = previewResource.url || '';
-    let isEmbeddable = false;
-    let isVideoTag = false;
-
-    // Detect YouTube
-    if (embedUrl.includes('youtube.com/watch?v=')) {
-      const videoId = embedUrl.split('v=')[1]?.split('&')[0];
-      if (videoId) {
-        embedUrl = `https://www.youtube.com/embed/${videoId}`;
-        isEmbeddable = true;
-      }
-    } else if (embedUrl.includes('youtu.be/')) {
-      const videoId = embedUrl.split('youtu.be/')[1]?.split('?')[0];
-      if (videoId) {
-        embedUrl = `https://www.youtube.com/embed/${videoId}`;
-        isEmbeddable = true;
-      }
-    }
-    // Detect Vimeo
-    else if (embedUrl.includes('vimeo.com/')) {
-      const videoId = embedUrl.split('vimeo.com/')[1]?.split('?')[0]?.split('#')[0];
-      if (videoId) {
-        embedUrl = `https://player.vimeo.com/video/${videoId}`;
-        isEmbeddable = true;
-      }
-    }
-    // Detect Google Slides
-    else if (embedUrl.includes('docs.google.com/presentation/d/')) {
-      const base = embedUrl.split('/edit')[0].split('/pub')[0];
-      embedUrl = `${base}/embed?start=false&loop=false&delayms=3000`;
-      isEmbeddable = true;
-    }
-    // Detect PDF
-    else if (previewResource.type === 'document' || embedUrl.toLowerCase().endsWith('.pdf') || embedUrl.toLowerCase().includes('.pdf?')) {
-      isEmbeddable = true;
-    }
-    // Detect direct video
-    else if (embedUrl.toLowerCase().endsWith('.mp4') || embedUrl.toLowerCase().endsWith('.webm') || embedUrl.toLowerCase().endsWith('.ogg')) {
-      isVideoTag = true;
-    }
-
-    // Extract iframe src if raw HTML is pasted
-    if (previewResource.type === 'html_video' || embedUrl.trim().startsWith('<')) {
-      const srcMatch = embedUrl.match(/src=["'](.*?)["']/);
-      if (srcMatch && srcMatch[1]) {
-        embedUrl = srcMatch[1];
-        isEmbeddable = true;
-      }
-    }
-
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-main/90 backdrop-blur-md">
         <div className="bg-bg-card border border-border-main rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
@@ -614,7 +447,7 @@ export default function AdminDashboard() {
               </span>
               <h3 className="text-xs font-bold text-text-title mt-2.5 truncate max-w-lg">{previewResource.title}</h3>
             </div>
-            <button 
+            <button
               onClick={() => setPreviewResource(null)}
               className="text-[10px] text-text-muted hover:text-text-main font-bold bg-bg-input hover:bg-bg-card border border-border-main px-3 py-2 rounded-lg cursor-pointer transition-colors"
             >
@@ -623,104 +456,9 @@ export default function AdminDashboard() {
           </div>
 
           <div className="flex-1 bg-black overflow-hidden relative flex items-center justify-center">
-            {previewResource.type === 'test' ? (
-              <iframe 
-                srcDoc={previewResource.url ? previewResource.url.replace('</style>', `
-                  #lb-diagnostico {
-                    margin: 0 auto !important;
-                    max-width: 100% !important;
-                  }
-                  #lb-diagnostico .lb-shell {
-                    border: none !important;
-                    box-shadow: none !important;
-                    border-radius: 0 !important;
-                  }
-                  #lb-diagnostico .lb-hero {
-                    padding: 16px 12px 12px !important;
-                  }
-                  #lb-diagnostico .lb-hero h2 {
-                    font-size: clamp(20px, 3vw, 26px) !important;
-                  }
-                  #lb-diagnostico .lb-hero p {
-                    font-size: 13px !important;
-                  }
-                  #lb-diagnostico .lb-body {
-                    padding: 12px !important;
-                  }
-                  #lb-diagnostico .lb-step {
-                    padding: 16px !important;
-                  }
-                  #lb-diagnostico .lb-card-button {
-                    min-height: 100px !important;
-                    padding: 12px !important;
-                  }
-                  #lb-diagnostico .lb-icon {
-                    width: 30px !important;
-                    height: 30px !important;
-                    font-size: 16px !important;
-                    margin-bottom: 6px !important;
-                  }
-                  #lb-diagnostico .lb-card-title {
-                    font-size: 14px !important;
-                  }
-                  #lb-diagnostico .lb-card-copy {
-                    font-size: 11px !important;
-                  }
-                  #lb-diagnostico .lb-options {
-                    gap: 8px !important;
-                  }
-                  #lb-diagnostico .lb-disclaimer {
-                    margin-top: 8px !important;
-                    padding: 8px 12px !important;
-                    font-size: 11px !important;
-                  }
-                </style>
-              `) : ''}
-                title={previewResource.title}
-                className="w-full h-full border-none bg-white"
-                sandbox="allow-scripts allow-same-origin"
-                allowFullScreen
-              ></iframe>
-            ) : isEmbeddable ? (
-              <iframe 
-                src={embedUrl}
-                title={previewResource.title}
-                className="w-full h-full border-none bg-black"
-                allowFullScreen
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              ></iframe>
-            ) : isVideoTag ? (
-              <div className="w-full h-full flex items-center justify-center p-4">
-                <video 
-                  src={embedUrl} 
-                  controls 
-                  className="w-full max-h-full rounded-xl border border-border-main shadow-2xl bg-black"
-                ></video>
-              </div>
-            ) : (
-              <div className="max-w-md w-full bg-bg-card border border-border-main rounded-2xl p-8 text-center space-y-5">
-                <div className="w-14 h-14 rounded-2xl bg-bg-active text-text-active border border-border-active flex items-center justify-center mx-auto shadow-[0_0_12px_rgba(15,117,188,0.1)]">
-                  <ExternalLink className="w-6 h-6" />
-                </div>
-                <div className="space-y-2 font-mono">
-                  <h4 className="text-xs font-bold text-text-title uppercase tracking-wider">Enlace Externo Recomendado</h4>
-                  <p className="text-xs text-text-muted leading-relaxed font-sans font-medium">
-                    Este tipo de recurso no se puede incrustar por restricciones de seguridad externas.
-                  </p>
-                </div>
-                <a 
-                  href={previewResource.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 py-2.5 px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition-all cursor-pointer shadow-[0_0_10px_rgba(15,117,188,0.15)]"
-                >
-                  Abrir enlace en pestaña nueva
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-              </div>
-            )}
+            <ResourcePlayer resource={previewResource} userEmail={user.email} />
           </div>
-          
+
           <div className="h-14 border-t border-border-main px-6 flex items-center justify-between bg-bg-main/40 shrink-0 font-mono text-[10px] text-text-muted uppercase tracking-widest">
             <span>TIPO: <strong className="text-text-title">{previewResource.type}</strong></span>
             <span>CATEGORÍA: <strong className="text-text-title">{previewResource.category}</strong></span>
@@ -730,74 +468,12 @@ export default function AdminDashboard() {
     );
   };
 
-  // Handler for deleting user
-  const handleDeleteUser = async (id, name) => {
-    if (id === user.id) {
-      alert('No puedes eliminar tu propio usuario administrador en sesión.');
-      return;
-    }
-
-    if (!confirm(`¿Estás seguro de que deseas eliminar el usuario "${name}"? Esta acción es irreversible.`)) return;
-
-    try {
-      await mockDb.users.delete(id);
-      if (selectedUser?.id === id) {
-        setSelectedUser(null);
-        setShowCreateUserForm(true);
-      }
-      const updated = await mockDb.users.getAll();
-      setUsers(updated);
-    } catch (e) {
-      alert('Error al eliminar el usuario: ' + e.message);
-    }
-  };
-
-  // Lógica de cálculo fiscal de los 183 días
-  const calculateResidencyDays = (arrivalDate, absences = 0) => {
-    if (!arrivalDate) return 0;
-    const start = new Date(arrivalDate);
-    const today = new Date();
-    
-    // Si la fecha de entrada es futura por error, retornar 0
-    if (start > today) return 0;
-    
-    const diffTime = Math.max(0, today - start);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    // Restar las ausencias del total de días en España
-    return Math.max(0, diffDays - absences);
-  };
-
-  // Descarga simulada de documentos de extranjeros
-  const triggerDocDownload = (docName) => {
-    alert(`[MVP SIMULACIÓN] Descargando resolución de extranjería: "${docName}" desde el servidor temporal.`);
-  };
-
-  // Métricas calculadas
+  // Métricas
   const totalResources = resources.length;
   const pendingMessages = tickets.filter(t => t.status === 'open').length;
-  
   const totalStudents = users.filter(u => u.role === 'student').length;
   const totalAdmins = users.filter(u => u.role === 'admin').length;
 
-  // Paginated elements page limits
-  const _totalUsersPages = Math.ceil(users.length / USERS_PER_PAGE) || 1;
-  const _currentUsersPage = Math.min(usersPage, _totalUsersPages);
-
-  const _totalResourcesPages = Math.ceil(resources.length / RESOURCES_PER_PAGE) || 1;
-  const _currentResourcesPage = Math.min(resourcesPage, _totalResourcesPages);
-
-  const resourceIcon = (type) => {
-    switch (type) {
-      case 'video': return <Video className="w-4 h-4 text-rose-450" />;
-      case 'presentation': return <Presentation className="w-4 h-4 text-amber-400" />;
-      case 'document': return <FileText className="w-4 h-4 text-sky-400" />;
-      case 'html_video': return <Code className="w-4 h-4 text-emerald-450" />;
-      case 'test': return <Code className="w-4 h-4 text-indigo-400" />;
-      case 'link': return <ExternalLink className="w-4 h-4 text-indigo-400" />;
-      default: return <FileText className="w-4 h-4 text-text-muted" />;
-    }
-  };
 
   if (!user) return null;
 
@@ -847,6 +523,7 @@ export default function AdminDashboard() {
           </div>
         ) : (
           <div className="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6 overflow-y-auto no-scrollbar">
+            <ErrorBanner message={actionError} onClose={() => setActionError('')} />
             
             {activeTab === 'overview' && (
               <MetricsOverview 
@@ -886,6 +563,7 @@ export default function AdminDashboard() {
                 resourceIcon={resourceIcon}
                 newImageUrl={newImageUrl} setNewImageUrl={setNewImageUrl}
                 uploadingImage={uploadingImage}
+                uploadingPdf={uploadingPdf}
                 handleImageUpload={handleImageUpload}
               />
             )}
@@ -913,7 +591,7 @@ export default function AdminDashboard() {
                 setSelectedUser={setSelectedUser}
                 handleStartEditUser={handleStartEditUser}
                 calculateResidencyDays={calculateResidencyDays}
-                triggerDocDownload={triggerDocDownload}
+                openResidencyDoc={openResidencyDoc}
                 resources={resources}
                 setUsers={setUsers}
                 users={users}
@@ -934,7 +612,7 @@ export default function AdminDashboard() {
                 handleSendReply={handleSendReply}
                 submittingReply={submittingReply}
                 handleCloseTicket={handleCloseTicket}
-                handleUploadAttachment={mockDb.tickets.uploadAttachment}
+                handleUploadAttachment={handleUploadAttachment}
               />
             )}
             

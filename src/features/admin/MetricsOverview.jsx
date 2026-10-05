@@ -1,4 +1,6 @@
 import { Users, BookOpen, AlertCircle, CheckCircle2, Scale } from 'lucide-react';
+import { formatDate } from '../../lib/dates';
+import { RESIDENCY_THRESHOLD_DAYS, residencyProgress } from '../../lib/residency';
 
 export default function MetricsOverview({ 
   setActiveTab, 
@@ -71,7 +73,7 @@ export default function MetricsOverview({
                 .filter(u => u.role === 'student')
                 .map(student => {
                   const days = student.arrivalDate ? calculateResidencyDays(student.arrivalDate, student.absences) : 0;
-                  const isResident = days >= 183;
+                  const isResident = days >= RESIDENCY_THRESHOLD_DAYS;
                   
                   return (
                     <div key={student.id} className="p-3 bg-bg-input border border-border-main rounded-xl space-y-2 text-[10px]">
@@ -82,7 +84,7 @@ export default function MetricsOverview({
                             ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.15)]' 
                             : 'bg-bg-active text-text-active border border-border-active'
                         }`}>
-                          {isResident ? 'Residente Fiscal' : `${183 - days} DÍAS RESTANTES`}
+                          {isResident ? 'Residente Fiscal' : `${RESIDENCY_THRESHOLD_DAYS - days} DÍAS RESTANTES`}
                         </span>
                       </div>
                       
@@ -93,11 +95,11 @@ export default function MetricsOverview({
                               className={`h-full rounded-full transition-all duration-355 ${
                                 isResident ? 'bg-emerald-500' : 'bg-indigo-650 shadow-[0_0_8px_rgba(15,117,188,0.2)]'
                               }`}
-                              style={{ width: `${Math.min(100, (days / 183) * 100)}%` }}
+                              style={{ width: `${residencyProgress(days)}%` }}
                             ></div>
                           </div>
                           <div className="flex justify-between text-[8.5px] text-text-muted uppercase font-bold tracking-wider">
-                            <span>Entrada: {new Date(student.arrivalDate).toLocaleDateString('es-ES')}</span>
+                            <span>Entrada: {formatDate(student.arrivalDate)}</span>
                             <span>{days} / 183 Días</span>
                           </div>
                         </div>

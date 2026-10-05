@@ -8,4 +8,9 @@ export default defineConfig({
     tailwindcss(),
     react()
   ],
+  test: {
+    // Los tests de la Edge Function (Deno) se ejecutan aparte con `deno test`
+    include: ['src/**/*.test.{js,jsx}'],
+    environment: 'node',
+  },
 })

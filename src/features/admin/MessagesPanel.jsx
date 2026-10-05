@@ -4,6 +4,7 @@ import {
   Paperclip, Link, X, Image, FileText, ExternalLink, ChevronRight,
   Mail, User, Clock, MessageSquare
 } from 'lucide-react';
+import { isHttpsUrl } from '../../lib/urls';
 
 export default function MessagesPanel({
   pendingMessages,
@@ -28,6 +29,7 @@ export default function MessagesPanel({
   const [inputLinkName, setInputLinkName] = useState('');
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [attachmentError, setAttachmentError] = useState('');
 
   const scrollRef = useRef(null);
 
@@ -65,14 +67,16 @@ export default function MessagesPanel({
 
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
+    e.target.value = '';
     if (!file) return;
 
     setUploadingAttachment(true);
+    setAttachmentError('');
     try {
       const res = await handleUploadAttachment(file);
       setAttachment(res);
     } catch (err) {
-      alert("Error al subir archivo: " + err.message);
+      setAttachmentError('Error al subir archivo: ' + err.message);
     } finally {
       setUploadingAttachment(false);
     }
@@ -81,6 +85,11 @@ export default function MessagesPanel({
   const handleAddLink = (e) => {
     e.preventDefault();
     if (!inputLinkUrl.trim()) return;
+    if (!isHttpsUrl(inputLinkUrl.trim())) {
+      setAttachmentError('El enlace debe empezar por https://');
+      return;
+    }
+    setAttachmentError('');
     setAttachment({
       url: inputLinkUrl.trim(),
       name: inputLinkName.trim() || "Enlace web",
@@ -111,7 +120,11 @@ export default function MessagesPanel({
         </div>
       );
     }
-    if (!attachment) return null;
+    if (!attachment) {
+      return attachmentError
+        ? <p className="mt-2 text-[10px] text-red-500 font-mono">{attachmentError}</p>
+        : null;
+    }
     return (
       <div className="p-3 bg-bg-active border border-border-active rounded-xl flex items-center justify-between gap-4 mt-2 animate-in slide-in-from-bottom-2 duration-200">
         <div className="flex items-center gap-2 text-xs text-text-active font-mono">

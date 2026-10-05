@@ -1,66 +1,59 @@
 import { useState, useEffect, useRef } from 'react';
 import { AuthContext } from './AuthContext';
 import { supabase } from '../utils/supabaseClient';
+import { mapProfile } from '../services/api';
+import { isValidRole } from '../lib/roles';
+
+const MISSING_PROFILE_ERROR = 'Tu cuenta no tiene un perfil activo. Contacta con administración.';
+const PROFILE_LOAD_ERROR = 'No se pudo cargar tu perfil. Inténtalo de nuevo en unos minutos.';
+
+// Perfil detallado del usuario. `failed` distingue un error de lectura (red,
+// servidor) de un perfil que no existe (profile: null).
+async function loadProfile(uid) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', uid)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error al obtener el perfil de usuario:', error.message);
+    return { profile: null, failed: true };
+  }
+  return { profile: mapProfile(data), failed: false };
+}
+
+const hasValidProfile = (profile) => Boolean(profile) && isValidRole(profile.role);
+
+const toSessionUser = (authUser, profile) => ({
+  id: authUser.id,
+  email: authUser.email,
+  ...profile
+});
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   // Ref (no state) para evitar que el listener compita con login()
-  // useRef no causa re-render ni re-crea la suscripción
   const isLoggingInRef = useRef(false);
 
-  // Helper para obtener el perfil detallado del usuario de la base de datos
-  const fetchProfile = async (uid) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', uid)
-        .single();
-      
-      if (error) throw error;
-      
-      // Mapear campos de base de datos (snake_case) a formato del frontend (camelCase)
-      return {
-        id: data.id,
-        name: data.name,
-        role: data.role,
-        passport: data.passport,
-        nie: data.nie,
-        address: data.address,
-        postalCode: data.postal_code,
-        arrivalDate: data.arrival_date,
-        absences: data.absences || 0,
-        aeatDate: data.aeat_date,
-        ssDate: data.ss_date,
-        allowedResources: data.allowed_resources || [],
-        completedResources: data.completed_resources || [],
-        residencyDoc: data.residency_doc,
-        email: data.email
-      };
-    } catch (e) {
-      console.error('Error al obtener el perfil de usuario:', e);
-      return null;
-    }
-  };
-
   useEffect(() => {
-    // Flag to prevent updates on unmounted component
     let mounted = true;
 
-    // 1. Initial session check
+    // 1. Sesión existente al cargar la app
     const checkSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (session && mounted) {
-          const profile = await fetchProfile(session.user.id);
-          if (profile && mounted) {
-            setUser({
-              id: session.user.id,
-              email: session.user.email,
-              ...profile
-            });
-          }
+        if (!session || !mounted) return;
+
+        const { profile, failed } = await loadProfile(session.user.id);
+        if (!mounted) return;
+        if (hasValidProfile(profile)) {
+          setUser(toSessionUser(session.user, profile));
+        } else if (!failed) {
+          // Sesión sin perfil válido (p. ej. usuario eliminado): cerrarla.
+          // Si solo falló la lectura se conserva para reintentar al recargar.
+          await supabase.auth.signOut({ scope: 'local' });
         }
       } catch (e) {
         console.error('Error verificando la sesión activa:', e);
@@ -71,32 +64,20 @@ export function AuthProvider({ children }) {
 
     checkSession();
 
-    // 2. Auth state change listener
+    // 2. Cambios de sesión (refresco de token, cierre en otra pestaña…)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
+      if (!mounted || isLoggingInRef.current) return;
 
-      // Si login() está en curso, dejar que login() maneje el estado
-      // para evitar race conditions con setUser()
-      if (isLoggingInRef.current) return;
-
-      if (event === 'TOKEN_REFRESHED') {
-        // Solo refrescar el perfil en token refresh automático
-        if (session) {
-          const profile = await fetchProfile(session.user.id);
-          if (profile && mounted) {
-            setUser({
-              id: session.user.id,
-              email: session.user.email,
-              ...profile
-            });
-          }
+      if (event === 'TOKEN_REFRESHED' && session) {
+        const { profile } = await loadProfile(session.user.id);
+        // Si falla la lectura se conserva el usuario actual (fallo transitorio)
+        if (hasValidProfile(profile) && mounted) {
+          setUser(toSessionUser(session.user, profile));
         }
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
       }
-      // Ignorar SIGNED_IN (se maneja en login()), INITIAL_SESSION, USER_UPDATED, etc.
-      
-      // Ensure loading is false after handling the event
+
       if (mounted) setLoading(false);
     });
 
@@ -111,19 +92,17 @@ export function AuthProvider({ children }) {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
-        password: password
+        password
       });
+      if (error) throw new Error(error.message);
 
-      if (error) {
-        throw new Error(error.message);
+      const { profile, failed } = await loadProfile(data.user.id);
+      if (!hasValidProfile(profile)) {
+        await supabase.auth.signOut({ scope: 'local' });
+        throw new Error(failed ? PROFILE_LOAD_ERROR : MISSING_PROFILE_ERROR);
       }
-      
-      const profile = await fetchProfile(data.user.id);
-      const sessionUser = {
-        id: data.user.id,
-        email: data.user.email,
-        ...profile
-      };
+
+      const sessionUser = toSessionUser(data.user, profile);
       setUser(sessionUser);
       return sessionUser;
     } finally {
@@ -138,14 +117,8 @@ export function AuthProvider({ children }) {
 
   const refreshUser = async () => {
     if (!user) return;
-    const profile = await fetchProfile(user.id);
-    if (profile) {
-      setUser({
-        id: user.id,
-        email: user.email,
-        ...profile
-      });
-    }
+    const { profile } = await loadProfile(user.id);
+    if (profile) setUser(toSessionUser(user, profile));
   };
 
   return (
@@ -154,4 +127,5 @@ export function AuthProvider({ children }) {
     </AuthContext.Provider>
   );
 }
+
 export default AuthProvider;
