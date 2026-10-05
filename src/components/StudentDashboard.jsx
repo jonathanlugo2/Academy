@@ -12,7 +12,8 @@ import CommunicationPanel from '../features/student/CommunicationPanel';
 import FiscalDossier from '../features/student/FiscalDossier';
 import ErrorBanner from './ErrorBanner';
 
-const RESOURCES_PER_PAGE = 6;
+// 2 filas de 4 tarjetas en escritorio
+const RESOURCES_PER_PAGE = 8;
 const CATEGORIES = ['all', ...RESOURCE_CATEGORIES];
 
 export default function StudentDashboard() {
@@ -330,7 +331,7 @@ export default function StudentDashboard() {
             </div>
           </div>
         ) : (
-          <div className={`flex-1 ${selectedResource && activeTab === 'resources' ? 'p-0 h-full overflow-hidden bg-bg-main' : 'p-6 max-w-7xl w-full mx-auto space-y-6 overflow-y-auto no-scrollbar'}`}>
+          <div className={`flex-1 ${selectedResource && activeTab === 'resources' ? 'p-0 h-full overflow-hidden bg-bg-main' : `p-6 max-w-7xl w-full mx-auto space-y-6 overflow-y-auto no-scrollbar ${activeTab === 'resources' ? 'lg:flex lg:flex-col' : ''}`}`}>
 
             <ErrorBanner message={loadError} />
 
