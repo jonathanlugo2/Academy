@@ -6,7 +6,10 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { formatDate } from '../../lib/dates';
-import { RESIDENCY_THRESHOLD_DAYS, residencyProgress } from '../../lib/residency';
+import {
+  RESIDENCY_THRESHOLD_DAYS, absenceDaysInYear, isFiscalResident, residencyProgress, residencyYears
+} from '../../lib/residency';
+import AbsenceManager from './AbsenceManager';
 
 export default function UserManagementTable({
   editingUserId,
@@ -41,9 +44,17 @@ export default function UserManagementTable({
   const [searchQuery, setSearchQuery] = useState('');
   const [resourceSearchQuery, setResourceSearchQuery] = useState('');
   const [assignError, setAssignError] = useState('');
+  const [residencyYear, setResidencyYear] = useState(() => new Date().getFullYear());
 
-  const selectedResidencyDays = selectedUser ? calculateResidencyDays(selectedUser.arrivalDate, selectedUser.absences) : 0;
-  const selectedIsResident = selectedResidencyDays >= RESIDENCY_THRESHOLD_DAYS;
+  const selectedResidencyDays = selectedUser
+    ? calculateResidencyDays(selectedUser.arrivalDate, selectedUser.absencePeriods, residencyYear)
+    : 0;
+  const selectedIsResident = isFiscalResident(selectedResidencyDays);
+
+  const updateAbsences = (absencePeriods) => {
+    setUsers(prev => prev.map(u => (u.id === selectedUser.id ? { ...u, absencePeriods } : u)));
+    setSelectedUser(prev => ({ ...prev, absencePeriods }));
+  };
 
   // Activa/desactiva un recurso para el alumno seleccionado (RPC atómica)
   const toggleResourceAccess = async (resourceId, enable) => {
@@ -93,6 +104,7 @@ export default function UserManagementTable({
   const onViewDetails = (user) => {
     setSelectedUser(user);
     setResourceSearchQuery('');
+    setResidencyYear(new Date().getFullYear());
     setShowDetailsModal(true);
   };
 
@@ -164,8 +176,8 @@ export default function UserManagementTable({
             <tbody className="divide-y divide-border-main/40">
               {paginatedData.length > 0 ? (
                 paginatedData.map((user) => {
-                  const residencyDays = calculateResidencyDays(user.arrivalDate, user.absences);
-                  const isResident = residencyDays >= RESIDENCY_THRESHOLD_DAYS;
+                  const residencyDays = calculateResidencyDays(user.arrivalDate, user.absencePeriods);
+                  const isResident = isFiscalResident(residencyDays);
                   
                   return (
                     <tr key={user.id} className="group hover:bg-bg-input/10 transition-colors">
@@ -455,10 +467,22 @@ export default function UserManagementTable({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {/* Control Residencia */}
                   <div className="space-y-4">
-                    <h4 className="text-xs font-bold text-text-title uppercase tracking-widest flex items-center gap-2 font-mono">
-                      <Activity className="w-4 h-4 text-text-active" />
-                      Cumplimiento de 183 Días
-                    </h4>
+                    <div className="flex justify-between items-center gap-2">
+                      <h4 className="text-xs font-bold text-text-title uppercase tracking-widest flex items-center gap-2 font-mono">
+                        <Activity className="w-4 h-4 text-text-active" />
+                        Cumplimiento de 183 Días
+                      </h4>
+                      <select
+                        value={residencyYear}
+                        onChange={(e) => setResidencyYear(Number(e.target.value))}
+                        className="bg-bg-input border border-border-main rounded-lg px-2 py-1 text-[10px] text-text-main font-mono outline-none cursor-pointer"
+                        aria-label="Año natural"
+                      >
+                        {residencyYears(selectedUser.arrivalDate, selectedUser.absencePeriods).map(y => (
+                          <option key={y} value={y}>{y}</option>
+                        ))}
+                      </select>
+                    </div>
                     <div className="bg-bg-input/40 p-6 rounded-3xl border border-border-main/85 space-y-6">
                       <div className="flex justify-between items-end">
                         <div className="text-3xl font-black text-text-main font-mono">
@@ -474,7 +498,7 @@ export default function UserManagementTable({
                       </div>
                       <div className="flex justify-between text-[9px] text-text-muted font-mono uppercase font-bold tracking-widest">
                         <span>LLEGADA: {formatDate(selectedUser.arrivalDate, 'N/A')}</span>
-                        <span>DÍAS FUERA: {selectedUser.absences || 0}</span>
+                        <span>DÍAS FUERA {residencyYear}: {absenceDaysInYear(selectedUser.absencePeriods, residencyYear)}</span>
                       </div>
                     </div>
                   </div>
@@ -536,6 +560,11 @@ export default function UserManagementTable({
                         });
                       })()}
                     </div>
+                  </div>
+
+                  {/* Ausencias largas */}
+                  <div className="md:col-span-2">
+                    <AbsenceManager student={selectedUser} year={residencyYear} onChange={updateAbsences} />
                   </div>
 
                   {/* Documentación */}

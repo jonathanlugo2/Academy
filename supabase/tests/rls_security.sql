@@ -93,6 +93,11 @@ INSERT INTO storage.objects (bucket_id, name) VALUES
 
 INSERT INTO public.tickets (id, student_id, title) VALUES
   ('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000b1', 'Ticket de B');
+-- Ausencias: una de A y una de B
+INSERT INTO public.absence_periods (student_id, start_date, end_date) VALUES
+  ('00000000-0000-0000-0000-0000000000a1', '2026-01-10', '2026-02-20'),
+  ('00000000-0000-0000-0000-0000000000b1', '2026-03-01', '2026-04-15');
+
 -- Mensaje antiguo con URL pública (formato previo a la migración)
 ALTER TABLE public.ticket_messages DISABLE TRIGGER validate_ticket_attachment;
 INSERT INTO public.ticket_messages (ticket_id, sender_id, content, attachment_url, attachment_type) VALUES
@@ -126,10 +131,14 @@ SELECT tests.throws($$UPDATE public.profiles SET nie = 'X0000000T' WHERE id = au
                     'A no puede cambiar su NIE');
 SELECT tests.throws($$UPDATE public.profiles SET role = 'admin' WHERE id = auth.uid()$$,
                     'A no puede hacerse admin');
-SELECT tests.affects($$UPDATE public.profiles SET absences = 10, updated_at = now() WHERE id = auth.uid()$$, 1,
-                     'A puede registrar sus ausencias');
-SELECT tests.throws($$UPDATE public.profiles SET absences = -5 WHERE id = auth.uid()$$,
-                    'ausencias negativas rechazadas');
+SELECT tests.throws($$UPDATE public.profiles SET absences = 10 WHERE id = auth.uid()$$,
+                    'A ya no puede editar la columna antigua de ausencias');
+SELECT tests.ok((SELECT count(*) FROM public.absence_periods) = 1, 'A solo ve sus ausencias');
+SELECT tests.throws($$INSERT INTO public.absence_periods (student_id, start_date, end_date)
+                      VALUES (auth.uid(), '2026-05-01', '2026-06-30')$$,
+                    'A no puede registrar ausencias');
+SELECT tests.denied($$DELETE FROM public.absence_periods WHERE student_id = auth.uid()$$,
+                    'A no puede borrar sus ausencias');
 SELECT tests.affects($$UPDATE public.profiles SET completed_resources = ARRAY['00000000-0000-0000-0000-0000000000e1']::UUID[] WHERE id = auth.uid()$$, 1,
                      'A puede completar un recurso asignado');
 SELECT tests.throws($$UPDATE public.profiles SET completed_resources = ARRAY['00000000-0000-0000-0000-0000000000e2']::UUID[] WHERE id = auth.uid()$$,
@@ -138,7 +147,7 @@ SELECT tests.throws($$UPDATE public.profiles SET residency_doc = '{"path":"00000
                     'A no puede apuntar su documento a la carpeta de B');
 SELECT tests.affects($$UPDATE public.profiles SET residency_doc = '{"path":"00000000-0000-0000-0000-0000000000a1/res.pdf","name":"res.pdf"}' WHERE id = auth.uid()$$, 1,
                      'A puede registrar su documento de residencia');
-SELECT tests.denied($$UPDATE public.profiles SET absences = 1 WHERE id = '00000000-0000-0000-0000-0000000000b1'$$,
+SELECT tests.denied($$UPDATE public.profiles SET nie = 'X1' WHERE id = '00000000-0000-0000-0000-0000000000b1'$$,
                     'A no puede modificar el perfil de B');
 
 SELECT tests.ok((SELECT array_agg(name ORDER BY name) FROM storage.objects WHERE bucket_id = 'academy-resources') = ARRAY['docs/r1.pdf'],
@@ -204,6 +213,19 @@ SELECT tests.ok(public.set_resource_assignment('00000000-0000-0000-0000-00000000
                 'admin desactiva r1 a A');
 SELECT tests.affects($$UPDATE public.profiles SET nie = 'Y1234567X' WHERE id = '00000000-0000-0000-0000-0000000000a1'$$, 1,
                      'admin puede editar datos fiscales');
+SELECT tests.ok((SELECT count(*) FROM public.absence_periods) = 2, 'admin ve todas las ausencias');
+SELECT tests.affects($$INSERT INTO public.absence_periods (student_id, start_date, end_date)
+                       VALUES ('00000000-0000-0000-0000-0000000000a1', '2026-07-01', '2026-08-15')$$, 1,
+                     'admin registra una ausencia larga');
+SELECT tests.throws($$INSERT INTO public.absence_periods (student_id, start_date, end_date)
+                      VALUES ('00000000-0000-0000-0000-0000000000a1', '2026-10-01', '2026-10-20')$$,
+                    'ausencia de menos de 30 días rechazada');
+SELECT tests.throws($$INSERT INTO public.absence_periods (student_id, start_date, end_date)
+                      VALUES ('00000000-0000-0000-0000-0000000000a1', '2026-08-01', '2026-09-30')$$,
+                    'ausencia solapada rechazada');
+SELECT tests.throws($$INSERT INTO public.absence_periods (student_id, start_date, end_date)
+                      VALUES ('00000000-0000-0000-0000-0000000000a1', '2026-12-31', '2026-11-01')$$,
+                    'ausencia con fechas invertidas rechazada');
 SELECT tests.ok((SELECT count(*) FROM public.audit_logs WHERE action = 'resources_assignment_changed') >= 3,
                 'los cambios de asignación quedan auditados');
 SELECT tests.throws($$SELECT public.admin_delete_user('00000000-0000-0000-0000-00000000000a')$$,

@@ -83,8 +83,9 @@ Deno.serve(async (req) => {
     }
     const input = parseNewUser(body);
 
-    // El rol va en app_metadata (solo editable con service role); el trigger
-    // handle_new_user lo copia al perfil.
+    // El rol va en app_metadata (solo editable con service role). Auth lo
+    // escribe después de crear la fila, así que el trigger handle_new_user crea
+    // el perfil como 'student': el rol se fija también al completar el perfil.
     const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: input.email,
       password: input.password,
@@ -104,6 +105,7 @@ Deno.serve(async (req) => {
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .update({
+        role: input.role,
         name: input.name,
         passport: input.passport,
         nie: input.nie,

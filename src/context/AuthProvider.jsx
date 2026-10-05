@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { AuthContext } from './AuthContext';
 import { supabase } from '../utils/supabaseClient';
-import { mapProfile } from '../services/api';
+import { PROFILE_COLUMNS, mapProfile } from '../services/api';
 import { isValidRole } from '../lib/roles';
 
 const MISSING_PROFILE_ERROR = 'Tu cuenta no tiene un perfil activo. Contacta con administración.';
@@ -12,7 +12,7 @@ const PROFILE_LOAD_ERROR = 'No se pudo cargar tu perfil. Inténtalo de nuevo en 
 async function loadProfile(uid) {
   const { data, error } = await supabase
     .from('profiles')
-    .select('*')
+    .select(PROFILE_COLUMNS)
     .eq('id', uid)
     .maybeSingle();
 

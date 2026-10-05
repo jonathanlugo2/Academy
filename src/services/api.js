@@ -4,7 +4,7 @@
 import { supabase } from '../utils/supabaseClient';
 import { attachmentStoragePath } from '../lib/storagePaths';
 
-const PROFILE_COLUMNS = 'id, name, role, passport, nie, address, postal_code, arrival_date, absences, aeat_date, ss_date, allowed_resources, completed_resources, residency_doc, email';
+export const PROFILE_COLUMNS = 'id, name, role, passport, nie, address, postal_code, arrival_date, aeat_date, ss_date, allowed_resources, completed_resources, residency_doc, email, absence_periods!absence_periods_student_id_fkey(id, start_date, end_date, note)';
 const RESOURCE_COLUMNS = 'id, title, type, url, description, category, tags, created_at, storage_path, image_url';
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
@@ -21,6 +21,8 @@ const EXTENSION_BY_MIME = {
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 const DOCUMENT_TYPES = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp'];
 
+const mapAbsence = (a) => ({ id: a.id, startDate: a.start_date, endDate: a.end_date, note: a.note });
+
 // Mapeo de perfiles de base de datos (snake_case) al formato del frontend
 export const mapProfile = (p) => {
   if (!p) return null;
@@ -33,7 +35,7 @@ export const mapProfile = (p) => {
     address: p.address,
     postalCode: p.postal_code,
     arrivalDate: p.arrival_date,
-    absences: p.absences || 0,
+    absencePeriods: (p.absence_periods || []).map(mapAbsence).sort((a, b) => a.startDate.localeCompare(b.startDate)),
     aeatDate: p.aeat_date,
     ssDate: p.ss_date,
     allowedResources: p.allowed_resources || [],
@@ -121,6 +123,13 @@ function mapTicketMessage(m) {
   };
 }
 
+function absenceErrorMessage(error) {
+  if (error.code === '23P01') return 'La ausencia se solapa con otra ya registrada.';
+  if (error.message?.includes('absence_periods_min_length')) return 'Solo se registran ausencias de 30 días o más.';
+  if (error.message?.includes('absence_periods_order')) return 'La fecha de regreso no puede ser anterior a la de salida.';
+  return error.message;
+}
+
 const TICKET_MESSAGE_SELECT = '*, sender:profiles(name, role), ticket:tickets(student_id)';
 
 export const api = {
@@ -163,7 +172,6 @@ export const api = {
       if (userData.address !== undefined) dbData.address = userData.address;
       if (userData.postalCode !== undefined) dbData.postal_code = userData.postalCode;
       if (userData.arrivalDate !== undefined) dbData.arrival_date = userData.arrivalDate;
-      if (userData.absences !== undefined) dbData.absences = userData.absences;
       if (userData.aeatDate !== undefined) dbData.aeat_date = userData.aeatDate;
       if (userData.ssDate !== undefined) dbData.ss_date = userData.ssDate;
       if (userData.completedResources !== undefined) dbData.completed_resources = userData.completedResources;
@@ -195,6 +203,23 @@ export const api = {
       });
       if (error) throw error;
       return data || [];
+    }
+  },
+  // Ausencias largas (solo administración; la BD exige >= 30 días y sin solapes)
+  absences: {
+    create: async (studentId, { startDate, endDate, note }) => {
+      const { data, error } = await supabase
+        .from('absence_periods')
+        .insert({ student_id: studentId, start_date: startDate, end_date: endDate, note: note?.trim() || null })
+        .select('id, start_date, end_date, note')
+        .single();
+
+      if (error) throw new Error(absenceErrorMessage(error));
+      return mapAbsence(data);
+    },
+    remove: async (id) => {
+      const { error } = await supabase.from('absence_periods').delete().eq('id', id);
+      if (error) throw error;
     }
   },
   resources: {

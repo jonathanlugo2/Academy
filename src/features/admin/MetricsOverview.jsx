@@ -1,6 +1,6 @@
 import { Users, BookOpen, AlertCircle, CheckCircle2, Scale } from 'lucide-react';
 import { formatDate } from '../../lib/dates';
-import { RESIDENCY_THRESHOLD_DAYS, residencyProgress } from '../../lib/residency';
+import { daysUntilResidency, isFiscalResident, residencyProgress } from '../../lib/residency';
 
 export default function MetricsOverview({ 
   setActiveTab, 
@@ -72,8 +72,8 @@ export default function MetricsOverview({
               users
                 .filter(u => u.role === 'student')
                 .map(student => {
-                  const days = student.arrivalDate ? calculateResidencyDays(student.arrivalDate, student.absences) : 0;
-                  const isResident = days >= RESIDENCY_THRESHOLD_DAYS;
+                  const days = student.arrivalDate ? calculateResidencyDays(student.arrivalDate, student.absencePeriods) : 0;
+                  const isResident = isFiscalResident(days);
                   
                   return (
                     <div key={student.id} className="p-3 bg-bg-input border border-border-main rounded-xl space-y-2 text-[10px]">
@@ -84,7 +84,7 @@ export default function MetricsOverview({
                             ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.15)]' 
                             : 'bg-bg-active text-text-active border border-border-active'
                         }`}>
-                          {isResident ? 'Residente Fiscal' : `${RESIDENCY_THRESHOLD_DAYS - days} DÍAS RESTANTES`}
+                          {isResident ? 'Residente Fiscal' : `${daysUntilResidency(days)} DÍAS RESTANTES`}
                         </span>
                       </div>
                       

@@ -1,54 +1,32 @@
 import { useState } from 'react';
 import {
-  AlertCircle, CheckCircle2, Clock, Compass, Download, FileText, MapPin, Plane, Upload, User
+  AlertCircle, CheckCircle2, Clock, Compass, Download, FileText, MapPin, Upload, User
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { formatDate } from '../../lib/dates';
 import {
-  RESIDENCY_THRESHOLD_DAYS, calculateResidencyDays, isFiscalResident, residencyProgress
+  MIN_LONG_ABSENCE_DAYS, RESIDENCY_THRESHOLD_DAYS, absenceDaysInYear, calculateResidencyDays,
+  daysUntilResidency, isFiscalResident, residencyProgress, residencyYears
 } from '../../lib/residency';
+import AbsenceList from '../residency/AbsenceList';
 
 const ACCEPTED_DOC_TYPES = '.pdf,.png,.jpg,.jpeg,.webp';
 
 // Pestaña "Dossier fiscal" del alumno: datos personales, hitos, cómputo de
 // residencia y documento de extranjería.
 export default function FiscalDossier({ user, refreshUser }) {
-  const [absencesInput, setAbsencesInput] = useState(user.absences || 0);
-  const [savingAbsences, setSavingAbsences] = useState(false);
-  const [absencesSuccess, setAbsencesSuccess] = useState(false);
-  const [absencesError, setAbsencesError] = useState('');
+  const [year, setYear] = useState(() => new Date().getFullYear());
 
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [docError, setDocError] = useState('');
 
-  const effectiveDays = calculateResidencyDays(user.arrivalDate, user.absences);
+  const currentYear = new Date().getFullYear();
+  const isCurrentYear = year === currentYear;
+  const effectiveDays = calculateResidencyDays(user.arrivalDate, user.absencePeriods, year);
+  const absenceDays = absenceDaysInYear(user.absencePeriods, year);
   const progressPercent = residencyProgress(effectiveDays);
   const isResident = isFiscalResident(effectiveDays);
-
-  const handleSaveAbsences = async (e) => {
-    e.preventDefault();
-    setAbsencesSuccess(false);
-    setAbsencesError('');
-
-    const absences = Number(absencesInput);
-    if (absencesInput === '' || !Number.isInteger(absences) || absences < 0 || absences > 366) {
-      setAbsencesError('Introduce un número de días entre 0 y 366.');
-      return;
-    }
-
-    setSavingAbsences(true);
-    try {
-      await api.users.update(user.id, { absences });
-      await refreshUser();
-      setAbsencesSuccess(true);
-      setTimeout(() => setAbsencesSuccess(false), 3000);
-    } catch (err) {
-      setAbsencesError('Error al actualizar: ' + err.message);
-    } finally {
-      setSavingAbsences(false);
-    }
-  };
 
   const handleUpload = async (e) => {
     const file = e.target.files[0];
@@ -165,14 +143,28 @@ export default function FiscalDossier({ user, refreshUser }) {
             
             {/* Calculadora Fiscal */}
             <div className="bg-bg-card border border-border-main rounded-2xl p-6 space-y-5 backdrop-blur-md shadow-sm">
-              <div>
-                <h3 className="text-sm font-bold text-text-title flex items-center gap-2 font-mono uppercase tracking-wider">
-                  <Compass className="w-5 h-5 text-text-active" />
-                  CÓMPUTO DE RESIDENCIA FISCAL (183 DÍAS)
-                </h3>
-                <p className="text-xs text-text-muted mt-1 leading-relaxed">
-                  En España se considera que eres Residente Fiscal si pasas más de 183 días en el territorio durante el año natural. Controla tus días efectivos de estancia.
-                </p>
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-bold text-text-title flex items-center gap-2 font-mono uppercase tracking-wider">
+                    <Compass className="w-5 h-5 text-text-active" />
+                    CÓMPUTO DE RESIDENCIA FISCAL (183 DÍAS)
+                  </h3>
+                  <p className="text-xs text-text-muted mt-1 leading-relaxed">
+                    En España se considera que eres Residente Fiscal si pasas más de 183 días en el territorio durante el año natural. Controla tus días efectivos de estancia.
+                  </p>
+                </div>
+                {user.arrivalDate && (
+                  <select
+                    value={year}
+                    onChange={(e) => setYear(Number(e.target.value))}
+                    className="bg-bg-input border border-border-main rounded-xl px-3 py-2 text-xs text-text-main font-mono outline-none cursor-pointer shrink-0"
+                    aria-label="Año natural"
+                  >
+                    {residencyYears(user.arrivalDate, user.absencePeriods).map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               {user.arrivalDate ? (
@@ -184,12 +176,12 @@ export default function FiscalDossier({ user, refreshUser }) {
                     </div>
                     
                     <div className="p-4 bg-bg-input border border-border-main rounded-xl text-center shadow-inner">
-                      <span className="text-[9px] font-bold text-text-muted block uppercase tracking-wider">Ausencias / Viajes</span>
-                      <p className="text-xs font-bold text-text-main mt-1.5">{user.absences || 0} DÍAS</p>
+                      <span className="text-[9px] font-bold text-text-muted block uppercase tracking-wider">Ausencias largas {year}</span>
+                      <p className="text-xs font-bold text-text-main mt-1.5">{absenceDays} DÍAS</p>
                     </div>
 
                     <div className="p-4 bg-bg-input border border-border-main rounded-xl text-center shadow-inner">
-                      <span className="text-[9px] font-bold text-text-muted block uppercase tracking-wider">Estancia Efectiva</span>
+                      <span className="text-[9px] font-bold text-text-muted block uppercase tracking-wider">Estancia {year}{isCurrentYear ? ' (hasta hoy)' : ''}</span>
                       <p className="text-xs font-bold text-text-active mt-1.5">{effectiveDays} DÍAS</p>
                     </div>
                   </div>
@@ -230,57 +222,28 @@ export default function FiscalDossier({ user, refreshUser }) {
                       <p className="font-bold uppercase tracking-wider text-text-title">
                         {isResident 
                           ? `UMBRAL DE ${RESIDENCY_THRESHOLD_DAYS} DÍAS ALCANZADO` 
-                          : `FALTAN ${RESIDENCY_THRESHOLD_DAYS - effectiveDays} DÍAS PARA RESIDENCIA FISCAL`}
+                          : `FALTAN ${daysUntilResidency(effectiveDays)} DÍAS PARA RESIDENCIA FISCAL`}
                       </p>
                       <p className="text-text-muted mt-1 font-sans text-xs leading-relaxed">
                         {isResident 
-                          ? 'A partir de este momento eres considerado residente fiscal en España para el ejercicio tributario correspondiente.'
-                          : 'Si continúas en España, superarás el umbral. Registra tus viajes fuera de España en el formulario inferior para que se descuenten del cómputo.'}
+                          ? `Has superado ${RESIDENCY_THRESHOLD_DAYS} días en España en ${year}: eres considerado residente fiscal para ese ejercicio.`
+                          : year >= currentYear
+                            ? 'Si continúas en España, superarás el umbral antes de que acabe el año.'
+                            : `En ${year} no superaste el umbral de ${RESIDENCY_THRESHOLD_DAYS} días.`}
                       </p>
                     </div>
                   </div>
 
-                  {/* Formulario para guardar ausencias */}
-                  <form onSubmit={handleSaveAbsences} className="pt-4 border-t border-border-main flex flex-col sm:flex-row items-end gap-4 font-mono">
-                    <div className="w-full sm:max-w-xs">
-                      <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                        <Plane className="w-4 h-4 text-text-active" /> REGISTRAR AUSENCIAS (VIAJES)
-                      </label>
-                      <input 
-                        type="number" 
-                        min="0"
-                        max="366"
-                        step="1"
-                        required
-                        value={absencesInput}
-                        onChange={(e) => {
-                            setAbsencesInput(e.target.value);
-                            if (absencesSuccess) setAbsencesSuccess(false);
-                        }}
-                        className="w-full bg-bg-input border border-border-main focus:border-border-hover focus:shadow-[0_0_12px_rgba(15,117,188,0.08)] rounded-xl px-4 py-3 text-xs text-text-main focus:outline-none transition-all duration-200"
-                      />
+                  {/* Ausencias largas del año (las registra administración) */}
+                  <div className="pt-4 border-t border-border-main space-y-3">
+                    <div>
+                      <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest font-mono">Ausencias largas registradas</p>
+                      <p className="text-[11px] text-text-muted mt-1 leading-relaxed">
+                        Solo descuentan las ausencias de {MIN_LONG_ABSENCE_DAYS} días seguidos o más. Las registra el equipo de administración: si falta alguna, avísanos desde Soporte.
+                      </p>
                     </div>
-
-                    <button
-                      type="submit"
-                      disabled={savingAbsences}
-                      className="bg-indigo-650 hover:bg-indigo-600 text-white border border-indigo-500/20 rounded-xl py-3 px-5 text-[10px] font-bold uppercase tracking-widest shrink-0 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
-                    >
-                      {savingAbsences ? 'GUARDANDO...' : 'ACTUALIZAR DATOS'}
-                    </button>
-
-                    {absencesError && (
-                      <span className="text-[10px] text-red-500 font-bold mb-3.5 uppercase tracking-wider">
-                        {absencesError}
-                      </span>
-                    )}
-
-                    {absencesSuccess && (
-                      <span className="text-[10px] text-emerald-500 font-bold mb-3.5 animate-pulse uppercase tracking-wider">
-                        ¡Guardado con éxito!
-                      </span>
-                    )}
-                  </form>
+                    <AbsenceList periods={user.absencePeriods} year={year} />
+                  </div>
                 </div>
               ) : (
                 <div className="text-xs text-text-muted font-mono uppercase text-center py-8 border border-dashed border-border-main rounded-xl">
