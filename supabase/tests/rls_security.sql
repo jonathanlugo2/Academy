@@ -196,6 +196,142 @@ SELECT tests.ok(EXISTS (SELECT 1 FROM storage.objects WHERE name = 'ticket-uploa
                 'B sigue leyendo su adjunto antiguo');
 RESET ROLE;
 
+-- Formaciones -----------------------------------------------------------------
+-- f1 ... 00000000-0000-0000-0000-0000000000f1 (publicada, A inscrito)
+-- f2 ... 00000000-0000-0000-0000-0000000000f2 (publicada, nadie inscrito)
+-- f3 ... 00000000-0000-0000-0000-0000000000f3 (borrador, A inscrito)
+INSERT INTO public.courses (id, title, is_published) VALUES
+  ('00000000-0000-0000-0000-0000000000f1', 'Formación 1', true),
+  ('00000000-0000-0000-0000-0000000000f2', 'Formación 2', true),
+  ('00000000-0000-0000-0000-0000000000f3', 'Borrador', false);
+INSERT INTO public.course_sections (id, course_id, title, position) VALUES
+  ('00000000-0000-0000-0000-000000000051', '00000000-0000-0000-0000-0000000000f1', 'Capítulo 1', 1),
+  ('00000000-0000-0000-0000-000000000052', '00000000-0000-0000-0000-0000000000f1', 'Capítulo 2', 2),
+  ('00000000-0000-0000-0000-000000000053', '00000000-0000-0000-0000-0000000000f2', 'Capítulo 1', 1),
+  ('00000000-0000-0000-0000-000000000054', '00000000-0000-0000-0000-0000000000f3', 'Capítulo 1', 1);
+INSERT INTO public.lessons (id, course_id, section_id, title, type, url, storage_path, position) VALUES
+  ('00000000-0000-0000-0000-000000000011', '00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-000000000051', 'Vídeo', 'video', 'https://youtu.be/x', NULL, 1),
+  ('00000000-0000-0000-0000-000000000012', '00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-000000000051', 'PDF', 'document', NULL, 'courses/f1/l.pdf', 2),
+  ('00000000-0000-0000-0000-000000000013', '00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-000000000052', 'Vídeo 2', 'video', 'https://youtu.be/y', NULL, 1),
+  ('00000000-0000-0000-0000-000000000021', '00000000-0000-0000-0000-0000000000f2', '00000000-0000-0000-0000-000000000053', 'PDF', 'document', NULL, 'courses/f2/l.pdf', 1),
+  ('00000000-0000-0000-0000-000000000031', '00000000-0000-0000-0000-0000000000f3', '00000000-0000-0000-0000-000000000054', 'PDF', 'document', NULL, 'courses/f3/l.pdf', 1);
+INSERT INTO public.course_materials (course_id, lesson_id, title, storage_path) VALUES
+  ('00000000-0000-0000-0000-0000000000f1', NULL, 'Guía', 'courses/f1/guia.pdf'),
+  ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-000000000011', 'Plantilla', 'courses/f1/plantilla.xlsx'),
+  ('00000000-0000-0000-0000-0000000000f2', NULL, 'Guía', 'courses/f2/guia.pdf');
+INSERT INTO public.course_enrollments (course_id, student_id) VALUES
+  ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-0000000000a1'),
+  ('00000000-0000-0000-0000-0000000000f3', '00000000-0000-0000-0000-0000000000a1');
+INSERT INTO storage.objects (bucket_id, name) VALUES
+  ('academy-resources', 'courses/f1/l.pdf'),
+  ('academy-resources', 'courses/f1/guia.pdf'),
+  ('academy-resources', 'courses/f1/plantilla.xlsx'),
+  ('academy-resources', 'courses/f1/huerfano.pdf'),
+  ('academy-resources', 'courses/f2/l.pdf'),
+  ('academy-resources', 'courses/f2/guia.pdf'),
+  ('academy-resources', 'courses/f3/l.pdf');
+
+SELECT tests.throws($$INSERT INTO public.lessons (course_id, section_id, title, type, url)
+                      VALUES ('00000000-0000-0000-0000-0000000000f2', '00000000-0000-0000-0000-000000000051', 'Cruzada', 'video', 'https://youtu.be/z')$$,
+                    'una lección no puede ir en un capítulo de otra formación');
+SELECT tests.throws($$INSERT INTO public.lessons (course_id, section_id, title, type)
+                      VALUES ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-000000000051', 'Vacía', 'video')$$,
+                    'una lección sin url ni fichero se rechaza');
+SELECT tests.throws($$INSERT INTO public.course_materials (course_id, lesson_id, title, storage_path)
+                      VALUES ('00000000-0000-0000-0000-0000000000f2', '00000000-0000-0000-0000-000000000011', 'Cruzado', 'x.pdf')$$,
+                    'un material no puede ir en una lección de otra formación');
+
+SET LOCAL ROLE anon;
+SELECT set_config('request.jwt.claim.sub', '', true);
+SELECT tests.ok((SELECT count(*) FROM public.courses) = 0, 'anon no ve formaciones');
+SELECT tests.ok((SELECT count(*) FROM public.lessons) = 0, 'anon no ve lecciones');
+RESET ROLE;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', true);
+SELECT tests.ok((SELECT array_agg(title ORDER BY title) FROM public.courses) = ARRAY['Formación 1'],
+                'A solo ve la formación publicada en la que está inscrito');
+SELECT tests.ok((SELECT count(*) FROM public.course_sections) = 2, 'A solo ve los capítulos de f1');
+SELECT tests.ok((SELECT count(*) FROM public.lessons) = 3, 'A solo ve las lecciones de f1');
+SELECT tests.ok((SELECT count(*) FROM public.course_materials) = 2, 'A solo ve los materiales de f1');
+SELECT tests.ok((SELECT count(*) FROM public.course_enrollments) = 2, 'A ve sus inscripciones');
+SELECT tests.ok((SELECT array_agg(name ORDER BY name) FROM storage.objects WHERE name LIKE 'courses/%')
+                = ARRAY['courses/f1/guia.pdf', 'courses/f1/l.pdf', 'courses/f1/plantilla.xlsx'],
+                'A solo ve los ficheros referenciados de f1');
+SELECT tests.throws($$INSERT INTO public.course_enrollments (course_id, student_id)
+                      VALUES ('00000000-0000-0000-0000-0000000000f2', auth.uid())$$,
+                    'A no puede inscribirse');
+SELECT tests.throws($$SELECT public.set_course_enrollments('00000000-0000-0000-0000-0000000000f2', ARRAY[auth.uid()])$$,
+                    'A no puede usar la RPC de inscripciones');
+SELECT tests.throws($$INSERT INTO public.courses (title, is_published) VALUES ('Mía', true)$$,
+                    'A no puede crear formaciones');
+SELECT tests.denied($$UPDATE public.lessons SET title = 'x'$$, 'A no puede editar lecciones');
+SELECT tests.throws($$SELECT public.reorder_course_sections('00000000-0000-0000-0000-0000000000f1', ARRAY['00000000-0000-0000-0000-000000000052']::UUID[])$$,
+                    'A no puede reordenar capítulos');
+
+SELECT tests.ok((public.set_lesson_progress('00000000-0000-0000-0000-000000000011')).completed_at IS NULL,
+                'A abre una lección de f1');
+SELECT tests.ok((public.set_lesson_progress('00000000-0000-0000-0000-000000000011', true, 120)).completed_at IS NOT NULL,
+                'A completa la lección');
+SELECT tests.ok((public.set_lesson_progress('00000000-0000-0000-0000-000000000011', NULL, 30)).completed_at IS NOT NULL,
+                'guardar la posición no borra la marca de completada');
+SELECT tests.ok((public.set_lesson_progress('00000000-0000-0000-0000-000000000011', false)).last_position_seconds = 30,
+                'A desmarca la lección y conserva la posición');
+SELECT tests.throws($$SELECT public.set_lesson_progress('00000000-0000-0000-0000-000000000021', true)$$,
+                    'A no puede registrar progreso de una formación sin inscripción');
+SELECT tests.throws($$SELECT public.set_lesson_progress('00000000-0000-0000-0000-000000000031', true)$$,
+                    'A no puede registrar progreso de un borrador');
+SELECT tests.throws($$INSERT INTO public.lesson_progress (student_id, lesson_id, course_id)
+                      VALUES (auth.uid(), '00000000-0000-0000-0000-000000000021', '00000000-0000-0000-0000-0000000000f2')$$,
+                    'A no puede insertar progreso directo en f2');
+SELECT tests.throws($$INSERT INTO public.lesson_progress (student_id, lesson_id, course_id)
+                      VALUES ('00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-000000000012', '00000000-0000-0000-0000-0000000000f1')$$,
+                    'A no puede crear progreso a nombre de B');
+RESET ROLE;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b1', true);
+SELECT tests.ok((SELECT count(*) FROM public.lesson_progress) = 0, 'B no ve el progreso de A');
+SELECT tests.ok((SELECT count(*) FROM public.courses) = 0, 'B no ve formaciones sin inscripción');
+RESET ROLE;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true);
+SELECT tests.ok((SELECT count(*) FROM public.courses) = 3, 'admin ve todas las formaciones, también borradores');
+SELECT tests.ok((SELECT count(*) FROM public.lesson_progress) = 1, 'admin ve el progreso de los alumnos');
+SELECT public.set_course_enrollments('00000000-0000-0000-0000-0000000000f2',
+  ARRAY['00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-00000000000a']::UUID[]);
+SELECT tests.ok((SELECT count(*) FROM public.course_enrollments WHERE course_id = '00000000-0000-0000-0000-0000000000f2') = 2,
+                'admin inscribe a A y B en f2 (los admins se ignoran)');
+SELECT public.set_course_enrollments('00000000-0000-0000-0000-0000000000f2', ARRAY['00000000-0000-0000-0000-0000000000b1']::UUID[]);
+SELECT tests.ok(NOT EXISTS (SELECT 1 FROM public.course_enrollments
+                            WHERE course_id = '00000000-0000-0000-0000-0000000000f2'
+                              AND student_id = '00000000-0000-0000-0000-0000000000a1'),
+                'reasignar f2 solo a B se la quita a A');
+SELECT public.set_course_enrollment('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000f2', true);
+SELECT tests.ok((SELECT count(*) FROM public.course_enrollments WHERE course_id = '00000000-0000-0000-0000-0000000000f2') = 2,
+                'admin activa f2 a A desde su ficha');
+SELECT tests.ok((SELECT count(*) FROM public.audit_logs WHERE action = 'course_enrollments_changed') = 3,
+                'los cambios de inscripción quedan auditados');
+SELECT public.reorder_course_sections('00000000-0000-0000-0000-0000000000f1',
+  ARRAY['00000000-0000-0000-0000-000000000052', '00000000-0000-0000-0000-000000000051']::UUID[]);
+SELECT tests.ok((SELECT array_agg(title ORDER BY position) FROM public.course_sections
+                 WHERE course_id = '00000000-0000-0000-0000-0000000000f1') = ARRAY['Capítulo 2', 'Capítulo 1'],
+                'admin reordena capítulos');
+SELECT public.reorder_section_lessons('00000000-0000-0000-0000-000000000052',
+  ARRAY['00000000-0000-0000-0000-000000000012', '00000000-0000-0000-0000-000000000013', '00000000-0000-0000-0000-000000000021']::UUID[]);
+SELECT tests.ok((SELECT array_agg(id::TEXT ORDER BY position) FROM public.lessons
+                 WHERE section_id = '00000000-0000-0000-0000-000000000052')
+                = ARRAY['00000000-0000-0000-0000-000000000012', '00000000-0000-0000-0000-000000000013'],
+                'admin mueve una lección a otro capítulo; las de otra formación se ignoran');
+SELECT tests.ok(EXISTS (SELECT 1 FROM storage.objects WHERE name = 'courses/f1/huerfano.pdf'),
+                'admin ve también ficheros sin referenciar');
+DELETE FROM public.courses WHERE id = '00000000-0000-0000-0000-0000000000f1';
+SELECT tests.ok(NOT EXISTS (SELECT 1 FROM public.lessons WHERE course_id = '00000000-0000-0000-0000-0000000000f1')
+                AND NOT EXISTS (SELECT 1 FROM public.lesson_progress WHERE course_id = '00000000-0000-0000-0000-0000000000f1'),
+                'borrar una formación borra sus lecciones y el progreso');
+RESET ROLE;
+
 -- Admin ----------------------------------------------------------------------
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true);
