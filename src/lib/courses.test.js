@@ -12,6 +12,7 @@ import {
   mapProgress,
   moveItem,
   parseDuration,
+  plural,
   resumeLesson
 } from './courses';
 
@@ -145,4 +146,9 @@ it('formatFileSize', () => {
   expect(formatFileSize(250 * 1024)).toBe('250 KB');
   expect(formatFileSize(3 * 1024 * 1024)).toBe('3 MB');
   expect(formatFileSize(1.5 * 1024 * 1024)).toBe('1.5 MB');
+});
+
+it('plural', () => {
+  expect(plural(1, 'lección', 'lecciones')).toBe('1 lección');
+  expect(plural(0, 'lección', 'lecciones')).toBe('0 lecciones');
 });

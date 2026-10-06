@@ -5,7 +5,7 @@ import { daysUntilResidency, isFiscalResident, residencyProgress } from '../../l
 export default function MetricsOverview({ 
   setActiveTab, 
   totalStudents, 
-  totalResources, 
+  totalCourses, 
   pendingMessages, 
   totalAdmins, 
   users, 
@@ -32,8 +32,8 @@ export default function MetricsOverview({
         >
           <div className="absolute right-4 top-4 text-text-active/20 group-hover:scale-110 transition-transform"><BookOpen className="w-10 h-10 text-text-active" /></div>
           <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest font-mono">Formaciones creadas</span>
-          <h3 className="text-3xl font-black text-text-title mt-2 font-mono">{totalResources}</h3>
-          <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider font-mono mt-2">PDFs, vídeos y guías</p>
+          <h3 className="text-3xl font-black text-text-title mt-2 font-mono">{totalCourses}</h3>
+          <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider font-mono mt-2">Con lecciones y materiales</p>
         </div>
 
         <div 

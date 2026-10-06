@@ -34,7 +34,8 @@ export default function UserManagementTable({
   handleStartEditUser,
   calculateResidencyDays,
   openResidencyDoc,
-  resources,
+  courses,
+  setCourses,
   setUsers,
   users, // Recibimos el listado completo para filtrar aquí
   handleDeleteUser
@@ -42,7 +43,7 @@ export default function UserManagementTable({
   const [showModal, setShowModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [resourceSearchQuery, setResourceSearchQuery] = useState('');
+  const [courseSearchQuery, setCourseSearchQuery] = useState('');
   const [assignError, setAssignError] = useState('');
   const [residencyYear, setResidencyYear] = useState(() => new Date().getFullYear());
 
@@ -56,13 +57,18 @@ export default function UserManagementTable({
     setSelectedUser(prev => ({ ...prev, absencePeriods }));
   };
 
-  // Activa/desactiva un recurso para el alumno seleccionado (RPC atómica)
-  const toggleResourceAccess = async (resourceId, enable) => {
+  const coursesOf = (userId) => courses.filter(c => c.studentIds.includes(userId));
+
+  // Activa/desactiva una formación para el alumno seleccionado (RPC atómica)
+  const toggleCourseAccess = async (courseId, enable) => {
     setAssignError('');
     try {
-      const allowedResources = await api.users.setResourceAssignment(selectedUser.id, resourceId, enable);
-      setUsers(prev => prev.map(u => (u.id === selectedUser.id ? { ...u, allowedResources } : u)));
-      setSelectedUser(prev => ({ ...prev, allowedResources }));
+      await api.courses.setEnrollment(selectedUser.id, courseId, enable);
+      setCourses(prev => prev.map(c => {
+        if (c.id !== courseId) return c;
+        const others = c.studentIds.filter(id => id !== selectedUser.id);
+        return { ...c, studentIds: enable ? [...others, selectedUser.id] : others };
+      }));
     } catch (err) {
       setAssignError('No se pudo actualizar el acceso: ' + err.message);
     }
@@ -103,7 +109,7 @@ export default function UserManagementTable({
 
   const onViewDetails = (user) => {
     setSelectedUser(user);
-    setResourceSearchQuery('');
+    setCourseSearchQuery('');
     setResidencyYear(new Date().getFullYear());
     setShowDetailsModal(true);
   };
@@ -226,7 +232,7 @@ export default function UserManagementTable({
                       </td>
                       <td className="px-6 py-4">
                          <div className="flex flex-col gap-1">
-                           <span className="text-[9px] font-bold text-text-muted uppercase font-mono">Recursos: {(user.allowedResources || []).length}</span>
+                           <span className="text-[9px] font-bold text-text-muted uppercase font-mono">Formaciones: {coursesOf(user.id).length}</span>
                            <span className="text-[9px] text-text-muted font-mono uppercase">{user.role === 'admin' ? 'Total Root' : 'Limitado'}</span>
                          </div>
                       </td>
@@ -443,7 +449,7 @@ export default function UserManagementTable({
                   </div>
                 </div>
               </div>
-              <button onClick={() => { setShowDetailsModal(false); setResourceSearchQuery(''); }} className="p-2 hover:bg-bg-input rounded-xl text-text-muted hover:text-text-title transition-colors cursor-pointer"><X className="w-5 h-5" /></button>
+              <button onClick={() => { setShowDetailsModal(false); setCourseSearchQuery(''); }} className="p-2 hover:bg-bg-input rounded-xl text-text-muted hover:text-text-title transition-colors cursor-pointer"><X className="w-5 h-5" /></button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-8">
@@ -516,9 +522,9 @@ export default function UserManagementTable({
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted" />
                       <input 
                         type="text"
-                        placeholder="BUSCAR CONTENIDO..."
-                        value={resourceSearchQuery}
-                        onChange={(e) => setResourceSearchQuery(e.target.value)}
+                        placeholder="BUSCAR FORMACIÓN..."
+                        value={courseSearchQuery}
+                        onChange={(e) => setCourseSearchQuery(e.target.value)}
                         className="w-full bg-bg-input border border-border-main rounded-xl pl-9 pr-4 py-2 text-[10px] text-text-main outline-none focus:border-border-hover/30 transition-all font-mono uppercase"
                       />
                     </div>
@@ -528,29 +534,31 @@ export default function UserManagementTable({
                     )}
                     <div className="bg-bg-input/40 p-4 rounded-3xl border border-border-main/80 max-h-[220px] overflow-y-auto custom-scrollbar space-y-2">
                       {(() => {
-                        const filtered = resources.filter(res => 
-                           (res.title || '').toLowerCase().includes(resourceSearchQuery.toLowerCase()) || 
-                           (res.category || '').toLowerCase().includes(resourceSearchQuery.toLowerCase())
+                        const filtered = courses.filter(course =>
+                           course.title.toLowerCase().includes(courseSearchQuery.toLowerCase()) ||
+                           course.category.toLowerCase().includes(courseSearchQuery.toLowerCase())
                         );
 
                         if (filtered.length === 0) {
                           return (
                             <div className="p-8 text-center text-text-muted font-mono text-[9px] uppercase tracking-widest">
-                              No se encontraron recursos
+                              No se encontraron formaciones
                             </div>
                           );
                         }
 
-                        return filtered.map(res => {
-                          const isAllowed = (selectedUser.allowedResources || []).includes(res.id);
+                        return filtered.map(course => {
+                          const isAllowed = course.studentIds.includes(selectedUser.id);
                           return (
-                            <div key={res.id} className="flex items-center justify-between p-3 bg-bg-input border border-border-main rounded-xl">
+                            <div key={course.id} className="flex items-center justify-between p-3 bg-bg-input border border-border-main rounded-xl">
                               <div className="min-w-0 pr-4">
-                                <p className="text-[11px] font-bold text-text-main truncate font-mono">{res.title}</p>
-                                <p className="text-[8px] text-text-muted uppercase font-mono">{res.category}</p>
+                                <p className="text-[11px] font-bold text-text-main truncate font-mono">{course.title}</p>
+                                <p className="text-[8px] text-text-muted uppercase font-mono">
+                                  {course.category}{!course.isPublished && ' · borrador'}
+                                </p>
                               </div>
                               <button
-                                onClick={() => toggleResourceAccess(res.id, !isAllowed)}
+                                onClick={() => toggleCourseAccess(course.id, !isAllowed)}
                                 className={`text-[8px] font-bold px-2 py-1 rounded-lg border transition-all font-mono uppercase tracking-widest cursor-pointer ${isAllowed ? 'bg-bg-active text-text-active border-border-active' : 'bg-bg-input text-text-muted border-border-main'}`}
                               >
                                 {isAllowed ? 'Habilitado' : 'Bloqueado'}

@@ -6,16 +6,17 @@ import { buildTestDocument, resolveEmbed } from '../../lib/embed';
 // react-pdf pesa ~400 KB: solo se descarga al abrir un PDF
 const SecureDocumentViewer = lazy(() => import('../../components/SecureDocumentViewer'));
 
-// URL utilizable del recurso: la de la fila, o una URL firmada si el archivo
-// está en Storage (los buckets de recursos son privados).
-function useResourceUrl(resource) {
+// URL utilizable del contenido: la de la fila, o una URL firmada si el archivo
+// está en Storage (los buckets son privados). Admite recursos (storage_path)
+// y lecciones (storagePath, con getFileUrl = api.lessons.getFileUrl).
+function useResourceUrl(resource, getFileUrl) {
   const [signed, setSigned] = useState({ path: null, url: null, error: null });
-  const path = resource.storage_path;
+  const path = resource.storage_path ?? resource.storagePath;
 
   useEffect(() => {
     if (!path) return undefined;
     let active = true;
-    api.resources.getFileUrl(resource)
+    getFileUrl(resource)
       .then(url => active && setSigned({ path, url, error: null }))
       .catch(err => active && setSigned({ path, url: null, error: err.message }));
     return () => { active = false; };
@@ -66,8 +67,8 @@ function StatusMessage({ children, isError = false }) {
   );
 }
 
-export default function ResourcePlayer({ resource, userEmail }) {
-  const { url, loading, error } = useResourceUrl(resource);
+export default function ResourcePlayer({ resource, userEmail, getFileUrl = api.resources.getFileUrl }) {
+  const { url, loading, error } = useResourceUrl(resource, getFileUrl);
 
   if (loading) return <StatusMessage>Cargando recurso...</StatusMessage>;
   if (error) return <StatusMessage isError>{error}</StatusMessage>;

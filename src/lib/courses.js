@@ -163,6 +163,11 @@ export function formatFileSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1).replace(/\.0$/, '')} MB`;
 }
 
+// "1 lección", "3 lecciones"
+export function plural(count, singular, pluralForm) {
+  return `${count} ${count === 1 ? singular : pluralForm}`;
+}
+
 // Siguiente posición libre al final de una lista de capítulos, lecciones o materiales
 export function nextPosition(items) {
   return (items || []).reduce((max, i) => Math.max(max, i.position), 0) + 1;

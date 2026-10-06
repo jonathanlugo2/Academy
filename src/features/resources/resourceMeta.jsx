@@ -3,6 +3,23 @@ import { Code, ExternalLink, FileText, Presentation, Video } from 'lucide-react'
 
 export const RESOURCE_CATEGORIES = ['Trámites y Visados', 'Impuestos y Autónomos', 'Herramientas Digitales'];
 
+// Tipos de lección en el editor de formaciones (mismos valores que la BD)
+export const LESSON_TYPES = [
+  { value: 'video', label: 'Vídeo (YouTube / Vimeo)' },
+  { value: 'document', label: 'Documento PDF' },
+  { value: 'presentation', label: 'Google Slides' },
+  { value: 'html_video', label: 'Código de inserción / MP4' },
+  { value: 'test', label: 'Test interactivo (HTML)' },
+  { value: 'link', label: 'Enlace web' },
+];
+
+export const COVER_PRESETS = [
+  { url: '/preset_tramites.png', label: 'Trámites' },
+  { url: '/preset_impuestos.png', label: 'Impuestos' },
+  { url: '/preset_coworking.png', label: 'Coworking' },
+  { url: '/preset_herramientas.png', label: 'Herramientas' },
+];
+
 const ICONS = {
   video: { Icon: Video, color: 'text-rose-450' },
   presentation: { Icon: Presentation, color: 'text-amber-400' },
@@ -17,14 +34,23 @@ export function ResourceIcon({ type, size = 'w-5 h-5' }) {
   return <Icon className={`${size} ${color}`} />;
 }
 
+const TYPE_LABELS = {
+  video: 'vídeo',
+  document: 'PDF',
+  presentation: 'presentación',
+  html_video: 'código/html',
+  test: 'test interactivo',
+  link: 'enlace',
+};
+
 export function resourceTypeLabel(type) {
-  if (type === 'html_video') return 'código/html';
-  if (type === 'test') return 'test interactivo';
-  return type;
+  return TYPE_LABELS[type] || type;
 }
 
+// Portada de un recurso (image_url) o de una formación (imageUrl)
 export function getCourseImage(resource) {
-  if (resource.image_url) return resource.image_url;
+  const image = resource.image_url ?? resource.imageUrl;
+  if (image) return image;
 
   switch (resource.category) {
     case 'Impuestos y Autónomos':
