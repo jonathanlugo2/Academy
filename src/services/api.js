@@ -3,6 +3,7 @@
 // datos y se orquestan las llamadas.
 import { supabase } from '../utils/supabaseClient';
 import { attachmentStoragePath } from '../lib/storagePaths';
+import { mapCourse, mapLesson, mapMaterial, mapProgress } from '../lib/courses';
 
 export const PROFILE_COLUMNS = 'id, name, role, passport, nie, address, postal_code, arrival_date, aeat_date, ss_date, allowed_resources, completed_resources, residency_doc, email, absence_periods!absence_periods_student_id_fkey(id, start_date, end_date, note)';
 const RESOURCE_COLUMNS = 'id, title, type, url, description, category, tags, created_at, storage_path, image_url';
@@ -16,10 +17,23 @@ const EXTENSION_BY_MIME = {
   'image/jpeg': 'jpg',
   'image/webp': 'webp',
   'image/gif': 'gif',
+  'text/plain': 'txt',
+  'text/csv': 'csv',
+  'application/zip': 'zip',
+  'application/msword': 'doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.ms-excel': 'xls',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  'application/vnd.ms-powerpoint': 'ppt',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
 };
 
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 const DOCUMENT_TYPES = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp'];
+// Coincide con allowed_mime_types del bucket academy-resources
+const MATERIAL_TYPES = Object.keys(EXTENSION_BY_MIME);
+export const MATERIAL_ACCEPT = MATERIAL_TYPES.join(',');
+const MATERIAL_MAX_MB = 50;
 
 const mapAbsence = (a) => ({ id: a.id, startDate: a.start_date, endDate: a.end_date, note: a.note });
 
@@ -71,13 +85,53 @@ async function uploadFile(bucket, path, file) {
   return path;
 }
 
-async function createSignedUrl(bucket, path) {
-  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+async function createSignedUrl(bucket, path, options) {
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, SIGNED_URL_TTL_SECONDS, options);
   if (error) throw new Error(`No se pudo acceder al archivo: ${error.message}`);
   return data.signedUrl;
 }
 
 const resourceBucket = (resource) => (resource.type === 'video' ? 'academy-videos' : 'academy-resources');
+
+// --- Formaciones -------------------------------------------------------------
+
+const COURSE_BUCKET = 'academy-resources';
+const LESSON_COLUMNS = 'id, course_id, section_id, title, description, type, url, storage_path, duration_seconds, position, created_at';
+const MATERIAL_COLUMNS = 'id, course_id, lesson_id, title, url, storage_path, file_name, mime_type, size_bytes, position, created_at';
+const COURSE_SELECT = `id, title, description, category, tags, image_url, is_published, created_at, updated_at,
+  course_sections(id, title, position, created_at, lessons(${LESSON_COLUMNS})),
+  course_materials(${MATERIAL_COLUMNS}),
+  course_enrollments(student_id)`;
+
+function courseRow(courseData) {
+  const row = {};
+  if (courseData.title !== undefined) row.title = courseData.title.trim();
+  if (courseData.description !== undefined) row.description = courseData.description.trim() || null;
+  if (courseData.category !== undefined) row.category = courseData.category || null;
+  if (courseData.tags !== undefined) row.tags = parseTags(courseData.tags);
+  if (courseData.imageUrl !== undefined) row.image_url = courseData.imageUrl || null;
+  if (courseData.isPublished !== undefined) row.is_published = courseData.isPublished;
+  return row;
+}
+
+function lessonRow(lessonData) {
+  const row = {};
+  if (lessonData.sectionId !== undefined) row.section_id = lessonData.sectionId;
+  if (lessonData.title !== undefined) row.title = lessonData.title.trim();
+  if (lessonData.description !== undefined) row.description = lessonData.description.trim() || null;
+  if (lessonData.type !== undefined) row.type = lessonData.type;
+  if (lessonData.url !== undefined) row.url = lessonData.url.trim() || null;
+  if (lessonData.storagePath !== undefined) row.storage_path = lessonData.storagePath || null;
+  if (lessonData.durationSeconds !== undefined) row.duration_seconds = lessonData.durationSeconds;
+  return row;
+}
+
+async function removeCourseFiles(paths) {
+  const list = paths.filter(Boolean);
+  if (list.length === 0) return;
+  const { error } = await supabase.storage.from(COURSE_BUCKET).remove(list);
+  if (error) console.warn('No se pudieron borrar ficheros de la formación:', error.message);
+}
 
 // --- Adjuntos de soporte -----------------------------------------------------
 
@@ -310,6 +364,239 @@ export const api = {
     getFileUrl: async (resource) => {
       if (!resource.storage_path) return resource.url;
       return createSignedUrl(resourceBucket(resource), resource.storage_path);
+    }
+  },
+  // Formaciones: la RLS devuelve al alumno solo las publicadas en las que está
+  // inscrito; al admin, todas (también borradores).
+  courses: {
+    getAll: async () => {
+      const { data, error } = await supabase
+        .from('courses')
+        .select(COURSE_SELECT)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data.map(mapCourse);
+    },
+    getById: async (id) => {
+      const { data, error } = await supabase
+        .from('courses')
+        .select(COURSE_SELECT)
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data ? mapCourse(data) : null;
+    },
+    create: async (courseData) => {
+      const { data, error } = await supabase
+        .from('courses')
+        .insert(courseRow(courseData))
+        .select(COURSE_SELECT)
+        .single();
+
+      if (error) throw error;
+      return mapCourse(data);
+    },
+    // Solo envía los campos definidos para no borrar datos por omisión
+    update: async (id, courseData) => {
+      const { data, error } = await supabase
+        .from('courses')
+        .update(courseRow(courseData))
+        .eq('id', id)
+        .select(COURSE_SELECT)
+        .single();
+
+      if (error) throw error;
+      return mapCourse(data);
+    },
+    // Capítulos, lecciones, materiales, inscripciones y progreso caen en cascada
+    delete: async (course) => {
+      const { error } = await supabase.from('courses').delete().eq('id', course.id);
+      if (error) throw error;
+      await removeCourseFiles([
+        ...course.lessons.map(l => l.storagePath),
+        ...course.materials.map(m => m.storagePath)
+      ]);
+    },
+    uploadCover: async (file) => {
+      assertFile(file, IMAGE_TYPES, 5);
+      const path = await uploadFile('course-covers', randomFileName(file), file);
+      return supabase.storage.from('course-covers').getPublicUrl(path).data.publicUrl;
+    },
+    // Deja la formación asignada exactamente a esos alumnos (operación atómica)
+    setEnrollments: async (courseId, studentIds) => {
+      const { error } = await supabase.rpc('set_course_enrollments', {
+        p_course_id: courseId,
+        p_student_ids: studentIds
+      });
+      if (error) throw error;
+    },
+    // Activa/desactiva una formación a un alumno desde su ficha
+    setEnrollment: async (studentId, courseId, enabled) => {
+      const { error } = await supabase.rpc('set_course_enrollment', {
+        p_student_id: studentId,
+        p_course_id: courseId,
+        p_enabled: enabled
+      });
+      if (error) throw error;
+    }
+  },
+  sections: {
+    create: async (courseId, title, position) => {
+      const { data, error } = await supabase
+        .from('course_sections')
+        .insert({ course_id: courseId, title: title.trim(), position })
+        .select('id, title, position, created_at')
+        .single();
+
+      if (error) throw error;
+      return { id: data.id, title: data.title, position: data.position, createdAt: data.created_at, lessons: [] };
+    },
+    rename: async (id, title) => {
+      const { error } = await supabase.from('course_sections').update({ title: title.trim() }).eq('id', id);
+      if (error) throw error;
+    },
+    // Sus lecciones y los materiales de esas lecciones caen en cascada
+    delete: async (section, course) => {
+      const lessonIds = new Set(section.lessons.map(l => l.id));
+      const { error } = await supabase.from('course_sections').delete().eq('id', section.id);
+      if (error) throw error;
+      await removeCourseFiles([
+        ...section.lessons.map(l => l.storagePath),
+        ...course.materials.filter(m => lessonIds.has(m.lessonId)).map(m => m.storagePath)
+      ]);
+    },
+    reorder: async (courseId, sectionIds) => {
+      const { error } = await supabase.rpc('reorder_course_sections', {
+        p_course_id: courseId,
+        p_section_ids: sectionIds
+      });
+      if (error) throw error;
+    }
+  },
+  lessons: {
+    create: async (courseId, lessonData, position) => {
+      const { data, error } = await supabase
+        .from('lessons')
+        .insert({ ...lessonRow(lessonData), course_id: courseId, position })
+        .select(LESSON_COLUMNS)
+        .single();
+
+      if (error) throw error;
+      return mapLesson(data);
+    },
+    update: async (id, lessonData) => {
+      const { data, error } = await supabase
+        .from('lessons')
+        .update(lessonRow(lessonData))
+        .eq('id', id)
+        .select(LESSON_COLUMNS)
+        .single();
+
+      if (error) throw error;
+      return mapLesson(data);
+    },
+    delete: async (lesson, course) => {
+      const { error } = await supabase.from('lessons').delete().eq('id', lesson.id);
+      if (error) throw error;
+      await removeCourseFiles([
+        lesson.storagePath,
+        ...course.materials.filter(m => m.lessonId === lesson.id).map(m => m.storagePath)
+      ]);
+    },
+    // Ordena las lecciones de un capítulo; también mueve lecciones a él
+    reorder: async (sectionId, lessonIds) => {
+      const { error } = await supabase.rpc('reorder_section_lessons', {
+        p_section_id: sectionId,
+        p_lesson_ids: lessonIds
+      });
+      if (error) throw error;
+    },
+    // PDF de una lección; devuelve la ruta para guardarla en la lección
+    uploadDocument: async (courseId, file) => {
+      assertFile(file, ['application/pdf'], 20);
+      return uploadFile(COURSE_BUCKET, `courses/${courseId}/${randomFileName(file)}`, file);
+    },
+    removeFile: async (path) => removeCourseFiles([path]),
+    // URL utilizable para mostrar la lección (firmada si está en Storage)
+    getFileUrl: async (lesson) => {
+      if (!lesson.storagePath) return lesson.url;
+      return createSignedUrl(COURSE_BUCKET, lesson.storagePath);
+    }
+  },
+  materials: {
+    // Sube el fichero y crea el material; si falla el alta, borra el fichero
+    upload: async ({ courseId, lessonId = null, title, position }, file) => {
+      assertFile(file, MATERIAL_TYPES, MATERIAL_MAX_MB);
+      const path = await uploadFile(COURSE_BUCKET, `courses/${courseId}/materials/${randomFileName(file)}`, file);
+
+      const { data, error } = await supabase
+        .from('course_materials')
+        .insert({
+          course_id: courseId,
+          lesson_id: lessonId,
+          title: (title || file.name).trim(),
+          storage_path: path,
+          file_name: file.name,
+          mime_type: file.type,
+          size_bytes: file.size,
+          position
+        })
+        .select(MATERIAL_COLUMNS)
+        .single();
+
+      if (error) {
+        await removeCourseFiles([path]);
+        throw error;
+      }
+      return mapMaterial(data);
+    },
+    // Material como enlace externo (p. ej. una hoja de cálculo compartida)
+    createLink: async ({ courseId, lessonId = null, title, url, position }) => {
+      const { data, error } = await supabase
+        .from('course_materials')
+        .insert({ course_id: courseId, lesson_id: lessonId, title: title.trim(), url: url.trim(), position })
+        .select(MATERIAL_COLUMNS)
+        .single();
+
+      if (error) throw error;
+      return mapMaterial(data);
+    },
+    rename: async (id, title) => {
+      const { error } = await supabase.from('course_materials').update({ title: title.trim() }).eq('id', id);
+      if (error) throw error;
+    },
+    delete: async (material) => {
+      const { error } = await supabase.from('course_materials').delete().eq('id', material.id);
+      if (error) throw error;
+      await removeCourseFiles([material.storagePath]);
+    },
+    // Enlace de descarga con el nombre original del fichero
+    getDownloadUrl: async (material) => {
+      if (!material.storagePath) return material.url;
+      return createSignedUrl(COURSE_BUCKET, material.storagePath, { download: material.fileName || true });
+    }
+  },
+  progress: {
+    getMine: async (studentId) => {
+      const { data, error } = await supabase
+        .from('lesson_progress')
+        .select('lesson_id, course_id, completed_at, last_position_seconds, updated_at')
+        .eq('student_id', studentId);
+
+      if (error) throw error;
+      return data.map(mapProgress);
+    },
+    // completed: true/false marca o desmarca; null solo registra la visita
+    set: async (lessonId, { completed = null, positionSeconds = null } = {}) => {
+      const { data, error } = await supabase.rpc('set_lesson_progress', {
+        p_lesson_id: lessonId,
+        p_completed: completed,
+        p_position_seconds: positionSeconds
+      });
+      if (error) throw error;
+      return mapProgress(data);
     }
   },
   tickets: {
