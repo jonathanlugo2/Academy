@@ -1,3 +1,5 @@
+import { X } from 'lucide-react';
+
 // Piezas visuales compartidas por el editor de formaciones (mismo estilo que el resto del panel)
 
 export const inputClass = 'w-full bg-bg-input border border-border-main rounded-2xl px-5 py-3.5 text-xs text-text-main placeholder-text-muted focus:border-border-hover outline-none transition-all font-mono shadow-inner';
@@ -40,7 +42,7 @@ export function Modal({ title, onClose, children, footer }) {
       <div role="dialog" aria-modal="true" aria-label={title} className="bg-bg-card border border-border-main rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
         <div className="px-6 py-5 border-b border-border-main flex justify-between items-center bg-bg-input/50">
           <h3 className="text-sm font-bold text-text-title uppercase tracking-tight font-mono">{title}</h3>
-          <button onClick={onClose} className={iconButton} title="Cerrar">✕</button>
+          <button onClick={onClose} className={iconButton} title="Cerrar"><X className="w-5 h-5" /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-5">{children}</div>
         {footer && <div className="px-6 py-4 border-t border-border-main bg-bg-card/50 flex gap-3 justify-end">{footer}</div>}

@@ -123,14 +123,21 @@ html.dark {
   --color-blue-400: #57b6ed;
   --color-blue-300: #88cff4;
   
-  --font-sans: "Mulish", "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Mulish", "Inter", ui-sans-serif, system-ui, sans-serif;
+  /* DM Sans variable autoalojada (@fontsource-variable/dm-sans, ejes wght + opsz).
+     "DM Sans Variable" es el nombre que registra el paquete; "DM Sans" cubre una
+     instalación local. font-mono se mantiene igual que la de texto, como antes. */
+  --font-sans: "DM Sans Variable", "DM Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "DM Sans Variable", "DM Sans", system-ui, -apple-system, sans-serif;
 }
 
 @layer base {
   body {
     @apply bg-bg-main text-text-main antialiased font-sans;
-    font-size-adjust: from-font;
+    font-size: 16px;
+    font-weight: 500;
+    /* opsz es un eje variable, no una característica OpenType: se fija con
+       font-variation-settings (font-feature-settings lo ignoraría) */
+    font-variation-settings: "opsz" 14;
     transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease;
   }
 
