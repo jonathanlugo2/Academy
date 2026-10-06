@@ -74,11 +74,12 @@ export function AuthProvider({ children }) {
         if (hasValidProfile(profile) && mounted) {
           setUser(toSessionUser(session.user, profile));
         }
-      } else if (event === 'SIGNED_OUT') {
+      } else if (event === 'SIGNED_OUT' && mounted) {
         setUser(null);
+        setLoading(false);
       }
-
-      if (mounted) setLoading(false);
+      // INITIAL_SESSION no cierra la carga: llega antes de que checkSession
+      // lea el perfil y haría pasar por /login al recargar una ruta protegida
     });
 
     return () => {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../utils/supabaseClient';
 import { homePathFor } from '../lib/roles';
@@ -8,6 +8,14 @@ import { Mail, Lock, ArrowRight, ShieldAlert, GraduationCap, Building2, CheckCir
 export default function Login() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from;
+
+  // Página pedida antes del login, solo si pertenece al panel de su rol
+  const targetFor = (role) => {
+    const home = homePathFor(role);
+    return typeof from === 'string' && from.startsWith(home) ? from : home;
+  };
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,9 +25,9 @@ export default function Login() {
   // Redirigir si ya está autenticado
   useEffect(() => {
     if (user) {
-      navigate(homePathFor(user.role), { replace: true });
+      navigate(targetFor(user.role), { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -32,7 +40,7 @@ export default function Login() {
       await supabase.auth.signOut({ scope: 'local' });
       
       const loggedUser = await login(email, password);
-      navigate(homePathFor(loggedUser.role));
+      navigate(targetFor(loggedUser.role));
     } catch (err) {
       setError(err.message);
     } finally {

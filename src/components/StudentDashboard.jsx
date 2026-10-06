@@ -1,27 +1,37 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { Navigate, matchPath, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../services/api';
 import { LogOut, Shield, Sun, Moon, ChevronDown } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { RESOURCE_CATEGORIES } from '../features/resources/resourceMeta';
+import { indexProgress, isLessonCompleted, resumeLesson } from '../lib/courses';
 
 import StudentSidebar from '../features/student/StudentSidebar';
 import CourseDirectory from '../features/student/CourseDirectory';
-import ResourceViewerModal from '../features/student/ResourceViewerModal';
+import CoursePlayer from '../features/student/CoursePlayer';
 import CommunicationPanel from '../features/student/CommunicationPanel';
 import FiscalDossier from '../features/student/FiscalDossier';
 import ErrorBanner from './ErrorBanner';
 
 // 2 filas de 4 tarjetas en escritorio
-const RESOURCES_PER_PAGE = 8;
+const COURSES_PER_PAGE = 8;
 const CATEGORIES = ['all', ...RESOURCE_CATEGORIES];
+const COURSE_ROUTE = '/dashboard/curso/:courseId/:lessonId?';
+const courseUrl = (courseId, lessonId) => `/dashboard/curso/${courseId}${lessonId ? `/${lessonId}` : ''}`;
 
 export default function StudentDashboard() {
   const { user, logout, refreshUser } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // La formación abierta va en la URL para poder recargar o compartir el enlace
+  const courseMatch = matchPath(COURSE_ROUTE, location.pathname);
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [activeTab, setActiveTabState] = useState('resources'); // 'resources', 'fiscal', 'support'
+  const [selectedTab, setSelectedTab] = useState('resources'); // 'resources', 'fiscal', 'support'
+  const activeTab = courseMatch ? 'resources' : selectedTab;
 
   // Menú desplegable del perfil
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -43,12 +53,11 @@ export default function StudentDashboard() {
     };
   }, [isProfileMenuOpen]);
 
-  // Recurso abierto en el reproductor
-  const [selectedResource, setSelectedResource] = useState(null);
-  const [resourcesPage, setResourcesPage] = useState(1);
+  const [coursesPage, setCoursesPage] = useState(1);
 
   // Datos
-  const [resources, setResources] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [progress, setProgress] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -70,47 +79,46 @@ export default function StudentDashboard() {
   const [successMsg, setSuccessMsg] = useState('');
   const [supportError, setSupportError] = useState('');
 
-  // Cambiar de pestaña cierra el reproductor; cambiar filtros vuelve a la página 1
+  // Cambiar de pestaña cierra la formación abierta; cambiar filtros vuelve a la página 1
   const setActiveTab = (tab) => {
-    setActiveTabState(tab);
-    setSelectedResource(null);
+    setSelectedTab(tab);
+    if (courseMatch) navigate('/dashboard');
   };
   const setSearchQuery = (value) => {
     setSearchQueryState(value);
-    setResourcesPage(1);
+    setCoursesPage(1);
   };
   const setSelectedCategory = (value) => {
     setSelectedCategoryState(value);
-    setResourcesPage(1);
+    setCoursesPage(1);
   };
 
-  const filteredResources = useMemo(() => {
+  const progressByLesson = useMemo(() => indexProgress(progress), [progress]);
+
+  const filteredCourses = useMemo(() => {
     const query = searchQuery.toLowerCase();
-    return resources.filter(res => {
+    return courses.filter(course => {
       const matchesSearch =
-        (res.title || '').toLowerCase().includes(query) ||
-        (res.description || '').toLowerCase().includes(query) ||
-        (res.tags || []).some(t => (t || '').toLowerCase().includes(query));
-      const matchesCategory = selectedCategory === 'all' || res.category === selectedCategory;
+        course.title.toLowerCase().includes(query) ||
+        course.description.toLowerCase().includes(query) ||
+        course.tags.some(t => t.toLowerCase().includes(query)) ||
+        course.lessons.some(l => l.title.toLowerCase().includes(query));
+      const matchesCategory = selectedCategory === 'all' || course.category === selectedCategory;
       return matchesSearch && matchesCategory;
     });
-  }, [resources, searchQuery, selectedCategory]);
+  }, [courses, searchQuery, selectedCategory]);
 
   const userId = user?.id;
-  // Clave estable de las asignaciones: recargar solo si cambian (no en cada refreshUser)
-  const allowedKey = (user?.allowedResources || []).join(',');
 
   useEffect(() => {
     if (!userId) return undefined;
     let active = true;
-    // La RLS ya limita recursos y tickets a los del alumno; el filtro local es
-    // una segunda barrera por si el frontend se despliega antes que la migración.
-    const allowedIds = allowedKey ? allowedKey.split(',') : [];
-
-    Promise.all([api.resources.getAll(), api.tickets.getAll()])
-      .then(([resList, ticketsList]) => {
+    // La RLS limita formaciones (publicadas y asignadas), progreso y tickets al alumno
+    Promise.all([api.courses.getAll(), api.progress.getMine(userId), api.tickets.getAll()])
+      .then(([courseList, progressList, ticketsList]) => {
         if (!active) return;
-        setResources(resList.filter(res => allowedIds.includes(res.id)));
+        setCourses(courseList);
+        setProgress(progressList);
         setTickets(ticketsList.filter(t => t.student_id === userId));
         setLoadError('');
       })
@@ -121,7 +129,7 @@ export default function StudentDashboard() {
       .finally(() => active && setLoading(false));
 
     return () => { active = false; };
-  }, [userId, allowedKey]);
+  }, [userId]);
 
   useEffect(() => {
     if (!selectedTicketId) return undefined;
@@ -201,24 +209,79 @@ export default function StudentDashboard() {
 
   const handleUploadAttachment = (file) => api.tickets.uploadAttachment(file, user.id);
 
-  const handleToggleCompleted = async (resourceId) => {
-    if (!user) return;
-    const completed = user.completedResources || [];
-    const newCompleted = completed.includes(resourceId)
-      ? completed.filter(id => id !== resourceId)
-      : [...completed, resourceId];
+  const mergeProgress = (row) => setProgress(prev => [...prev.filter(p => p.lessonId !== row.lessonId), row]);
 
+  const handleToggleCompleted = async (lessonId) => {
     try {
-      await api.users.update(user.id, { completedResources: newCompleted });
-      await refreshUser();
+      mergeProgress(await api.progress.set(lessonId, { completed: !isLessonCompleted(progressByLesson, lessonId) }));
     } catch (err) {
       console.error('Error al actualizar progreso:', err);
+      setLoadError('No se pudo guardar tu progreso. Inténtalo de nuevo.');
     }
   };
 
-  const totalResourcesPages = Math.ceil(filteredResources.length / RESOURCES_PER_PAGE) || 1;
-  const currentResourcesPage = Math.min(resourcesPage, totalResourcesPages);
-  const paginatedResources = filteredResources.slice((currentResourcesPage - 1) * RESOURCES_PER_PAGE, currentResourcesPage * RESOURCES_PER_PAGE);
+  // Registrar la visita permite reanudar en la última lección abierta
+  const handleVisitLesson = (lessonId) => {
+    api.progress.set(lessonId).then(mergeProgress).catch(err => console.error('Error al registrar la visita:', err));
+  };
+
+  const handleOpenMaterial = async (material) => {
+    if (!material.storagePath) {
+      window.open(material.url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    // La pestaña se abre antes de firmar la URL para que no la bloquee el navegador
+    const win = window.open('', '_blank');
+    try {
+      const url = await api.materials.getDownloadUrl(material);
+      if (win) {
+        win.opener = null;
+        win.location.href = url;
+      } else {
+        window.location.assign(url);
+      }
+    } catch (err) {
+      win?.close();
+      setLoadError('No se pudo descargar el material: ' + err.message);
+    }
+  };
+
+  const totalCoursesPages = Math.ceil(filteredCourses.length / COURSES_PER_PAGE) || 1;
+  const currentCoursesPage = Math.min(coursesPage, totalCoursesPages);
+  const paginatedCourses = filteredCourses.slice((currentCoursesPage - 1) * COURSES_PER_PAGE, currentCoursesPage * COURSES_PER_PAGE);
+
+  // Formación y lección abiertas según la URL
+  const openCourse = courseMatch && courses.find(c => c.id === courseMatch.params.courseId);
+  const openLesson = openCourse && openCourse.lessons.find(l => l.id === courseMatch.params.lessonId);
+
+  const renderCourse = () => {
+    if (!openCourse || openCourse.lessons.length === 0) {
+      return (
+        <div className="m-6 py-16 flex flex-col items-center gap-4 text-text-muted bg-bg-card border border-border-main rounded-3xl">
+          <p className="text-xs font-mono uppercase tracking-wider">Esta formación no está disponible.</p>
+          <button onClick={() => navigate('/dashboard')} className="text-xs font-bold text-text-active font-mono uppercase cursor-pointer hover:underline">
+            Volver a mis formaciones
+          </button>
+        </div>
+      );
+    }
+    if (!openLesson) {
+      return <Navigate replace to={courseUrl(openCourse.id, resumeLesson(openCourse, progressByLesson).id)} />;
+    }
+    return (
+      <CoursePlayer
+        course={openCourse}
+        lesson={openLesson}
+        progressByLesson={progressByLesson}
+        userEmail={user.email}
+        onSelectLesson={(lessonId) => navigate(courseUrl(openCourse.id, lessonId))}
+        onBack={() => navigate('/dashboard')}
+        onToggleCompleted={handleToggleCompleted}
+        onVisit={handleVisitLesson}
+        onOpenMaterial={handleOpenMaterial}
+      />
+    );
+  };
 
 
   if (!user) return null;
@@ -331,20 +394,12 @@ export default function StudentDashboard() {
             </div>
           </div>
         ) : (
-          <div className={`flex-1 ${selectedResource && activeTab === 'resources' ? 'p-0 h-full overflow-hidden bg-bg-main' : `p-6 max-w-7xl w-full mx-auto space-y-6 overflow-y-auto no-scrollbar`}`}>
+          <div className={`flex-1 ${courseMatch ? 'p-0 h-full overflow-hidden bg-bg-main' : `p-6 max-w-7xl w-full mx-auto space-y-6 overflow-y-auto no-scrollbar`}`}>
 
-            <ErrorBanner message={loadError} />
+            <ErrorBanner message={loadError} onClose={() => setLoadError('')} />
 
             {activeTab === 'resources' && (
-              selectedResource ? (
-                <ResourceViewerModal 
-                  selectedResource={selectedResource}
-                  setSelectedResource={setSelectedResource}
-                  resources={resources}
-                  user={user}
-                  handleToggleCompleted={handleToggleCompleted}
-                />
-              ) : (
+              courseMatch ? renderCourse() : (
                 <CourseDirectory 
                   user={user}
                   searchQuery={searchQuery}
@@ -352,13 +407,13 @@ export default function StudentDashboard() {
                   selectedCategory={selectedCategory}
                   setSelectedCategory={setSelectedCategory}
                   categories={CATEGORIES}
-                  filteredResources={filteredResources}
-                  paginatedResources={paginatedResources}
-                  resourcesPage={resourcesPage}
-                  setResourcesPage={setResourcesPage}
-                  totalResourcesPages={totalResourcesPages}
-                  currentResourcesPage={currentResourcesPage}
-                  setSelectedResource={setSelectedResource}
+                  filteredCourses={filteredCourses}
+                  paginatedCourses={paginatedCourses}
+                  setCoursesPage={setCoursesPage}
+                  totalCoursesPages={totalCoursesPages}
+                  currentCoursesPage={currentCoursesPage}
+                  progressByLesson={progressByLesson}
+                  onOpenCourse={(course) => navigate(courseUrl(course.id))}
                 />
               )
             )}

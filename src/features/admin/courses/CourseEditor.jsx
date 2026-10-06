@@ -3,7 +3,7 @@ import { ArrowLeft, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { api } from '../../../services/api';
 import { formatTotal, plural } from '../../../lib/courses';
 import ErrorBanner from '../../../components/ErrorBanner';
-import ResourcePlayer from '../../resources/ResourcePlayer';
+import LessonPlayer from '../../resources/LessonPlayer';
 import CourseInfoForm from './CourseInfoForm';
 import CurriculumEditor from './CurriculumEditor';
 import MaterialsEditor from './MaterialsEditor';
@@ -117,7 +117,7 @@ export default function CourseEditor({ course, users, userEmail, onBack, onCours
       {previewLesson && (
         <Modal title={`Vista previa · ${previewLesson.title}`} onClose={() => setPreviewLesson(null)}>
           <div className={`bg-black rounded-2xl overflow-hidden ${previewLesson.type === 'test' ? 'h-[60vh]' : 'aspect-video'}`}>
-            <ResourcePlayer resource={previewLesson} userEmail={userEmail} getFileUrl={api.lessons.getFileUrl} />
+            <LessonPlayer lesson={previewLesson} userEmail={userEmail} />
           </div>
         </Modal>
       )}

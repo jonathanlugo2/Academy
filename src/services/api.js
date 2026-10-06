@@ -5,8 +5,7 @@ import { supabase } from '../utils/supabaseClient';
 import { attachmentStoragePath } from '../lib/storagePaths';
 import { mapCourse, mapLesson, mapMaterial, mapProgress } from '../lib/courses';
 
-export const PROFILE_COLUMNS = 'id, name, role, passport, nie, address, postal_code, arrival_date, aeat_date, ss_date, allowed_resources, completed_resources, residency_doc, email, absence_periods!absence_periods_student_id_fkey(id, start_date, end_date, note)';
-const RESOURCE_COLUMNS = 'id, title, type, url, description, category, tags, created_at, storage_path, image_url';
+export const PROFILE_COLUMNS = 'id, name, role, passport, nie, address, postal_code, arrival_date, aeat_date, ss_date, residency_doc, email, absence_periods!absence_periods_student_id_fkey(id, start_date, end_date, note)';
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 const MB = 1024 * 1024;
@@ -52,8 +51,6 @@ export const mapProfile = (p) => {
     absencePeriods: (p.absence_periods || []).map(mapAbsence).sort((a, b) => a.startDate.localeCompare(b.startDate)),
     aeatDate: p.aeat_date,
     ssDate: p.ss_date,
-    allowedResources: p.allowed_resources || [],
-    completedResources: p.completed_resources || [],
     residencyDoc: p.residency_doc,
     email: p.email
   };
@@ -90,8 +87,6 @@ async function createSignedUrl(bucket, path, options) {
   if (error) throw new Error(`No se pudo acceder al archivo: ${error.message}`);
   return data.signedUrl;
 }
-
-const resourceBucket = (resource) => (resource.type === 'video' ? 'academy-videos' : 'academy-resources');
 
 // --- Formaciones -------------------------------------------------------------
 
@@ -228,7 +223,6 @@ export const api = {
       if (userData.arrivalDate !== undefined) dbData.arrival_date = userData.arrivalDate;
       if (userData.aeatDate !== undefined) dbData.aeat_date = userData.aeatDate;
       if (userData.ssDate !== undefined) dbData.ss_date = userData.ssDate;
-      if (userData.completedResources !== undefined) dbData.completed_resources = userData.completedResources;
       if (userData.residencyDoc !== undefined) dbData.residency_doc = userData.residencyDoc;
       dbData.updated_at = new Date().toISOString();
 
@@ -247,16 +241,6 @@ export const api = {
       const { error } = await supabase.rpc('admin_delete_user', { p_user_id: id });
       if (error) throw error;
       return true;
-    },
-    // Activa/desactiva un recurso para un alumno de forma atómica
-    setResourceAssignment: async (studentId, resourceId, enabled) => {
-      const { data, error } = await supabase.rpc('set_resource_assignment', {
-        p_student_id: studentId,
-        p_resource_id: resourceId,
-        p_enabled: enabled
-      });
-      if (error) throw error;
-      return data || [];
     }
   },
   // Ausencias largas (solo administración; la BD exige >= 30 días y sin solapes)
@@ -274,96 +258,6 @@ export const api = {
     remove: async (id) => {
       const { error } = await supabase.from('absence_periods').delete().eq('id', id);
       if (error) throw error;
-    }
-  },
-  resources: {
-    getAll: async () => {
-      const { data, error } = await supabase
-        .from('resources')
-        .select(RESOURCE_COLUMNS)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data;
-    },
-    create: async (resourceData) => {
-      const { data, error } = await supabase
-        .from('resources')
-        .insert({
-          title: resourceData.title,
-          type: resourceData.type,
-          url: resourceData.url,
-          description: resourceData.description,
-          category: resourceData.category,
-          tags: parseTags(resourceData.tags),
-          image_url: resourceData.imageUrl || null,
-          storage_path: resourceData.storagePath || null
-        })
-        .select(RESOURCE_COLUMNS)
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    // Solo envía los campos definidos para no borrar datos por omisión
-    update: async (id, resourceData) => {
-      const dbData = {};
-      if (resourceData.title !== undefined) dbData.title = resourceData.title;
-      if (resourceData.type !== undefined) dbData.type = resourceData.type;
-      if (resourceData.url !== undefined) dbData.url = resourceData.url;
-      if (resourceData.description !== undefined) dbData.description = resourceData.description;
-      if (resourceData.category !== undefined) dbData.category = resourceData.category;
-      if (resourceData.tags !== undefined) dbData.tags = parseTags(resourceData.tags);
-      if (resourceData.imageUrl !== undefined) dbData.image_url = resourceData.imageUrl || null;
-      if (resourceData.storagePath !== undefined) dbData.storage_path = resourceData.storagePath || null;
-
-      const { data, error } = await supabase
-        .from('resources')
-        .update(dbData)
-        .eq('id', id)
-        .select(RESOURCE_COLUMNS)
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    // El trigger on_resource_deleted limpia las asignaciones de los alumnos
-    delete: async (resource) => {
-      const { error: deleteError } = await supabase
-        .from('resources')
-        .delete()
-        .eq('id', resource.id);
-
-      if (deleteError) throw deleteError;
-      await api.resources.removeFile(resource);
-      return true;
-    },
-    removeFile: async (resource) => {
-      if (!resource.storage_path) return;
-      const { error } = await supabase.storage.from(resourceBucket(resource)).remove([resource.storage_path]);
-      if (error) console.warn('No se pudo borrar el archivo del recurso:', error.message);
-    },
-    // Deja el recurso asignado exactamente a esos alumnos (operación atómica)
-    setAssignments: async (resourceId, studentIds) => {
-      const { error } = await supabase.rpc('set_resource_assignments', {
-        p_resource_id: resourceId,
-        p_student_ids: studentIds
-      });
-      if (error) throw error;
-    },
-    uploadCover: async (file) => {
-      assertFile(file, IMAGE_TYPES, 5);
-      const path = await uploadFile('course-covers', randomFileName(file), file);
-      return supabase.storage.from('course-covers').getPublicUrl(path).data.publicUrl;
-    },
-    uploadDocument: async (file) => {
-      assertFile(file, ['application/pdf'], 20);
-      return uploadFile('academy-resources', `documents/${randomFileName(file)}`, file);
-    },
-    // URL utilizable para mostrar el recurso (firmada si está en Storage)
-    getFileUrl: async (resource) => {
-      if (!resource.storage_path) return resource.url;
-      return createSignedUrl(resourceBucket(resource), resource.storage_path);
     }
   },
   // Formaciones: la RLS devuelve al alumno solo las publicadas en las que está

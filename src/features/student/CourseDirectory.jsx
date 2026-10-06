@@ -1,5 +1,6 @@
-import { ChevronLeft, ChevronRight, Compass, Search } from 'lucide-react';
-import { ResourceIcon, getCourseImage } from '../resources/resourceMeta';
+import { CheckCircle2, ChevronLeft, ChevronRight, Compass, PlayCircle, Search } from 'lucide-react';
+import { getCourseImage } from '../resources/resourceMeta';
+import { courseProgress, formatTotal, plural } from '../../lib/courses';
 
 const getCategoryTheme = (category) => {
   switch (category) {
@@ -40,12 +41,13 @@ export default function CourseDirectory({
   selectedCategory,
   setSelectedCategory,
   categories,
-  filteredResources,
-  paginatedResources,
-  setResourcesPage,
-  totalResourcesPages,
-  currentResourcesPage,
-  setSelectedResource
+  filteredCourses,
+  paginatedCourses,
+  setCoursesPage,
+  totalCoursesPages,
+  currentCoursesPage,
+  progressByLesson,
+  onOpenCourse
 }) {
   return (
     // En escritorio cada fila mide como máximo 300px y se reduce en pantallas
@@ -95,7 +97,7 @@ export default function CourseDirectory({
       </div>
 
       {/* Resultados de la Búsqueda */}
-      {filteredResources.length === 0 ? (
+      {filteredCourses.length === 0 ? (
         <div className="py-16 flex flex-col items-center justify-center text-text-muted bg-bg-card border border-border-main rounded-3xl">
           <Search className="w-12 h-12 text-text-muted/40 mb-3" />
           <p className="text-xs font-mono uppercase tracking-wider">No se encontraron formaciones asignadas.</p>
@@ -105,15 +107,17 @@ export default function CourseDirectory({
           {/* Cuadrícula: 4 columnas x 2 filas en escritorio. 330px = cabecera de la
               app, márgenes, filtros, paginación y huecos */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:auto-rows-[min(300px,calc((100dvh_-_330px)/2))]">
-            {paginatedResources.map(resource => {
-              const theme = getCategoryTheme(resource.category);
-              const cardImage = getCourseImage(resource);
+            {paginatedCourses.map(course => {
+              const theme = getCategoryTheme(course.category);
+              const cardImage = getCourseImage(course);
+              const progress = courseProgress(course, progressByLesson);
+              const isDone = progress.total > 0 && progress.completed === progress.total;
 
               return (
                 <button
                   type="button"
-                  key={resource.id}
-                  onClick={() => setSelectedResource(resource)}
+                  key={course.id}
+                  onClick={() => onOpenCourse(course)}
                   className={`bg-bg-card border border-border-main hover:border-border-hover rounded-2xl overflow-hidden flex flex-col group transition-all duration-300 hover:-translate-y-1 shadow-sm hover:shadow-md cursor-pointer select-none text-left`}
                 >
                   {/* Imagen del Curso */}
@@ -125,24 +129,38 @@ export default function CourseDirectory({
                     />
 
                     {/* Badge de Categoría */}
-                    <span className={`absolute top-2.5 left-2.5 text-[8px] px-2 py-0.5 rounded-lg font-bold uppercase tracking-wider font-mono backdrop-blur-md shadow-sm ${theme.badge}`}>
-                      {resource.category}
-                    </span>
+                    {course.category && (
+                      <span className={`absolute top-2.5 left-2.5 text-[8px] px-2 py-0.5 rounded-lg font-bold uppercase tracking-wider font-mono backdrop-blur-md shadow-sm ${theme.badge}`}>
+                        {course.category}
+                      </span>
+                    )}
 
-                    {/* Badge de Formato de Recurso */}
-                    <span className="absolute bottom-2.5 right-2.5 p-1.5 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white/90 text-xs shadow-sm">
-                      <ResourceIcon type={resource.type} />
+                    {/* Lecciones y duración */}
+                    <span className="absolute bottom-2.5 right-2.5 px-2 py-1 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white/90 text-[9px] font-bold font-mono uppercase shadow-sm">
+                      {[plural(course.lessons.length, 'lección', 'lecciones'), formatTotal(course.totalSeconds)].filter(Boolean).join(' · ')}
                     </span>
                   </div>
 
                   {/* Cuerpo de la Tarjeta */}
-                  <div className="p-3.5 space-y-1 shrink-0">
+                  <div className="p-3.5 space-y-2 shrink-0">
                     <h4 className="text-xs font-extrabold text-text-title leading-snug group-hover:text-indigo-500 transition-colors duration-200 uppercase font-mono tracking-tight line-clamp-2 min-h-[2.75em]">
-                      {resource.title}
+                      {course.title}
                     </h4>
-                    <p className="text-[11px] text-text-muted line-clamp-1 leading-relaxed font-sans font-medium">
-                      {resource.description}
-                    </p>
+                    {/* Progreso del alumno */}
+                    <div className="space-y-1">
+                      <div className="h-1 bg-bg-input rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full ${isDone ? 'bg-emerald-500' : 'bg-indigo-500'}`} style={{ width: `${progress.percent}%` }}></div>
+                      </div>
+                      <p className="flex items-center gap-1 text-[9px] font-bold font-mono uppercase tracking-wide text-text-muted">
+                        {isDone ? (
+                          <><CheckCircle2 className="w-3 h-3 text-emerald-500" /> Completada</>
+                        ) : progress.completed > 0 ? (
+                          <><PlayCircle className="w-3 h-3 text-indigo-500" /> Continuar · {progress.percent}%</>
+                        ) : (
+                          <><PlayCircle className="w-3 h-3 text-indigo-500" /> Empezar</>
+                        )}
+                      </p>
+                    </div>
                   </div>
                 </button>
               );
@@ -152,21 +170,21 @@ export default function CourseDirectory({
           {/* Controles de Paginación (siempre visibles) */}
           <div className="px-4 py-2.5 bg-bg-card border border-border-main rounded-2xl flex items-center justify-between text-xs shadow-sm font-mono shrink-0">
             <button
-              onClick={() => setResourcesPage(prev => Math.max(1, prev - 1))}
-              disabled={currentResourcesPage === 1}
+              onClick={() => setCoursesPage(prev => Math.max(1, prev - 1))}
+              disabled={currentCoursesPage === 1}
               className="px-3 py-1.5 bg-bg-input hover:bg-bg-card text-text-muted hover:text-text-main border border-border-main disabled:opacity-40 disabled:pointer-events-none rounded-xl transition-all cursor-pointer uppercase text-[10px] font-bold flex items-center gap-1"
             >
               <ChevronLeft className="w-3.5 h-3.5" /> Anterior
             </button>
             <div className="flex items-center gap-1.5">
-              {Array.from({ length: totalResourcesPages }, (_, i) => i + 1).map(page => (
+              {Array.from({ length: totalCoursesPages }, (_, i) => i + 1).map(page => (
                 <button
                   key={page}
-                  onClick={() => setResourcesPage(page)}
+                  onClick={() => setCoursesPage(page)}
                   aria-label={`Página ${page}`}
-                  aria-current={page === currentResourcesPage ? 'page' : undefined}
+                  aria-current={page === currentCoursesPage ? 'page' : undefined}
                   className={`w-7 h-7 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                    page === currentResourcesPage
+                    page === currentCoursesPage
                       ? 'bg-indigo-600 text-white border border-indigo-500'
                       : 'bg-bg-input text-text-muted border border-border-main hover:text-text-main'
                   }`}
@@ -176,8 +194,8 @@ export default function CourseDirectory({
               ))}
             </div>
             <button
-              onClick={() => setResourcesPage(prev => Math.min(totalResourcesPages, prev + 1))}
-              disabled={currentResourcesPage === totalResourcesPages}
+              onClick={() => setCoursesPage(prev => Math.min(totalCoursesPages, prev + 1))}
+              disabled={currentCoursesPage === totalCoursesPages}
               className="px-3 py-1.5 bg-bg-input hover:bg-bg-card text-text-muted hover:text-text-main border border-border-main disabled:opacity-40 disabled:pointer-events-none rounded-xl transition-all cursor-pointer uppercase text-[10px] font-bold flex items-center gap-1"
             >
               Siguiente <ChevronRight className="w-3.5 h-3.5" />
