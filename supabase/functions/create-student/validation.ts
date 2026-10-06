@@ -20,13 +20,11 @@ export interface NewUserInput {
   aeatDate: string | null;
   ssDate: string | null;
   absences: number;
-  allowedResources: string[];
 }
 
 export const MIN_PASSWORD_LENGTH = 10;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function optionalText(value: unknown, field: string, maxLength: number): string | null {
@@ -81,11 +79,6 @@ export function parseNewUser(body: unknown): NewUserInput {
     throw new HttpError(400, 'Las ausencias deben ser un número entero entre 0 y 366');
   }
 
-  const allowedResources = b.allowedResources ?? [];
-  if (!Array.isArray(allowedResources) || !allowedResources.every((id) => typeof id === 'string' && UUID_RE.test(id))) {
-    throw new HttpError(400, 'La lista de recursos asignados no es válida');
-  }
-
   return {
     email,
     password,
@@ -99,6 +92,5 @@ export function parseNewUser(body: unknown): NewUserInput {
     aeatDate: optionalDate(b.aeatDate, 'de alta en AEAT'),
     ssDate: optionalDate(b.ssDate, 'de alta en la Seguridad Social'),
     absences,
-    allowedResources: allowedResources as string[],
   };
 }

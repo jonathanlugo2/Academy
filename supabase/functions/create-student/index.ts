@@ -115,7 +115,6 @@ Deno.serve(async (req) => {
         aeat_date: input.aeatDate,
         ss_date: input.ssDate,
         absences: input.absences,
-        allowed_resources: input.allowedResources,
       })
       .eq('id', newUserId)
       .select()

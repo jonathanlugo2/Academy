@@ -28,7 +28,6 @@ Deno.test('normaliza email y nombre y aplica valores por defecto', () => {
   assertEquals(parsed.name, 'Ana');
   assertEquals(parsed.role, 'student');
   assertEquals(parsed.absences, 0);
-  assertEquals(parsed.allowedResources, []);
   assertEquals(parsed.nie, null);
 });
 
@@ -54,14 +53,13 @@ Deno.test('valida fechas reales en formato AAAA-MM-DD', () => {
   assertRejects({ ...valid, arrivalDate: '01/02/2024' });
 });
 
-Deno.test('valida ausencias y recursos asignados', () => {
+Deno.test('valida ausencias', () => {
   assertRejects({ ...valid, absences: -1 });
   assertRejects({ ...valid, absences: 400 });
-  assertRejects({ ...valid, allowedResources: ['no-es-uuid'] });
-  assertEquals(
-    parseNewUser({ ...valid, allowedResources: ['00000000-0000-0000-0000-0000000000e1'] }).allowedResources,
-    ['00000000-0000-0000-0000-0000000000e1'],
-  );
+});
+
+Deno.test('ignora la antigua asignación de recursos (ahora son formaciones)', () => {
+  assertEquals('allowedResources' in parseNewUser({ ...valid, allowedResources: ['x'] }), false);
 });
 
 Deno.test('rechaza cuerpos que no son objetos', () => {

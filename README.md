@@ -36,26 +36,25 @@ src/
 ├── components/        # Dashboards (contenedores), login, rutas protegidas, visor PDF
 ├── context/           # Sesión (AuthProvider) y tema
 ├── features/
-│   ├── admin/         # Paneles de administración
-│   ├── student/       # Paneles del alumno (directorio, visor, dossier fiscal, soporte)
-│   └── resources/     # Reproductor de recursos y metadatos compartidos
-├── lib/               # Lógica pura y testeada: cálculo fiscal, fechas, embeds, roles
+│   ├── admin/         # Paneles de administración (courses/: editor de formaciones)
+│   ├── student/       # Paneles del alumno (catálogo, formación, dossier fiscal, soporte)
+│   └── resources/     # Reproductor de lecciones y metadatos compartidos
+├── lib/               # Lógica pura y testeada: formaciones, cálculo fiscal, fechas, embeds, roles
 ├── services/api.js    # Acceso a datos (Supabase)
 └── utils/             # Cliente de Supabase
 supabase/
 ├── migrations/        # Esquema completo, políticas RLS y funciones RPC
 ├── functions/         # Edge Function create-student (alta de usuarios)
-└── tests/             # Tests de seguridad RLS (SQL)
-scripts/               # Scripts puntuales de mantenimiento de datos
+└── tests/             # Tests de seguridad RLS y de traslado de datos (SQL)
 ```
 
 ## Seguridad
 
 **Toda la autorización vive en la base de datos.** La anon key es pública, así que cualquier usuario autenticado puede llamar a la API de Supabase directamente; el frontend solo decide qué se muestra.
 
-- Cada alumno solo puede leer los recursos (y sus archivos) que tiene asignados.
-- Un alumno solo puede modificar sus campos de progreso (`absences`, `completed_resources`, `residency_doc`). El resto de su perfil lo gestiona administración (trigger `protect_admin_columns`).
-- Las operaciones que afectan a varias filas (crear un ticket, asignar recursos, borrar usuarios) son funciones RPC transaccionales.
+- Cada alumno solo ve las formaciones publicadas en las que está inscrito, con sus lecciones, materiales y archivos (`can_access_course`). Un archivo solo es legible si lo referencia una lección o material accesible.
+- El progreso va en `lesson_progress`: cada alumno solo lee y escribe el suyo. De su perfil solo puede modificar `residency_doc`; el resto lo gestiona administración (trigger `protect_admin_columns`).
+- Las operaciones que afectan a varias filas (crear un ticket, inscribir alumnos, reordenar el temario, borrar usuarios) son funciones RPC transaccionales.
 - Los adjuntos de soporte y los documentos de residencia están en buckets privados, y se sirven con URLs firmadas temporales.
 
 Cualquier cambio de políticas debe ir en una migración y pasar `supabase/tests/rls_security.sql`.

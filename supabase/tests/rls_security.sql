@@ -67,24 +67,19 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA tests TO anon, authenticated;
 -- admin ........ 00000000-0000-0000-0000-00000000000a
 -- alumno A ..... 00000000-0000-0000-0000-0000000000a1
 -- alumno B ..... 00000000-0000-0000-0000-0000000000b1
--- recurso r1 ... 00000000-0000-0000-0000-0000000000e1 (asignado a A)
--- recurso r2 ... 00000000-0000-0000-0000-0000000000e2 (sin asignar)
+
+-- El modelo antiguo de recursos está retirado (20261007130000)
+SELECT tests.ok(to_regclass('public.resources') IS NULL, 'la tabla resources ya no existe');
+SELECT tests.ok(NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles'
+                            AND column_name IN ('allowed_resources', 'completed_resources')), 'profiles ya no tiene las columnas de recursos');
+SELECT tests.ok(NOT has_schema_privilege('authenticated', 'archive', 'USAGE'), 'el archivo de recursos no es accesible desde la API');
 
 INSERT INTO auth.users (id, email, raw_user_meta_data, raw_app_meta_data) VALUES
   ('00000000-0000-0000-0000-00000000000a', 'admin@test.local', '{"name":"Admin"}', '{"role":"admin"}'),
   ('00000000-0000-0000-0000-0000000000a1', 'a@test.local', '{"name":"Alumno A"}', '{}'),
   ('00000000-0000-0000-0000-0000000000b1', 'b@test.local', '{"name":"Alumno B"}', '{}');
 
-INSERT INTO public.resources (id, title, type, url, storage_path) VALUES
-  ('00000000-0000-0000-0000-0000000000e1', 'Asignado a A', 'document', 'x', 'docs/r1.pdf'),
-  ('00000000-0000-0000-0000-0000000000e2', 'Sin asignar', 'document', 'x', 'docs/r2.pdf');
-
-UPDATE public.profiles SET allowed_resources = ARRAY['00000000-0000-0000-0000-0000000000e1']
-WHERE id = '00000000-0000-0000-0000-0000000000a1';
-
 INSERT INTO storage.objects (bucket_id, name) VALUES
-  ('academy-resources', 'docs/r1.pdf'),
-  ('academy-resources', 'docs/r2.pdf'),
   ('support-attachments', 'ticket-uploads/00000000-0000-0000-0000-0000000000a1/a.pdf'),
   ('support-attachments', 'ticket-uploads/00000000-0000-0000-0000-0000000000b1/b.pdf'),
   ('support-attachments', 'ticket-uploads/legacy-b.pdf'),
@@ -108,7 +103,6 @@ ALTER TABLE public.ticket_messages ENABLE TRIGGER validate_ticket_attachment;
 -- Anónimo --------------------------------------------------------------------
 SET LOCAL ROLE anon;
 SELECT set_config('request.jwt.claim.sub', '', true);
-SELECT tests.ok((SELECT count(*) FROM public.resources) = 0, 'anon no ve recursos');
 SELECT tests.ok((SELECT count(*) FROM public.profiles) = 0, 'anon no ve perfiles');
 SELECT tests.ok((SELECT count(*) FROM storage.objects) = 0, 'anon no ve ficheros');
 RESET ROLE;
@@ -120,11 +114,8 @@ SELECT tests.ok((SELECT public FROM storage.buckets WHERE id = 'support-attachme
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', true);
 
-SELECT tests.ok((SELECT count(*) FROM public.resources) = 1, 'A solo ve el recurso asignado');
 SELECT tests.ok((SELECT count(*) FROM public.profiles) = 1, 'A solo ve su perfil');
 
-SELECT tests.throws($$UPDATE public.profiles SET allowed_resources = ARRAY['00000000-0000-0000-0000-0000000000e2'] WHERE id = auth.uid()$$,
-                    'A no puede auto-asignarse recursos');
 SELECT tests.throws($$UPDATE public.profiles SET arrival_date = '2020-01-01' WHERE id = auth.uid()$$,
                     'A no puede cambiar su fecha de llegada');
 SELECT tests.throws($$UPDATE public.profiles SET nie = 'X0000000T' WHERE id = auth.uid()$$,
@@ -139,10 +130,6 @@ SELECT tests.throws($$INSERT INTO public.absence_periods (student_id, start_date
                     'A no puede registrar ausencias');
 SELECT tests.denied($$DELETE FROM public.absence_periods WHERE student_id = auth.uid()$$,
                     'A no puede borrar sus ausencias');
-SELECT tests.affects($$UPDATE public.profiles SET completed_resources = ARRAY['00000000-0000-0000-0000-0000000000e1']::UUID[] WHERE id = auth.uid()$$, 1,
-                     'A puede completar un recurso asignado');
-SELECT tests.throws($$UPDATE public.profiles SET completed_resources = ARRAY['00000000-0000-0000-0000-0000000000e2']::UUID[] WHERE id = auth.uid()$$,
-                    'A no puede completar un recurso no asignado');
 SELECT tests.throws($$UPDATE public.profiles SET residency_doc = '{"path":"00000000-0000-0000-0000-0000000000b1/res.pdf"}' WHERE id = auth.uid()$$,
                     'A no puede apuntar su documento a la carpeta de B');
 SELECT tests.affects($$UPDATE public.profiles SET residency_doc = '{"path":"00000000-0000-0000-0000-0000000000a1/res.pdf","name":"res.pdf"}' WHERE id = auth.uid()$$, 1,
@@ -150,8 +137,6 @@ SELECT tests.affects($$UPDATE public.profiles SET residency_doc = '{"path":"0000
 SELECT tests.denied($$UPDATE public.profiles SET nie = 'X1' WHERE id = '00000000-0000-0000-0000-0000000000b1'$$,
                     'A no puede modificar el perfil de B');
 
-SELECT tests.ok((SELECT array_agg(name ORDER BY name) FROM storage.objects WHERE bucket_id = 'academy-resources') = ARRAY['docs/r1.pdf'],
-                'A solo ve el fichero del recurso asignado');
 SELECT tests.ok((SELECT array_agg(name ORDER BY name) FROM storage.objects WHERE bucket_id = 'support-attachments')
                 = ARRAY['ticket-uploads/00000000-0000-0000-0000-0000000000a1/a.pdf'],
                 'A solo ve sus adjuntos');
@@ -183,8 +168,6 @@ SELECT tests.throws($$SELECT public.create_ticket('Link', 'x', 'http://inseguro.
 SELECT tests.throws($$SELECT public.create_ticket('', 'x')$$, 'asunto vacío rechazado');
 SELECT tests.ok((SELECT count(*) FROM public.tickets) = 1, 'los intentos fallidos no dejan tickets huérfanos');
 
-SELECT tests.throws($$SELECT public.set_resource_assignments('00000000-0000-0000-0000-0000000000e2', ARRAY['00000000-0000-0000-0000-0000000000a1']::UUID[])$$,
-                    'A no puede asignar recursos');
 SELECT tests.throws($$SELECT public.admin_delete_user('00000000-0000-0000-0000-0000000000b1')$$,
                     'A no puede borrar usuarios');
 RESET ROLE;
@@ -336,17 +319,7 @@ RESET ROLE;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', true);
 
-SELECT tests.ok((SELECT count(*) FROM public.resources) = 2, 'admin ve todos los recursos');
 SELECT tests.ok((SELECT count(*) FROM storage.objects WHERE bucket_id = 'support-attachments') = 4, 'admin ve todos los adjuntos');
-SELECT public.set_resource_assignments('00000000-0000-0000-0000-0000000000e2',
-  ARRAY['00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1']::UUID[]);
-SELECT tests.ok((SELECT count(*) FROM public.profiles WHERE '00000000-0000-0000-0000-0000000000e2' = ANY (allowed_resources)) = 2,
-                'admin asigna r2 a A y B');
-SELECT public.set_resource_assignments('00000000-0000-0000-0000-0000000000e2', ARRAY['00000000-0000-0000-0000-0000000000b1']::UUID[]);
-SELECT tests.ok((SELECT allowed_resources FROM public.profiles WHERE id = '00000000-0000-0000-0000-0000000000a1')
-                = ARRAY['00000000-0000-0000-0000-0000000000e1'], 'reasignar r2 solo a B se lo quita a A');
-SELECT tests.ok(public.set_resource_assignment('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000e1', false) = '{}',
-                'admin desactiva r1 a A');
 SELECT tests.affects($$UPDATE public.profiles SET nie = 'Y1234567X' WHERE id = '00000000-0000-0000-0000-0000000000a1'$$, 1,
                      'admin puede editar datos fiscales');
 SELECT tests.ok((SELECT count(*) FROM public.absence_periods) = 2, 'admin ve todas las ausencias');
@@ -362,8 +335,6 @@ SELECT tests.throws($$INSERT INTO public.absence_periods (student_id, start_date
 SELECT tests.throws($$INSERT INTO public.absence_periods (student_id, start_date, end_date)
                       VALUES ('00000000-0000-0000-0000-0000000000a1', '2026-12-31', '2026-11-01')$$,
                     'ausencia con fechas invertidas rechazada');
-SELECT tests.ok((SELECT count(*) FROM public.audit_logs WHERE action = 'resources_assignment_changed') >= 3,
-                'los cambios de asignación quedan auditados');
 SELECT tests.throws($$SELECT public.admin_delete_user('00000000-0000-0000-0000-00000000000a')$$,
                     'admin no puede borrarse a sí mismo');
 SELECT public.admin_delete_user('00000000-0000-0000-0000-0000000000b1');
