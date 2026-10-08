@@ -1,5 +1,5 @@
 import { 
-  LayoutDashboard, BookOpen, MessageSquare, LogOut, GraduationCap, ChevronLeft, ChevronRight, Users, Sun, Moon 
+  LayoutDashboard, BookOpen, MessageSquare, LogOut, GraduationCap, ChevronLeft, ChevronRight, Users, Sun, Moon, KeyRound
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -9,6 +9,7 @@ export default function AdminSidebar({
   activeTab, 
   setActiveTab, 
   logout, 
+  onChangePassword,
   pendingMessages 
 }) {
   const { theme, toggleTheme } = useTheme();
@@ -126,8 +127,18 @@ export default function AdminSidebar({
         </button>
       </div>
 
-      {/* Cerrar Sesión */}
-      <div className="p-4 border-t border-border-main font-mono">
+      {/* Cuenta y cierre de sesión */}
+      <div className="p-4 border-t border-border-main font-mono space-y-1.5">
+        <button
+          onClick={onChangePassword}
+          className={`w-full flex items-center py-2.5 text-xs font-bold uppercase tracking-wider text-text-muted hover:text-text-main hover:bg-bg-input rounded-xl transition-all cursor-pointer ${
+            isSidebarCollapsed ? 'justify-center px-0' : 'px-3'
+          }`}
+          title={isSidebarCollapsed ? "Cambiar Contraseña" : undefined}
+        >
+          <KeyRound className={`${isSidebarCollapsed ? 'm-0' : 'mr-3'} h-5 w-5 shrink-0`} />
+          {!isSidebarCollapsed && <span className="whitespace-nowrap transition-opacity duration-300">Cambiar Contraseña</span>}
+        </button>
         <button
           onClick={logout}
           className={`w-full flex items-center py-2.5 text-xs font-bold uppercase tracking-wider text-red-500 hover:text-red-400 border border-transparent rounded-xl hover:bg-red-500/10 transition-colors cursor-pointer ${

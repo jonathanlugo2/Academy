@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react';
 import { 
-  UserPlus, Edit2, AlertCircle, CheckCircle2, User, MapPin, Download, Trash2, 
-  FileText, Search, Filter, X, Eye, ChevronRight, ChevronLeft, Users, 
-  Shield, CreditCard, Calendar, Activity, Settings2
+  UserPlus, Edit2, AlertCircle, CheckCircle2, Download, Trash2,
+  FileText, Search, X, Eye, ChevronRight, ChevronLeft, Users,
+  Shield, CreditCard, Activity, Settings2, Mail, KeyRound, UserX, UserCheck
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { formatDate } from '../../lib/dates';
+import { LEARNER_ROLES, MANAGED_ROLES, roleLabel } from '../../lib/roles';
 import {
   RESIDENCY_THRESHOLD_DAYS, absenceDaysInYear, isFiscalResident, residencyProgress, residencyYears
 } from '../../lib/residency';
@@ -16,7 +17,7 @@ export default function UserManagementTable({
   handleCreateUser,
   uName, setUName,
   uEmail, setUEmail,
-  uPassword, setUPassword,
+  uAccess, setUAccess,
   uRole, setURole,
   uPassport, setUPassport,
   uNie, setUNie,
@@ -38,7 +39,12 @@ export default function UserManagementTable({
   setCourses,
   setUsers,
   users, // Recibimos el listado completo para filtrar aquí
-  handleDeleteUser
+  currentUserId,
+  handleDeactivateUser,
+  handleReactivateUser,
+  handleDeleteUser,
+  handleSendAccessLink,
+  handleResetPassword
 }) {
   const [showModal, setShowModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -74,6 +80,7 @@ export default function UserManagementTable({
     }
   };
   const [filterRole, setFilterRole] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('active');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
@@ -85,10 +92,12 @@ export default function UserManagementTable({
                              (u.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                              (u.nie && (u.nie || '').toLowerCase().includes(searchQuery.toLowerCase()));
         const matchesRole = filterRole === 'all' || u.role === filterRole;
-        return matchesSearch && matchesRole;
+        const matchesStatus = filterStatus === 'all' || (filterStatus === 'active') === u.active;
+        return matchesSearch && matchesRole && matchesStatus;
       })
       .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  }, [users, searchQuery, filterRole]);
+  }, [users, searchQuery, filterRole, filterStatus]);
+  const inactiveCount = users.filter(u => !u.active).length;
 
   // Paginación local
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
@@ -128,9 +137,9 @@ export default function UserManagementTable({
         <div>
           <h3 className="text-lg font-bold text-text-title flex items-center gap-2 font-mono uppercase tracking-tight">
             <Users className="w-5 h-5 text-text-active" />
-            Control de Usuarios y Nómadas
+            Usuarios: Alumnos y Asesores
           </h3>
-          <p className="text-xs text-text-muted font-mono mt-0.5">Gestión de accesos, roles y cumplimiento fiscal.</p>
+          <p className="text-xs text-text-muted font-mono mt-0.5">Altas, bajas, accesos a formaciones y cumplimiento fiscal.</p>
         </div>
         <button
           onClick={openCreateModal}
@@ -142,7 +151,7 @@ export default function UserManagementTable({
       </div>
 
       {/* BARRA DE BÚSQUEDA Y FILTROS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-bg-input/20 p-3 rounded-2xl border border-border-main/40">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-bg-input/20 p-3 rounded-2xl border border-border-main/40">
         <div className="md:col-span-2 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
           <input
@@ -156,12 +165,26 @@ export default function UserManagementTable({
         <div>
           <select
             value={filterRole}
-            onChange={(e) => setFilterRole(e.target.value)}
+            onChange={(e) => { setFilterRole(e.target.value); setCurrentPage(1); }}
             className="w-full bg-bg-input border border-border-main rounded-xl px-4 py-2.5 text-xs text-text-main focus:border-border-hover outline-none font-mono cursor-pointer"
+            aria-label="Filtrar por rol"
           >
             <option value="all">TODOS LOS ROLES</option>
-            <option value="student">NÓMADA (ESTUDIANTE)</option>
+            <option value="student">ALUMNOS (NÓMADAS)</option>
+            <option value="advisor">ASESORES</option>
             <option value="admin">ADMINISTRADOR</option>
+          </select>
+        </div>
+        <div>
+          <select
+            value={filterStatus}
+            onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
+            className="w-full bg-bg-input border border-border-main rounded-xl px-4 py-2.5 text-xs text-text-main focus:border-border-hover outline-none font-mono cursor-pointer"
+            aria-label="Filtrar por estado"
+          >
+            <option value="active">ACTIVOS</option>
+            <option value="inactive">DADOS DE BAJA ({inactiveCount})</option>
+            <option value="all">TODOS</option>
           </select>
         </div>
       </div>
@@ -193,12 +216,19 @@ export default function UserManagementTable({
                             {user.name.charAt(0)}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-bold text-text-main truncate group-hover:text-text-title transition-colors">{user.name}</p>
+                            <p className="text-sm font-bold text-text-main truncate group-hover:text-text-title transition-colors">
+                              {user.name}
+                              {!user.active && <span className="ml-2 text-[8px] font-bold px-1.5 py-0.5 rounded uppercase font-mono bg-red-500/10 text-red-500 border border-red-500/20 align-middle">De baja</span>}
+                              {user.active && user.mustChangePassword && <span className="ml-2 text-[8px] font-bold px-1.5 py-0.5 rounded uppercase font-mono bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 align-middle" title="Aún no ha elegido su contraseña">Acceso pendiente</span>}
+                            </p>
                             <p className="text-[10px] text-text-muted truncate lowercase font-mono">{user.email}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
+                        {user.role !== 'student' ? (
+                          <span className="text-[10px] text-text-muted font-mono">—</span>
+                        ) : (
                         <div className="space-y-1">
                           <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-mono">
                             <CreditCard className="w-3 h-3 text-text-muted" />
@@ -209,6 +239,7 @@ export default function UserManagementTable({
                             <span>PAS: {user.passport || 'N/A'}</span>
                           </div>
                         </div>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         {user.role === 'student' ? (
@@ -227,13 +258,15 @@ export default function UserManagementTable({
                             </div>
                           </div>
                         ) : (
-                          <span className="text-[9px] font-bold text-text-active bg-bg-active border border-border-active px-2 py-0.5 rounded uppercase font-mono">Staff Admin</span>
+                          <span className="text-[9px] font-bold text-text-active bg-bg-active border border-border-active px-2 py-0.5 rounded uppercase font-mono">
+                            {user.role === 'advisor' ? 'Asesor · Sin expediente' : 'Staff Admin'}
+                          </span>
                         )}
                       </td>
                       <td className="px-6 py-4">
                          <div className="flex flex-col gap-1">
                            <span className="text-[9px] font-bold text-text-muted uppercase font-mono">Formaciones: {coursesOf(user.id).length}</span>
-                           <span className="text-[9px] text-text-muted font-mono uppercase">{user.role === 'admin' ? 'Total Root' : 'Limitado'}</span>
+                           <span className="text-[9px] text-text-muted font-mono uppercase">{user.role === 'admin' ? 'Total Root' : roleLabel(user.role)}</span>
                          </div>
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -252,13 +285,48 @@ export default function UserManagementTable({
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
-                          <button
-                            onClick={() => handleDeleteUser(user.id, user.name)}
-                            className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-all cursor-pointer"
-                            title="Eliminar"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {user.id !== currentUserId && user.role !== 'admin' && (user.active ? (
+                            <>
+                              <button
+                                onClick={() => handleSendAccessLink(user)}
+                                className="p-2 text-text-muted hover:text-text-title hover:bg-bg-input rounded-lg transition-all cursor-pointer"
+                                title="Enviar enlace de acceso por correo"
+                              >
+                                <Mail className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleResetPassword(user)}
+                                className="p-2 text-text-muted hover:text-text-title hover:bg-bg-input rounded-lg transition-all cursor-pointer"
+                                title="Generar contraseña temporal"
+                              >
+                                <KeyRound className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeactivateUser(user)}
+                                className="p-2 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-all cursor-pointer"
+                                title="Dar de baja"
+                              >
+                                <UserX className="w-4 h-4" />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleReactivateUser(user)}
+                                className="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-all cursor-pointer"
+                                title="Reactivar"
+                              >
+                                <UserCheck className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteUser(user)}
+                                className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-all cursor-pointer"
+                                title="Eliminar definitivamente"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          ))}
                         </div>
                       </td>
                     </tr>
@@ -356,34 +424,53 @@ export default function UserManagementTable({
                     <input type="text" value={uName} onChange={(e) => setUName(e.target.value)} required className="w-full bg-bg-input border border-border-main rounded-2xl px-5 py-3.5 text-xs text-text-main outline-none focus:border-border-hover transition-all font-mono" placeholder="Ej. Juan Pérez" />
                   </div>
 
-                  <div className={editingUserId ? "md:col-span-2" : ""}>
+                  <div className={MANAGED_ROLES.includes(uRole) ? "" : "md:col-span-2"}>
                     <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 font-mono ml-1">Email Corporativo *</label>
                     <input type="email" value={uEmail} onChange={(e) => setUEmail(e.target.value)} required disabled={!!editingUserId} className="w-full bg-bg-input border border-border-main rounded-2xl px-5 py-3.5 text-xs text-text-main outline-none focus:border-border-hover transition-all font-mono disabled:opacity-50" placeholder="usuario@expatfiscal.com" />
                   </div>
 
-                  {!editingUserId && (
+                  {MANAGED_ROLES.includes(uRole) && (
                     <div>
-                      <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 font-mono ml-1">Contraseña Temporal *</label>
-                      <input type="password" value={uPassword} onChange={(e) => setUPassword(e.target.value)} required minLength={10} autoComplete="new-password" className="w-full bg-bg-input border border-border-main rounded-2xl px-5 py-3.5 text-xs text-text-main outline-none focus:border-border-hover transition-all font-mono" placeholder="Mínimo 10 caracteres" />
+                      <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 font-mono ml-1">Tipo de Usuario</label>
+                      <select value={uRole} onChange={(e) => setURole(e.target.value)} className="w-full bg-bg-input border border-border-main rounded-2xl px-5 py-3.5 text-xs text-text-main outline-none font-mono cursor-pointer appearance-none focus:border-border-hover transition-all">
+                        <option value="student">ALUMNO (NÓMADA DIGITAL)</option>
+                        <option value="advisor">ASESOR (EQUIPO DE LA FIRMA)</option>
+                      </select>
                     </div>
                   )}
 
-                  <div>
-                    <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 font-mono ml-1">Rol de Usuario</label>
-                    <select value={uRole} onChange={(e) => setURole(e.target.value)} className="w-full bg-bg-input border border-border-main rounded-2xl px-5 py-3.5 text-xs text-text-main outline-none font-mono cursor-pointer appearance-none focus:border-border-hover transition-all">
-                      <option value="student">NÓMADA (ESTUDIANTE)</option>
-                      <option value="admin">ADMINISTRADOR</option>
-                    </select>
-                  </div>
+                  {!editingUserId && (
+                    <fieldset className="md:col-span-2 space-y-2">
+                      <legend className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 font-mono ml-1">Acceso Inicial</legend>
+                      {[
+                        { value: 'invite', title: 'Enviar invitación por correo (recomendado)', text: 'Recibirá un enlace para elegir su propia contraseña. Caduca en 24 horas; puedes reenviarlo desde la lista.' },
+                        { value: 'password', title: 'Generar contraseña temporal', text: 'Se crea una contraseña segura que verás una sola vez. Al entrar deberá cambiarla.' }
+                      ].map(option => (
+                        <label key={option.value} className={`flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${uAccess === option.value ? 'border-border-active bg-bg-active' : 'border-border-main bg-bg-input hover:border-border-hover'}`}>
+                          <input type="radio" name="access" value={option.value} checked={uAccess === option.value} onChange={() => setUAccess(option.value)} className="mt-0.5 accent-indigo-600" />
+                          <span>
+                            <span className="block text-xs font-bold text-text-main font-mono">{option.title}</span>
+                            <span className="block text-[10px] text-text-muted mt-1 leading-relaxed">{option.text}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </fieldset>
+                  )}
 
-                  <div>
-                    <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 font-mono ml-1">Nº Pasaporte</label>
-                    <input type="text" value={uPassport} onChange={(e) => setUPassport(e.target.value)} className="w-full bg-bg-input border border-border-main rounded-2xl px-5 py-3.5 text-xs text-text-main outline-none focus:border-border-hover transition-all font-mono" placeholder="PA000000" />
-                  </div>
+                  {uRole === 'advisor' && (
+                    <p className="md:col-span-2 text-[10px] text-text-muted font-mono leading-relaxed">
+                      Los asesores solo acceden a las formaciones internas que les asignes: no tienen expediente fiscal ni canal de soporte.
+                    </p>
+                  )}
 
                   {uRole === 'student' && (
                     <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-border-main">
                       <div className="md:col-span-2"><span className="text-[9px] font-bold text-text-active uppercase tracking-widest block mb-2 font-mono">Expediente de Residencia Fiscal</span></div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 font-mono ml-1">Nº Pasaporte</label>
+                        <input type="text" value={uPassport} onChange={(e) => setUPassport(e.target.value)} className="w-full bg-bg-input border border-border-main rounded-2xl px-5 py-3.5 text-xs text-text-main outline-none focus:border-border-hover transition-all font-mono" placeholder="PA000000" />
+                      </div>
                       
                       <div>
                         <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 font-mono ml-1">NIE (Identidad Extranjera)</label>
@@ -443,8 +530,13 @@ export default function UserManagementTable({
                   <h3 className="text-lg font-bold text-text-title uppercase tracking-tight font-mono">{selectedUser.name}</h3>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-[9px] font-bold text-text-active bg-bg-active border border-border-active px-2 py-0.5 rounded uppercase font-mono tracking-widest">
-                      {selectedUser.role === 'student' ? 'Nómada Digital' : 'Administrador'}
+                      {selectedUser.role === 'student' ? 'Nómada Digital' : roleLabel(selectedUser.role)}
                     </span>
+                    {!selectedUser.active && (
+                      <span className="text-[9px] font-bold text-red-500 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded uppercase font-mono tracking-widest">
+                        De baja desde {formatDate(selectedUser.deactivatedAt)}
+                      </span>
+                    )}
                     <span className="text-[10px] text-text-muted font-mono lowercase">{selectedUser.email}</span>
                   </div>
                 </div>
@@ -454,6 +546,7 @@ export default function UserManagementTable({
 
             <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-8">
               {/* Grid de Información Base */}
+              {selectedUser.role === 'student' && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-bg-input/40 p-4 rounded-2xl border border-border-main/60">
                   <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest mb-1 font-mono">Identidad Fiscal</p>
@@ -468,10 +561,12 @@ export default function UserManagementTable({
                   <p className="text-sm font-bold text-text-main font-mono">{formatDate(selectedUser.arrivalDate, 'NO REGISTRADA')}</p>
                 </div>
               </div>
+              )}
 
-              {selectedUser.role === 'student' && (
+              {LEARNER_ROLES.includes(selectedUser.role) && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {/* Control Residencia */}
+                  {selectedUser.role === 'student' && (
                   <div className="space-y-4">
                     <div className="flex justify-between items-center gap-2">
                       <h4 className="text-xs font-bold text-text-title uppercase tracking-widest flex items-center gap-2 font-mono">
@@ -508,6 +603,7 @@ export default function UserManagementTable({
                       </div>
                     </div>
                   </div>
+                  )}
 
                   {/* Acceso a Recursos */}
                   <div className="space-y-4">
@@ -570,6 +666,8 @@ export default function UserManagementTable({
                     </div>
                   </div>
 
+                  {selectedUser.role === 'student' && (
+                  <>
                   {/* Ausencias largas */}
                   <div className="md:col-span-2">
                     <AbsenceManager student={selectedUser} year={residencyYear} onChange={updateAbsences} />
@@ -601,6 +699,8 @@ export default function UserManagementTable({
                       </div>
                     )}
                   </div>
+                  </>
+                  )}
                 </div>
               )}
             </div>

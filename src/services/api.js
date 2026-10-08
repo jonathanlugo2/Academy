@@ -5,7 +5,7 @@ import { supabase } from '../utils/supabaseClient';
 import { attachmentStoragePath } from '../lib/storagePaths';
 import { mapCourse, mapLesson, mapMaterial, mapProgress } from '../lib/courses';
 
-export const PROFILE_COLUMNS = 'id, name, role, passport, nie, address, postal_code, arrival_date, aeat_date, ss_date, residency_doc, email, absence_periods!absence_periods_student_id_fkey(id, start_date, end_date, note)';
+export const PROFILE_COLUMNS = 'id, name, role, passport, nie, address, postal_code, arrival_date, aeat_date, ss_date, residency_doc, email, active, must_change_password, deactivated_at, absence_periods!absence_periods_student_id_fkey(id, start_date, end_date, note)';
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 const MB = 1024 * 1024;
@@ -52,7 +52,10 @@ export const mapProfile = (p) => {
     aeatDate: p.aeat_date,
     ssDate: p.ss_date,
     residencyDoc: p.residency_doc,
-    email: p.email
+    email: p.email,
+    active: p.active !== false,
+    mustChangePassword: Boolean(p.must_change_password),
+    deactivatedAt: p.deactivated_at ?? null
   };
 };
 
@@ -179,6 +182,16 @@ function absenceErrorMessage(error) {
   return error.message;
 }
 
+// Gestión de cuentas mediante la Edge Function (requiere service role en el servidor)
+async function adminUsers(action, body = {}) {
+  const { data, error } = await supabase.functions.invoke('admin-users', { body: { action, ...body } });
+  if (error) {
+    const payload = await error.context?.json?.().catch(() => null);
+    throw new Error(payload?.error || 'No se pudo completar la operación.');
+  }
+  return data;
+}
+
 const TICKET_MESSAGE_SELECT = '*, sender:profiles(name, role), ticket:tickets(student_id)';
 
 export const api = {
@@ -202,15 +215,11 @@ export const api = {
       if (error) throw error;
       return mapProfile(data);
     },
-    // Alta mediante la Edge Function (requiere service role en el servidor)
+    // Alta con invitación por correo o contraseña temporal (access: 'invite' | 'password').
+    // tempPassword solo llega en el modo 'password' y se muestra una única vez.
     create: async (userData) => {
-      const { data, error } = await supabase.functions.invoke('create-student', { body: userData });
-
-      if (error) {
-        const body = await error.context?.json?.().catch(() => null);
-        throw new Error(body?.error || 'No se pudo crear el usuario.');
-      }
-      return mapProfile(data.profile);
+      const data = await adminUsers('create', userData);
+      return { tempPassword: data.tempPassword, recovered: data.recovered };
     },
     update: async (id, userData) => {
       const dbData = {};
@@ -236,11 +245,35 @@ export const api = {
       if (error) throw error;
       return mapProfile(data);
     },
-    // Borra la cuenta de Auth; el perfil y sus tickets caen en cascada
-    delete: async (id) => {
-      const { error } = await supabase.rpc('admin_delete_user', { p_user_id: id });
+    // Baja reversible: bloquea el acceso y conserva sus datos
+    deactivate: (id) => adminUsers('deactivate', { userId: id }),
+    reactivate: (id) => adminUsers('reactivate', { userId: id }),
+    // Solo usuarios dados de baja: borra la cuenta y, en cascada, todos sus datos
+    delete: (id) => adminUsers('delete', { userId: id }),
+    // Reenvía la invitación o, si ya la aceptó, un enlace para crear contraseña nueva
+    sendAccessLink: (id) => adminUsers('send-access-link', { userId: id }),
+    resetPassword: async (id) => (await adminUsers('reset-password', { userId: id })).tempPassword
+  },
+  // Cuenta del usuario en sesión
+  account: {
+    // Fija la contraseña de la sesión actual y quita el cambio obligatorio
+    setPassword: async (password) => {
+      const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
-      return true;
+      const { error: rpcError } = await supabase.rpc('complete_password_change');
+      if (rpcError) throw rpcError;
+    },
+    // Comprueba la contraseña actual antes de cambiarla
+    changePassword: async (email, currentPassword, newPassword) => {
+      const { error } = await supabase.auth.signInWithPassword({ email, password: currentPassword });
+      if (error) throw new Error('La contraseña actual no es correcta.');
+      await api.account.setPassword(newPassword);
+    },
+    sendRecoveryEmail: async (email) => {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/restablecer-contrasena`
+      });
+      if (error) throw error;
     }
   },
   // Ausencias largas (solo administración; la BD exige >= 30 días y sin solapes)

@@ -2,16 +2,18 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Navigate, matchPath, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../services/api';
-import { LogOut, Shield, Sun, Moon, ChevronDown } from 'lucide-react';
+import { LogOut, Shield, Sun, Moon, ChevronDown, KeyRound } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { RESOURCE_CATEGORIES } from '../features/resources/resourceMeta';
 import { indexProgress, isLessonCompleted, resumeLesson } from '../lib/courses';
+import { hasFiscalProfile, hasSupportChannel, roleLabel } from '../lib/roles';
 
 import StudentSidebar from '../features/student/StudentSidebar';
 import CourseDirectory from '../features/student/CourseDirectory';
 import CoursePlayer from '../features/student/CoursePlayer';
 import CommunicationPanel from '../features/student/CommunicationPanel';
 import FiscalDossier from '../features/student/FiscalDossier';
+import ChangePasswordModal from '../features/account/ChangePasswordModal';
 import ErrorBanner from './ErrorBanner';
 
 // 2 filas de 4 tarjetas en escritorio
@@ -31,7 +33,12 @@ export default function StudentDashboard() {
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [selectedTab, setSelectedTab] = useState('resources'); // 'resources', 'fiscal', 'support'
-  const activeTab = courseMatch ? 'resources' : selectedTab;
+  // Los asesores solo tienen formaciones
+  const showFiscal = hasFiscalProfile(user?.role);
+  const showSupport = hasSupportChannel(user?.role);
+  const tabAllowed = (tab) => tab === 'resources' || (tab === 'fiscal' && showFiscal) || (tab === 'support' && showSupport);
+  const activeTab = courseMatch || !tabAllowed(selectedTab) ? 'resources' : selectedTab;
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
   // Menú desplegable del perfil
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -114,7 +121,7 @@ export default function StudentDashboard() {
     if (!userId) return undefined;
     let active = true;
     // La RLS limita formaciones (publicadas y asignadas), progreso y tickets al alumno
-    Promise.all([api.courses.getAll(), api.progress.getMine(userId), api.tickets.getAll()])
+    Promise.all([api.courses.getAll(), api.progress.getMine(userId), showSupport ? api.tickets.getAll() : []])
       .then(([courseList, progressList, ticketsList]) => {
         if (!active) return;
         setCourses(courseList);
@@ -129,7 +136,7 @@ export default function StudentDashboard() {
       .finally(() => active && setLoading(false));
 
     return () => { active = false; };
-  }, [userId]);
+  }, [userId, showSupport]);
 
   useEffect(() => {
     if (!selectedTicketId) return undefined;
@@ -295,6 +302,7 @@ export default function StudentDashboard() {
         setIsSidebarCollapsed={setIsSidebarCollapsed}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        showSupport={showSupport}
       />
 
       {/* CONTENIDO PRINCIPAL */}
@@ -307,7 +315,7 @@ export default function StudentDashboard() {
           </h2>
           <div className="flex items-center gap-3">
             <div className="text-[10px] text-text-active bg-bg-active border border-border-active px-3 py-1.5 rounded-xl font-bold font-mono uppercase tracking-wider hidden sm:inline-block">
-              Nómada Activo
+              {user.role === 'advisor' ? 'Equipo Asidne' : 'Nómada Activo'}
             </div>
             
             <div className="relative" ref={profileMenuRef}>
@@ -323,7 +331,7 @@ export default function StudentDashboard() {
                     <p className="text-xs font-semibold text-text-title leading-none">{user?.name}</p>
                     <ChevronDown className={`w-3 h-3 text-text-muted transition-transform duration-200 ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
                   </div>
-                  <p className="text-[9px] text-text-muted mt-1 uppercase tracking-wider font-bold font-mono leading-none">Estudiante</p>
+                  <p className="text-[9px] text-text-muted mt-1 uppercase tracking-wider font-bold font-mono leading-none">{roleLabel(user?.role)}</p>
                 </div>
               </button>
 
@@ -336,15 +344,28 @@ export default function StudentDashboard() {
                       <p className="text-[9px] text-text-muted truncate mt-0.5">{user?.email}</p>
                     </div>
 
+                    {showFiscal && (
+                      <button
+                        onClick={() => {
+                          setActiveTab('fiscal');
+                          setIsProfileMenuOpen(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold font-mono uppercase tracking-wider text-text-muted hover:text-text-main hover:bg-bg-input rounded-xl transition-all cursor-pointer text-left font-mono"
+                      >
+                        <Shield className="w-4 h-4 text-text-active" />
+                        Mi Perfil Fiscal
+                      </button>
+                    )}
+
                     <button
                       onClick={() => {
-                        setActiveTab('fiscal');
+                        setShowChangePassword(true);
                         setIsProfileMenuOpen(false);
                       }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold font-mono uppercase tracking-wider text-text-muted hover:text-text-main hover:bg-bg-input rounded-xl transition-all cursor-pointer text-left font-mono"
                     >
-                      <Shield className="w-4 h-4 text-text-active" />
-                      Mi Perfil Fiscal
+                      <KeyRound className="w-4 h-4 text-text-active" />
+                      Cambiar Contraseña
                     </button>
 
                     <button
@@ -449,6 +470,8 @@ export default function StudentDashboard() {
           </div>
         )}
       </main>
+
+      {showChangePassword && <ChangePasswordModal onClose={() => setShowChangePassword(false)} />}
     </div>
   );
 }

@@ -18,7 +18,8 @@ function renderAt(path) {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><p>admin</p></ProtectedRoute>} />
-        <Route path="/dashboard/*" element={<ProtectedRoute allowedRoles={['student']}><p>dashboard</p></ProtectedRoute>} />
+        <Route path="/dashboard/*" element={<ProtectedRoute allowedRoles={['student', 'advisor']}><p>dashboard</p></ProtectedRoute>} />
+        <Route path="/restablecer-contrasena" element={<p>cambiar contraseña</p>} />
       </Routes>
     </MemoryRouter>
   );
@@ -43,6 +44,24 @@ describe('ProtectedRoute', () => {
     useAuth.mockReturnValue({ user: { role: 'student' }, loading: false });
     renderAt('/dashboard');
     expect(screen.getByText('dashboard')).toBeTruthy();
+  });
+
+  it('los asesores entran en el campus de formaciones', () => {
+    useAuth.mockReturnValue({ user: { role: 'advisor' }, loading: false });
+    renderAt('/dashboard');
+    expect(screen.getByText('dashboard')).toBeTruthy();
+  });
+
+  it('un asesor no entra en el panel de administración', () => {
+    useAuth.mockReturnValue({ user: { role: 'advisor' }, loading: false });
+    renderAt('/admin');
+    expect(screen.getByText('dashboard')).toBeTruthy();
+  });
+
+  it('obliga a cambiar la contraseña temporal antes de entrar', () => {
+    useAuth.mockReturnValue({ user: { role: 'student', mustChangePassword: true }, loading: false });
+    renderAt('/dashboard');
+    expect(screen.getByText('cambiar contraseña')).toBeTruthy();
   });
 
   it('lleva a cada rol a su propia página', () => {

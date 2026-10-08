@@ -3,9 +3,11 @@ import { AuthContext } from './AuthContext';
 import { supabase } from '../utils/supabaseClient';
 import { PROFILE_COLUMNS, mapProfile } from '../services/api';
 import { isValidRole } from '../lib/roles';
+import { authErrorMessage } from '../lib/passwords';
 
 const MISSING_PROFILE_ERROR = 'Tu cuenta no tiene un perfil activo. Contacta con administración.';
 const PROFILE_LOAD_ERROR = 'No se pudo cargar tu perfil. Inténtalo de nuevo en unos minutos.';
+const INACTIVE_ERROR = 'Tu cuenta está dada de baja. Contacta con administración si crees que es un error.';
 
 // Perfil detallado del usuario. `failed` distingue un error de lectura (red,
 // servidor) de un perfil que no existe (profile: null).
@@ -23,7 +25,8 @@ async function loadProfile(uid) {
   return { profile: mapProfile(data), failed: false };
 }
 
-const hasValidProfile = (profile) => Boolean(profile) && isValidRole(profile.role);
+// Un usuario dado de baja no entra aunque conserve un token válido
+const hasValidProfile = (profile) => Boolean(profile) && isValidRole(profile.role) && profile.active;
 
 const toSessionUser = (authUser, profile) => ({
   id: authUser.id,
@@ -95,12 +98,13 @@ export function AuthProvider({ children }) {
         email: email.trim(),
         password
       });
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(authErrorMessage(error));
 
       const { profile, failed } = await loadProfile(data.user.id);
       if (!hasValidProfile(profile)) {
         await supabase.auth.signOut({ scope: 'local' });
-        throw new Error(failed ? PROFILE_LOAD_ERROR : MISSING_PROFILE_ERROR);
+        if (failed) throw new Error(PROFILE_LOAD_ERROR);
+        throw new Error(profile ? INACTIVE_ERROR : MISSING_PROFILE_ERROR);
       }
 
       const sessionUser = toSessionUser(data.user, profile);

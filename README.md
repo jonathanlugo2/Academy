@@ -44,7 +44,7 @@ src/
 └── utils/             # Cliente de Supabase
 supabase/
 ├── migrations/        # Esquema completo, políticas RLS y funciones RPC
-├── functions/         # Edge Function create-student (alta de usuarios)
+├── functions/         # Edge Function admin-users (altas, bajas y contraseñas)
 └── tests/             # Tests de seguridad RLS y de traslado de datos (SQL)
 ```
 
@@ -69,8 +69,8 @@ psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
   -v ON_ERROR_STOP=1 -f supabase/tests/rls_security.sql
 supabase db push                    # aplicar migraciones al proyecto remoto
 
-cd supabase/functions/create-student && deno test --config deno.json
-supabase functions deploy create-student
+cd supabase/functions/admin-users && deno test --config deno.json
+supabase functions deploy admin-users
 supabase secrets set ALLOWED_ORIGINS=https://tu-dominio.app,http://localhost:5173
 ```
 

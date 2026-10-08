@@ -22,6 +22,11 @@ export default function ProtectedRoute({ children, allowedRoles }) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
+  // Contraseña temporal o invitación: primero debe elegir su contraseña
+  if (user.mustChangePassword) {
+    return <Navigate to="/restablecer-contrasena" replace />;
+  }
+
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     // Redirigir a la página de su rol (o al login si el rol no es válido)
     return <Navigate to={homePathFor(user.role)} replace />;

@@ -7,14 +7,15 @@ import MetricsOverview from '../features/admin/MetricsOverview';
 import CourseManager from '../features/admin/courses/CourseManager';
 import UserManagementTable from '../features/admin/UserManagementTable';
 import MessagesPanel from '../features/admin/MessagesPanel';
+import ChangePasswordModal from '../features/account/ChangePasswordModal';
+import TempPasswordModal from '../features/admin/TempPasswordModal';
 import ErrorBanner from './ErrorBanner';
-
-const MIN_PASSWORD_LENGTH = 10;
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'content', 'messages', 'users'
 
   // Datos
@@ -37,7 +38,7 @@ export default function AdminDashboard() {
   // Gestión de usuarios
   const [selectedUser, setSelectedUser] = useState(null);
   const [uEmail, setUEmail] = useState('');
-  const [uPassword, setUPassword] = useState('');
+  const [uAccess, setUAccess] = useState('invite'); // 'invite' | 'password'
   const [uName, setUName] = useState('');
   const [uRole, setURole] = useState('student');
   const [uPassport, setUPassport] = useState('');
@@ -51,6 +52,9 @@ export default function AdminDashboard() {
   const [userSuccess, setUserSuccess] = useState('');
   const [editingUserId, setEditingUserId] = useState(null);
   const [creatingUser, setCreatingUser] = useState(false);
+  // Contraseña temporal recién generada: se muestra una sola vez
+  const [tempCredential, setTempCredential] = useState(null);
+  const [accountNotice, setAccountNotice] = useState('');
 
   // Carga inicial en paralelo
   useEffect(() => {
@@ -131,7 +135,7 @@ export default function AdminDashboard() {
   const resetUserForm = () => {
     setEditingUserId(null);
     setUEmail('');
-    setUPassword('');
+    setUAccess('invite');
     setUName('');
     setURole('student');
     setUPassport('');
@@ -152,22 +156,27 @@ export default function AdminDashboard() {
       setUserError('Nombre y Correo son campos obligatorios.');
       return false;
     }
-    if (!editingUserId && uPassword.length < MIN_PASSWORD_LENGTH) {
-      setUserError(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
-      return false;
-    }
 
+    // Los asesores no tienen expediente de residencia
+    const isStudent = uRole === 'student';
     const profileData = {
       name: uName.trim(),
       role: uRole,
-      passport: uPassport.trim() || null,
-      nie: uNie.trim() || null,
-      address: uAddress.trim() || null,
-      postalCode: uPostalCode.trim() || null,
-      arrivalDate: uArrivalDate || null,
-      aeatDate: uAeatDate || null,
-      ssDate: uSsDate || null
+      passport: isStudent ? uPassport.trim() || null : null,
+      nie: isStudent ? uNie.trim() || null : null,
+      address: isStudent ? uAddress.trim() || null : null,
+      postalCode: isStudent ? uPostalCode.trim() || null : null,
+      arrivalDate: isStudent ? uArrivalDate || null : null,
+      aeatDate: isStudent ? uAeatDate || null : null,
+      ssDate: isStudent ? uSsDate || null : null
     };
+    // El rol del administrador no se cambia desde el formulario
+    const previousRole = editingUserId && users.find(u => u.id === editingUserId)?.role;
+    if (previousRole === 'admin') delete profileData.role;
+    if (previousRole === 'student' && uRole === 'advisor'
+        && !confirm('Al convertirlo en asesor se borrarán sus datos de residencia (NIE, pasaporte, dirección y fechas). ¿Continuar?')) {
+      return false;
+    }
 
     setCreatingUser(true);
     try {
@@ -176,8 +185,15 @@ export default function AdminDashboard() {
         setUserSuccess('¡Usuario actualizado correctamente!');
         setSelectedUser(updated);
       } else {
-        await api.users.create({ ...profileData, email: uEmail.trim(), password: uPassword });
-        setUserSuccess('¡Usuario registrado correctamente!');
+        const email = uEmail.trim();
+        const { tempPassword, recovered } = await api.users.create({ ...profileData, email, access: uAccess });
+        const prefix = recovered ? 'Se ha recuperado una cuenta antigua con ese correo. ' : '';
+        if (tempPassword) {
+          setTempCredential({ name: profileData.name, email, password: tempPassword });
+          setUserSuccess(`${prefix}Usuario registrado. Comparte la contraseña temporal por un canal seguro.`);
+        } else {
+          setUserSuccess(`${prefix}Usuario registrado. Hemos enviado la invitación a ${email}.`);
+        }
       }
       resetUserForm();
       setUsers(await api.users.getAll());
@@ -194,7 +210,6 @@ export default function AdminDashboard() {
     setEditingUserId(userToEdit.id);
     setUName(userToEdit.name || '');
     setUEmail(userToEdit.email || '');
-    setUPassword(''); // La contraseña no se edita aquí
     setURole(userToEdit.role || 'student');
     setUPassport(userToEdit.passport || '');
     setUNie(userToEdit.nie || '');
@@ -213,20 +228,59 @@ export default function AdminDashboard() {
     setUserSuccess('');
   };
 
-  const handleDeleteUser = async (id, name) => {
-    if (id === user.id) {
-      setActionError('No puedes eliminar tu propio usuario administrador en sesión.');
+  // Ejecuta una acción de cuenta y recarga la lista
+  const runAccountAction = async (action, errorPrefix) => {
+    setActionError('');
+    setAccountNotice('');
+    try {
+      const notice = await action();
+      setUsers(await api.users.getAll());
+      if (notice) setAccountNotice(notice);
+    } catch (e) {
+      setActionError(`${errorPrefix}: ${e.message}`);
+    }
+  };
+
+  const handleDeactivateUser = (target) => {
+    if (!confirm(`¿Dar de baja a "${target.name}"? No podrá iniciar sesión, pero se conservan sus datos, formaciones y progreso. Podrás reactivarlo cuando quieras.`)) return;
+    runAccountAction(async () => {
+      await api.users.deactivate(target.id);
+      return `${target.name} ha sido dado de baja.`;
+    }, 'No se pudo dar de baja al usuario');
+  };
+
+  const handleReactivateUser = (target) => runAccountAction(async () => {
+    await api.users.reactivate(target.id);
+    return `${target.name} vuelve a tener acceso.`;
+  }, 'No se pudo reactivar al usuario');
+
+  const handleDeleteUser = (target) => {
+    const typed = prompt(
+      `Eliminar definitivamente a "${target.name}" borra su cuenta, formaciones, progreso, tickets y documentos. No se puede deshacer.\n\nEscribe su correo para confirmar:`
+    );
+    if (typed === null) return;
+    if (typed.trim().toLowerCase() !== (target.email || '').toLowerCase()) {
+      setActionError('El correo no coincide: no se ha eliminado el usuario.');
       return;
     }
-    if (!confirm(`¿Estás seguro de que deseas eliminar el usuario "${name}"? Se borrarán su cuenta, su perfil y sus tickets. Esta acción es irreversible.`)) return;
+    runAccountAction(async () => {
+      await api.users.delete(target.id);
+      if (selectedUser?.id === target.id) setSelectedUser(null);
+      return `${target.name} ha sido eliminado. Su correo puede volver a darse de alta.`;
+    }, 'No se pudo eliminar el usuario');
+  };
 
-    try {
-      await api.users.delete(id);
-      if (selectedUser?.id === id) setSelectedUser(null);
-      setUsers(await api.users.getAll());
-    } catch (e) {
-      setActionError('Error al eliminar el usuario: ' + e.message);
-    }
+  const handleSendAccessLink = (target) => runAccountAction(async () => {
+    await api.users.sendAccessLink(target.id);
+    return `Enlace de acceso enviado a ${target.email}.`;
+  }, 'No se pudo enviar el enlace');
+
+  const handleResetPassword = (target) => {
+    if (!confirm(`¿Generar una contraseña temporal para "${target.name}"? La actual dejará de funcionar y tendrá que elegir una nueva al entrar.`)) return;
+    runAccountAction(async () => {
+      const password = await api.users.resetPassword(target.id);
+      setTempCredential({ name: target.name, email: target.email, password });
+    }, 'No se pudo generar la contraseña');
   };
 
   const openResidencyDoc = async (doc) => {
@@ -241,8 +295,8 @@ export default function AdminDashboard() {
   // Métricas
   const totalCourses = courses.length;
   const pendingMessages = tickets.filter(t => t.status === 'open').length;
-  const totalStudents = users.filter(u => u.role === 'student').length;
-  const totalAdmins = users.filter(u => u.role === 'admin').length;
+  const totalStudents = users.filter(u => u.role === 'student' && u.active).length;
+  const totalAdvisors = users.filter(u => u.role === 'advisor' && u.active).length;
 
 
   if (!user) return null;
@@ -256,6 +310,7 @@ export default function AdminDashboard() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         logout={logout}
+        onChangePassword={() => setShowChangePassword(true)}
         pendingMessages={pendingMessages}
       />
 
@@ -294,6 +349,12 @@ export default function AdminDashboard() {
         ) : (
           <div className="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6 overflow-y-auto no-scrollbar">
             <ErrorBanner message={actionError} onClose={() => setActionError('')} />
+            {accountNotice && (
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-mono flex justify-between gap-3">
+                <span>{accountNotice}</span>
+                <button onClick={() => setAccountNotice('')} className="font-bold cursor-pointer" aria-label="Cerrar aviso">×</button>
+              </div>
+            )}
             
             {activeTab === 'overview' && (
               <MetricsOverview 
@@ -301,7 +362,7 @@ export default function AdminDashboard() {
                 totalStudents={totalStudents}
                 totalCourses={totalCourses}
                 pendingMessages={pendingMessages}
-                totalAdmins={totalAdmins}
+                totalAdvisors={totalAdvisors}
                 users={users}
                 calculateResidencyDays={calculateResidencyDays}
                 tickets={tickets}
@@ -323,7 +384,7 @@ export default function AdminDashboard() {
                 handleCreateUser={handleCreateUser}
                 uName={uName} setUName={setUName}
                 uEmail={uEmail} setUEmail={setUEmail}
-                uPassword={uPassword} setUPassword={setUPassword}
+                uAccess={uAccess} setUAccess={setUAccess}
                 uRole={uRole} setURole={setURole}
                 uPassport={uPassport} setUPassport={setUPassport}
                 uNie={uNie} setUNie={setUNie}
@@ -345,7 +406,12 @@ export default function AdminDashboard() {
                 setCourses={setCourses}
                 setUsers={setUsers}
                 users={users}
+                currentUserId={user.id}
+                handleDeactivateUser={handleDeactivateUser}
+                handleReactivateUser={handleReactivateUser}
                 handleDeleteUser={handleDeleteUser}
+                handleSendAccessLink={handleSendAccessLink}
+                handleResetPassword={handleResetPassword}
               />
             )}
 
@@ -369,6 +435,9 @@ export default function AdminDashboard() {
           </div>
         )}
       </main>
+
+      {showChangePassword && <ChangePasswordModal onClose={() => setShowChangePassword(false)} />}
+      {tempCredential && <TempPasswordModal credential={tempCredential} onClose={() => setTempCredential(null)} />}
     </div>
   );
 }

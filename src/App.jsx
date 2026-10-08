@@ -3,13 +3,15 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthProvider';
 import { ThemeProvider } from './context/ThemeContext';
 import { useAuth } from './hooks/useAuth';
-import { homePathFor } from './lib/roles';
+import { LEARNER_ROLES, homePathFor } from './lib/roles';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './components/Login';
 
 // Cada panel se descarga solo cuando se usa (el de admin no llega a los alumnos)
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 const StudentDashboard = lazy(() => import('./components/StudentDashboard'));
+const ForgotPassword = lazy(() => import('./features/account/ForgotPassword'));
+const ResetPassword = lazy(() => import('./features/account/ResetPassword'));
 
 function PageLoader() {
   return (
@@ -34,6 +36,8 @@ export default function App() {
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/recuperar-contrasena" element={<ForgotPassword />} />
+              <Route path="/restablecer-contrasena" element={<ResetPassword />} />
 
               <Route
                 path="/admin/*"
@@ -47,7 +51,7 @@ export default function App() {
               <Route
                 path="/dashboard/*"
                 element={
-                  <ProtectedRoute allowedRoles={['student']}>
+                  <ProtectedRoute allowedRoles={LEARNER_ROLES}>
                     <StudentDashboard />
                   </ProtectedRoute>
                 }

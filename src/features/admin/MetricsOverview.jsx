@@ -7,7 +7,7 @@ export default function MetricsOverview({
   totalStudents, 
   totalCourses, 
   pendingMessages, 
-  totalAdmins, 
+  totalAdvisors, 
   users, 
   calculateResidencyDays,
   tickets
@@ -48,9 +48,9 @@ export default function MetricsOverview({
 
         <div className="bg-bg-card/60 border border-border-main rounded-2xl p-5 relative overflow-hidden backdrop-blur-md shadow-sm">
           <div className="absolute right-4 top-4 text-emerald-500/20"><CheckCircle2 className="w-10 h-10 text-emerald-555 dark:text-emerald-400" /></div>
-          <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest font-mono">Administradores</span>
-          <h3 className="text-3xl font-black text-emerald-600 dark:text-emerald-400 mt-2 font-mono">{totalAdmins}</h3>
-          <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider font-mono mt-2">Control total del sistema</p>
+          <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest font-mono">Asesores</span>
+          <h3 className="text-3xl font-black text-emerald-600 dark:text-emerald-400 mt-2 font-mono">{totalAdvisors}</h3>
+          <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider font-mono mt-2">Formación interna de la firma</p>
         </div>
       </div>
 
@@ -66,11 +66,11 @@ export default function MetricsOverview({
           </p>
           
           <div className="space-y-4 font-mono">
-            {users.filter(u => u.role === 'student').length === 0 ? (
+            {users.filter(u => u.role === 'student' && u.active).length === 0 ? (
               <p className="text-xs text-text-muted text-center py-4 uppercase">No hay estudiantes registrados para el control fiscal.</p>
             ) : (
               users
-                .filter(u => u.role === 'student')
+                .filter(u => u.role === 'student' && u.active)
                 .map(student => {
                   const days = student.arrivalDate ? calculateResidencyDays(student.arrivalDate, student.absencePeriods) : 0;
                   const isResident = isFiscalResident(days);

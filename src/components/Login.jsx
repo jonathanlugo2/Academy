@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../utils/supabaseClient';
 import { homePathFor } from '../lib/roles';
@@ -129,9 +129,14 @@ export default function Login() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-text-main mb-2">
-                Contraseña
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-semibold text-text-main">
+                  Contraseña
+                </label>
+                <Link to="/recuperar-contrasena" className="text-xs font-semibold text-text-active hover:underline">
+                  ¿Has olvidado tu contraseña?
+                </Link>
+              </div>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                 <input
@@ -139,6 +144,7 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
+                  autoComplete="current-password"
                   required
                   className="w-full bg-bg-input border border-border-main focus:border-border-hover focus:shadow-[0_0_0_3px_rgba(15,117,188,0.2)] rounded-xl pl-11 pr-4 py-3 text-sm text-text-main placeholder-text-muted focus:outline-none transition-all duration-200"
                 />
@@ -162,7 +168,7 @@ export default function Login() {
           </form>
 
           <p className="mt-5 text-xs text-text-muted leading-relaxed">
-            Si no puedes acceder, contacta con administración para validar tus permisos de cuenta.
+            ¿Primera vez? Usa el enlace de tu correo de invitación o la contraseña temporal que te ha facilitado administración.
           </p>
         </section>
       </div>

@@ -8,7 +8,8 @@ export default function StudentSidebar({
   isSidebarCollapsed, 
   setIsSidebarCollapsed, 
   activeTab, 
-  setActiveTab
+  setActiveTab,
+  showSupport = true
 }) {
 
   return (
@@ -71,29 +72,31 @@ export default function StudentSidebar({
         </button>
 
         {/* Botón: Soporte */}
-        <button
-          onClick={() => setActiveTab('support')}
-          className={`flex flex-col justify-center items-center py-1 px-2 h-full w-24 rounded-xl transition-all cursor-pointer font-mono md:flex-row md:items-center md:h-auto md:py-2.5 md:rounded-xl md:border ${
-            isSidebarCollapsed 
-              ? 'md:w-12 md:h-12 md:justify-center md:p-0 md:self-center' 
-              : 'md:w-full md:justify-start md:px-3'
-          } ${
-            activeTab === 'support' 
-              ? 'bg-bg-active text-text-active border border-border-active shadow-[0_0_12px_rgba(15,117,188,0.08)]' 
-              : 'text-text-muted border-transparent hover:bg-bg-input hover:text-text-main'
-          }`}
-          title={isSidebarCollapsed ? "Canal de Soporte" : undefined}
-        >
-          <MessageSquare className={`${isSidebarCollapsed ? 'md:m-0' : 'md:mr-3'} h-5 w-5 shrink-0`} />
-          {!isSidebarCollapsed && (
-            <span className="hidden md:inline whitespace-nowrap transition-opacity duration-300 text-xs font-semibold uppercase tracking-wider">
-              Canal de Soporte
-            </span>
-          )}
+        {showSupport && (
+          <button
+            onClick={() => setActiveTab('support')}
+            className={`flex flex-col justify-center items-center py-1 px-2 h-full w-24 rounded-xl transition-all cursor-pointer font-mono md:flex-row md:items-center md:h-auto md:py-2.5 md:rounded-xl md:border ${
+              isSidebarCollapsed 
+                ? 'md:w-12 md:h-12 md:justify-center md:p-0 md:self-center' 
+                : 'md:w-full md:justify-start md:px-3'
+            } ${
+              activeTab === 'support' 
+                ? 'bg-bg-active text-text-active border border-border-active shadow-[0_0_12px_rgba(15,117,188,0.08)]' 
+                : 'text-text-muted border-transparent hover:bg-bg-input hover:text-text-main'
+            }`}
+            title={isSidebarCollapsed ? "Canal de Soporte" : undefined}
+          >
+            <MessageSquare className={`${isSidebarCollapsed ? 'md:m-0' : 'md:mr-3'} h-5 w-5 shrink-0`} />
+            {!isSidebarCollapsed && (
+              <span className="hidden md:inline whitespace-nowrap transition-opacity duration-300 text-xs font-semibold uppercase tracking-wider">
+                Canal de Soporte
+              </span>
+        )}
           <span className="inline md:hidden text-[9px] mt-0.5 tracking-tight font-medium font-sans">
             Soporte
           </span>
         </button>
+        )}
       </nav>
     </aside>
   );

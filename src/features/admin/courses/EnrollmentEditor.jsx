@@ -1,15 +1,17 @@
 import { useMemo, useState } from 'react';
 import { Save, Search, Users } from 'lucide-react';
 import { api } from '../../../services/api';
+import { LEARNER_ROLES, roleLabel } from '../../../lib/roles';
 import { Panel, Spinner, primaryButton, secondaryButton, smallInputClass } from './ui';
 
-// Alumnos con acceso a la formación. Se guarda de una vez (RPC atómica).
+// Alumnos y asesores con acceso a la formación. Se guarda de una vez (RPC atómica).
+// Los usuarios dados de baja no aparecen, pero conservan su inscripción.
 export default function EnrollmentEditor({ course, users, onChanged, onError }) {
   const [selected, setSelected] = useState(() => new Set(course.studentIds));
   const [query, setQuery] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const students = useMemo(() => users.filter(u => u.role === 'student'), [users]);
+  const students = useMemo(() => users.filter(u => LEARNER_ROLES.includes(u.role) && u.active), [users]);
   const visible = students.filter(s =>
     `${s.name || ''} ${s.email || ''}`.toLowerCase().includes(query.trim().toLowerCase()));
   const dirty = selected.size !== course.studentIds.length || course.studentIds.some(id => !selected.has(id));
@@ -34,7 +36,7 @@ export default function EnrollmentEditor({ course, users, onChanged, onError }) 
 
   return (
     <Panel
-      title={`Alumnos con acceso · ${selected.size} de ${students.length}`}
+      title={`Alumnos y asesores con acceso · ${students.filter(s => selected.has(s.id)).length} de ${students.length}`}
       icon={Users}
       actions={(
         <div className="flex gap-2">
@@ -61,11 +63,12 @@ export default function EnrollmentEditor({ course, users, onChanged, onError }) 
                 <span className="block text-xs font-bold text-text-main truncate">{s.name}</span>
                 <span className="block text-[9px] text-text-muted font-mono truncate">{s.email}</span>
               </span>
+              <span className="text-[8px] font-bold text-text-muted font-mono uppercase border border-border-main rounded px-1.5 py-0.5">{roleLabel(s.role)}</span>
             </label>
           </li>
         ))}
         {visible.length === 0 && (
-          <li className="text-[10px] text-text-muted font-mono uppercase text-center py-4">No hay alumnos que coincidan</li>
+          <li className="text-[10px] text-text-muted font-mono uppercase text-center py-4">No hay usuarios que coincidan</li>
         )}
       </ul>
       <div className="flex justify-end">

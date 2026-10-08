@@ -67,6 +67,7 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA tests TO anon, authenticated;
 -- admin ........ 00000000-0000-0000-0000-00000000000a
 -- alumno A ..... 00000000-0000-0000-0000-0000000000a1
 -- alumno B ..... 00000000-0000-0000-0000-0000000000b1
+-- asesor D ..... 00000000-0000-0000-0000-0000000000d1
 
 -- El modelo antiguo de recursos está retirado (20261007130000)
 SELECT tests.ok(to_regclass('public.resources') IS NULL, 'la tabla resources ya no existe');
@@ -77,7 +78,20 @@ SELECT tests.ok(NOT has_schema_privilege('authenticated', 'archive', 'USAGE'), '
 INSERT INTO auth.users (id, email, raw_user_meta_data, raw_app_meta_data) VALUES
   ('00000000-0000-0000-0000-00000000000a', 'admin@test.local', '{"name":"Admin"}', '{"role":"admin"}'),
   ('00000000-0000-0000-0000-0000000000a1', 'a@test.local', '{"name":"Alumno A"}', '{}'),
-  ('00000000-0000-0000-0000-0000000000b1', 'b@test.local', '{"name":"Alumno B"}', '{}');
+  ('00000000-0000-0000-0000-0000000000b1', 'b@test.local', '{"name":"Alumno B"}', '{}'),
+  ('00000000-0000-0000-0000-0000000000d1', 'd@test.local', '{"name":"Asesor D"}', '{"role":"advisor"}');
+
+-- Cuentas
+SELECT tests.ok((SELECT role FROM public.profiles WHERE id = '00000000-0000-0000-0000-0000000000d1') = 'advisor',
+                'el alta crea el perfil de asesor con su rol');
+SELECT tests.ok((SELECT active AND NOT must_change_password FROM public.profiles WHERE id = '00000000-0000-0000-0000-0000000000a1'),
+                'un perfil nuevo nace activo');
+SELECT tests.throws($$INSERT INTO auth.users (id, email) VALUES ('00000000-0000-0000-0000-0000000000e1', 'A@TEST.local')$$,
+                    'no puede haber dos perfiles con el mismo correo');
+SELECT tests.ok((SELECT has_profile FROM public.admin_find_account('A@test.local')), 'admin_find_account encuentra la cuenta sin distinguir mayúsculas');
+SELECT tests.ok(NOT has_function_privilege('authenticated', 'public.admin_find_account(text)', 'EXECUTE'),
+                'admin_find_account no es accesible desde la API');
+SELECT tests.ok(to_regprocedure('public.admin_delete_user(uuid)') IS NULL, 'admin_delete_user ya no existe');
 
 INSERT INTO storage.objects (bucket_id, name) VALUES
   ('support-attachments', 'ticket-uploads/00000000-0000-0000-0000-0000000000a1/a.pdf'),
@@ -122,6 +136,12 @@ SELECT tests.throws($$UPDATE public.profiles SET nie = 'X0000000T' WHERE id = au
                     'A no puede cambiar su NIE');
 SELECT tests.throws($$UPDATE public.profiles SET role = 'admin' WHERE id = auth.uid()$$,
                     'A no puede hacerse admin');
+SELECT tests.throws($$UPDATE public.profiles SET active = false WHERE id = auth.uid()$$,
+                    'A no puede cambiar el estado de su cuenta');
+SELECT tests.throws($$UPDATE public.profiles SET must_change_password = true WHERE id = auth.uid()$$,
+                    'A no puede tocar must_change_password con un UPDATE');
+SELECT tests.throws($$UPDATE public.profiles SET role = 'advisor' WHERE id = auth.uid()$$,
+                    'A no puede cambiar de rol');
 SELECT tests.throws($$UPDATE public.profiles SET absences = 10 WHERE id = auth.uid()$$,
                     'A ya no puede editar la columna antigua de ausencias');
 SELECT tests.ok((SELECT count(*) FROM public.absence_periods) = 1, 'A solo ve sus ausencias');
@@ -168,8 +188,22 @@ SELECT tests.throws($$SELECT public.create_ticket('Link', 'x', 'http://inseguro.
 SELECT tests.throws($$SELECT public.create_ticket('', 'x')$$, 'asunto vacío rechazado');
 SELECT tests.ok((SELECT count(*) FROM public.tickets) = 1, 'los intentos fallidos no dejan tickets huérfanos');
 
-SELECT tests.throws($$SELECT public.admin_delete_user('00000000-0000-0000-0000-0000000000b1')$$,
-                    'A no puede borrar usuarios');
+RESET ROLE;
+
+-- Cambio de contraseña obligatorio
+UPDATE public.profiles SET must_change_password = true WHERE id = '00000000-0000-0000-0000-0000000000a1';
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', true);
+SELECT public.complete_password_change();
+SELECT tests.ok((SELECT NOT must_change_password FROM public.profiles WHERE id = auth.uid()),
+                'A marca su contraseña como cambiada');
+RESET ROLE;
+
+-- Asesor D: sin soporte
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000d1', true);
+SELECT tests.throws($$SELECT public.create_ticket('Duda', 'Contenido')$$, 'un asesor no puede abrir tickets');
+SELECT tests.ok((SELECT count(*) FROM public.profiles) = 1, 'D solo ve su perfil');
 RESET ROLE;
 
 -- Alumno B: lectura de adjunto antiguo (URL pública) de su propio ticket --------
@@ -234,6 +268,16 @@ SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', true);
 SELECT tests.ok((SELECT array_agg(title ORDER BY title) FROM public.courses) = ARRAY['Formación 1'],
                 'A solo ve la formación publicada en la que está inscrito');
+RESET ROLE;
+UPDATE public.profiles SET active = false WHERE id = '00000000-0000-0000-0000-0000000000a1';
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', true);
+SELECT tests.ok((SELECT count(*) FROM public.courses) = 0, 'un usuario dado de baja no ve formaciones');
+SELECT tests.ok((SELECT count(*) FROM storage.objects WHERE name LIKE 'courses/%') = 0, 'ni sus ficheros');
+RESET ROLE;
+UPDATE public.profiles SET active = true WHERE id = '00000000-0000-0000-0000-0000000000a1';
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', true);
 SELECT tests.ok((SELECT count(*) FROM public.course_sections) = 2, 'A solo ve los capítulos de f1');
 SELECT tests.ok((SELECT count(*) FROM public.lessons) = 3, 'A solo ve las lecciones de f1');
 SELECT tests.ok((SELECT count(*) FROM public.course_materials) = 2, 'A solo ve los materiales de f1');
@@ -286,6 +330,12 @@ SELECT public.set_course_enrollments('00000000-0000-0000-0000-0000000000f2',
   ARRAY['00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-00000000000a']::UUID[]);
 SELECT tests.ok((SELECT count(*) FROM public.course_enrollments WHERE course_id = '00000000-0000-0000-0000-0000000000f2') = 2,
                 'admin inscribe a A y B en f2 (los admins se ignoran)');
+SELECT public.set_course_enrollment('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-0000000000f2', true);
+SELECT tests.ok(EXISTS (SELECT 1 FROM public.course_enrollments
+                        WHERE course_id = '00000000-0000-0000-0000-0000000000f2'
+                          AND student_id = '00000000-0000-0000-0000-0000000000d1'),
+                'admin inscribe a un asesor');
+SELECT public.set_course_enrollment('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-0000000000f2', false);
 SELECT public.set_course_enrollments('00000000-0000-0000-0000-0000000000f2', ARRAY['00000000-0000-0000-0000-0000000000b1']::UUID[]);
 SELECT tests.ok(NOT EXISTS (SELECT 1 FROM public.course_enrollments
                             WHERE course_id = '00000000-0000-0000-0000-0000000000f2'
@@ -294,7 +344,7 @@ SELECT tests.ok(NOT EXISTS (SELECT 1 FROM public.course_enrollments
 SELECT public.set_course_enrollment('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000f2', true);
 SELECT tests.ok((SELECT count(*) FROM public.course_enrollments WHERE course_id = '00000000-0000-0000-0000-0000000000f2') = 2,
                 'admin activa f2 a A desde su ficha');
-SELECT tests.ok((SELECT count(*) FROM public.audit_logs WHERE action = 'course_enrollments_changed') = 3,
+SELECT tests.ok((SELECT count(*) FROM public.audit_logs WHERE action = 'course_enrollments_changed') = 5,
                 'los cambios de inscripción quedan auditados');
 SELECT public.reorder_course_sections('00000000-0000-0000-0000-0000000000f1',
   ARRAY['00000000-0000-0000-0000-000000000052', '00000000-0000-0000-0000-000000000051']::UUID[]);
@@ -335,17 +385,20 @@ SELECT tests.throws($$INSERT INTO public.absence_periods (student_id, start_date
 SELECT tests.throws($$INSERT INTO public.absence_periods (student_id, start_date, end_date)
                       VALUES ('00000000-0000-0000-0000-0000000000a1', '2026-12-31', '2026-11-01')$$,
                     'ausencia con fechas invertidas rechazada');
-SELECT tests.throws($$SELECT public.admin_delete_user('00000000-0000-0000-0000-00000000000a')$$,
-                    'admin no puede borrarse a sí mismo');
-SELECT public.admin_delete_user('00000000-0000-0000-0000-0000000000b1');
-SELECT tests.ok(NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = '00000000-0000-0000-0000-0000000000b1'),
-                'admin_delete_user elimina el perfil');
-SELECT tests.ok((SELECT count(*) FROM public.audit_logs WHERE action = 'user_deleted') = 1,
-                'el borrado queda auditado');
+SELECT tests.affects($$UPDATE public.profiles SET active = false, deactivated_at = now() WHERE id = '00000000-0000-0000-0000-0000000000b1'$$, 1,
+                     'admin puede dar de baja a un usuario');
+SELECT tests.throws($$UPDATE public.profiles SET role = 'otro' WHERE id = '00000000-0000-0000-0000-0000000000b1'$$,
+                    'solo se admiten los roles admin, student y advisor');
 RESET ROLE;
 
-SELECT tests.ok(NOT EXISTS (SELECT 1 FROM auth.users WHERE id = '00000000-0000-0000-0000-0000000000b1'),
-                'admin_delete_user elimina también la cuenta de Auth');
+-- Borrar la cuenta de Auth (lo que hace auth.admin.deleteUser) libera el correo
+DELETE FROM auth.users WHERE id = '00000000-0000-0000-0000-0000000000b1';
+SELECT tests.ok(NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = '00000000-0000-0000-0000-0000000000b1'),
+                'borrar la cuenta de Auth borra el perfil');
+INSERT INTO auth.users (id, email, raw_user_meta_data) VALUES
+  ('00000000-0000-0000-0000-0000000000b2', 'b@test.local', '{"name":"Alumno B"}');
+SELECT tests.ok(EXISTS (SELECT 1 FROM public.profiles WHERE id = '00000000-0000-0000-0000-0000000000b2'),
+                'el correo de un usuario borrado se puede volver a dar de alta');
 
 -- Mantenimiento (service_role / SQL editor) sigue pudiendo cambiar roles -----
 SELECT tests.affects($$UPDATE public.profiles SET role = 'admin' WHERE id = '00000000-0000-0000-0000-0000000000a1'$$, 1,
