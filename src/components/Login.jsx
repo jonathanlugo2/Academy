@@ -88,7 +88,7 @@ export default function Login() {
               <BriefcaseBusiness className="w-5 h-5 text-emerald-500 mt-0.5 shrink-0" />
               <div>
                 <p className="text-sm font-semibold text-text-title">Asesores de Asidne</p>
-                <p className="text-xs text-text-muted">Formación interna de la firma: procedimientos, criterios y actualizaciones normativas.</p>
+                <p className="text-xs text-text-muted">Cursos y formaciones internas de la firma para el equipo de asesores.</p>
               </div>
             </div>
           </div>
