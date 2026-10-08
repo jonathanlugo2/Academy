@@ -124,18 +124,24 @@ async function sendRecovery(ctx: Context, email: string) {
 async function createUser(ctx: Context) {
   const input = parseNewUser(ctx.body);
 
-  const { data: existing, error: existingError } = await ctx.admin
+  // Auth guarda los correos en minúsculas y handle_new_user los copia tal cual
+  const { data: matches, error: existingError } = await ctx.admin
     .from('profiles')
-    .select('id, active')
-    .ilike('email', input.email.replace(/[\\%_]/g, (c) => `\\${c}`))
-    .maybeSingle();
-  if (existingError) throw new HttpError(500, 'No se pudo comprobar el correo');
+    .select('id, email, active')
+    .eq('email', input.email)
+    .limit(1);
+  if (existingError) {
+    console.error('Email check error:', existingError.message);
+    throw new HttpError(500, 'No se pudo comprobar el correo');
+  }
+  const existing = matches?.[0];
   if (existing) {
+    console.warn('Alta rechazada: el correo ya tiene perfil', { email: input.email, profileId: existing.id });
     throw new HttpError(
       409,
       existing.active
-        ? 'Ya existe un usuario con ese correo electrónico'
-        : 'Ese correo pertenece a un usuario dado de baja: reactívalo desde la lista de usuarios',
+        ? `Ya existe un usuario con el correo ${input.email}`
+        : `${input.email} pertenece a un usuario dado de baja: reactívalo desde la lista de usuarios`,
       'email_exists',
     );
   }
