@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../utils/supabaseClient';
 import { homePathFor } from '../lib/roles';
-import { Mail, Lock, ArrowRight, ShieldAlert, GraduationCap, Building2, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, ArrowRight, ShieldAlert, GraduationCap, Globe, BriefcaseBusiness } from 'lucide-react';
 
 export default function Login() {
   const { user, login } = useAuth();
@@ -64,31 +64,31 @@ export default function Login() {
               </div>
               <div>
                 <p className="text-sm font-semibold text-text-title">ExpatFiscal Academy</p>
-                <p className="text-xs text-text-muted">Formación y acompañamiento en España</p>
+                <p className="text-xs text-text-muted">El campus de formación de Asidne</p>
               </div>
             </div>
 
             <h1 className="text-3xl md:text-4xl font-bold text-text-title leading-tight">
-              Tu campus profesional para instalarte en España con claridad.
+              Un solo campus para quienes llegan a España y para quienes les asesoran.
             </h1>
             <p className="mt-4 text-text-main text-sm leading-relaxed max-w-md">
-              Accede a recursos guiados sobre residencia, fiscalidad y herramientas prácticas para expatriados.
+              La plataforma de formación de Asidne para los nómadas digitales que acompañamos y para el equipo de asesores de la firma.
             </p>
           </div>
 
           <div className="mt-10 space-y-4">
             <div className="flex items-start gap-3 rounded-2xl border border-border-main bg-bg-input/40 p-4">
-              <GraduationCap className="w-5 h-5 text-indigo-500 mt-0.5" />
+              <Globe className="w-5 h-5 text-indigo-500 mt-0.5 shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-text-title">Contenido educativo</p>
-                <p className="text-xs text-text-muted">Documentos, vídeos y guías prácticas adaptadas al perfil expatriado.</p>
+                <p className="text-sm font-semibold text-text-title">Nómadas digitales</p>
+                <p className="text-xs text-text-muted">Guías de residencia, fiscalidad y trámites, tu dossier fiscal con el control de los 183 días y soporte directo con Asidne.</p>
               </div>
             </div>
             <div className="flex items-start gap-3 rounded-2xl border border-border-main bg-bg-input/40 p-4">
-              <CheckCircle2 className="w-5 h-5 text-emerald-500 mt-0.5" />
+              <BriefcaseBusiness className="w-5 h-5 text-emerald-500 mt-0.5 shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-text-title">Método paso a paso</p>
-                <p className="text-xs text-text-muted">Planifica tus trámites con una ruta formativa ordenada.</p>
+                <p className="text-sm font-semibold text-text-title">Asesores de Asidne</p>
+                <p className="text-xs text-text-muted">Formación interna de la firma: procedimientos, criterios y actualizaciones normativas.</p>
               </div>
             </div>
           </div>
@@ -96,9 +96,14 @@ export default function Login() {
 
         <section className="cyber-panel rounded-3xl p-8 md:p-10 border border-border-main">
           <div className="mb-8">
-            <p className="text-xs font-semibold uppercase tracking-widest text-text-muted">Acceso seguro</p>
+            {/* En móvil no se ve el panel izquierdo: la marca y el público van aquí */}
+            <div className="lg:hidden inline-flex items-center gap-2 mb-6 text-text-title">
+              <GraduationCap className="w-5 h-5 text-text-active" />
+              <span className="text-sm font-semibold">ExpatFiscal Academy · Asidne</span>
+            </div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-text-muted">Nómadas y asesores de Asidne</p>
             <h2 className="mt-2 text-2xl font-bold text-text-title">Iniciar sesión</h2>
-            <p className="mt-2 text-sm text-text-muted">Introduce tus credenciales para continuar en la plataforma.</p>
+            <p className="mt-2 text-sm text-text-muted">Entra con el correo con el que Asidne te dio de alta.</p>
           </div>
 
           {/* Alerta de Error */}
