@@ -186,6 +186,10 @@ function absenceErrorMessage(error) {
 async function adminUsers(action, body = {}) {
   const { data, error } = await supabase.functions.invoke('admin-users', { body: { action, ...body } });
   if (error) {
+    // Sin respuesta: red caída o el navegador bloqueó la llamada (CORS / ALLOWED_ORIGINS)
+    if (error.name === 'FunctionsFetchError') {
+      throw new Error('No se pudo contactar con el servidor de cuentas. Revisa tu conexión; si usas la app en local, añade su dirección a ALLOWED_ORIGINS.');
+    }
     const payload = await error.context?.json?.().catch(() => null);
     throw new Error(payload?.error || 'No se pudo completar la operación.');
   }
